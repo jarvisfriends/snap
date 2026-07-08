@@ -1,0 +1,13 @@
+# Editor defaults: UTF-8 + LF everywhere (pairs with .gitattributes).
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+
+[*.go]
+indent_style = tab
+
+[*.{bat,cmd}]
+end_of_line = crlf

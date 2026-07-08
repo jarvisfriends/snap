@@ -1,0 +1,26 @@
+# All text files use LF line endings — in the repo and in the working tree.
+# Git auto-detects binaries; the explicit entries below are belt-and-braces.
+* text=auto eol=lf
+
+# Windows cmd interpreter requires CRLF for batch files (goto/label parsing).
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Common binary types — never translate line endings.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.exe binary
+*.dll binary
+*.so binary
+*.dylib binary
+*.syso binary
+*.zip binary
+*.gz binary
+*.db binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.pdf binary

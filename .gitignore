@@ -1,0 +1,10 @@
+# Binaries
+*.exe
+*.test
+*.out
+
+# Env and IDE
+.env
+.idea/
+.history/
+dist/
