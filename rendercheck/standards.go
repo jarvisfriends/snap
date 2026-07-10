@@ -568,7 +568,6 @@ func sameNode(n ast.Node, e ast.Expr) bool {
 	return e != nil && n == ast.Node(e)
 }
 
-
 func CheckDescriptiveStructNames(t *testing.T, patterns ...string) {
 	t.Helper()
 

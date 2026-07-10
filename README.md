@@ -19,13 +19,15 @@ the runtime debugger for any Charm-based app.
 | `datepicker/` | Calendar date picker (formerly `bubble-datepicker`) | `datepicker` | **moved 2026-07-09** |
 | `timepicker/` | Time picker | `timepicker` | **moved 2026-07-09** — UX redesign tracked in tui-base ROADMAP SP-8 |
 | `dependencies/` | Build-info / dependency reader for about views | `common/dependencies.go` | **moved 2026-07-09** |
-| `table/` | Data table with selection + scrolling | `table` | pending style-hook decoupling (SP-6) |
-| `navigation/tabs/` | Tab-bar navigator | `navigation` | placeholder (SP-5) |
-| `navigation/sidebar/` | Sidebar navigator | `navigation` | placeholder (SP-5) |
-| `navigation/minimal-top/` | Slim top-nav navigator | `navigation` | placeholder (SP-5) |
+| `table/` | Data table with selection + scrolling | `table` | **moved 2026-07-10** (wholesale wave) |
+| `navigation/` | Tabs, Sidebar, and minimal-top navigators (one package; per-style folders tracked in tui-base SP-5) | `navigation` | **moved 2026-07-10** (wholesale wave) |
 | `pickers/` | Drive-aware DirPicker + MultiFileEditor (multi-path rows, per-row pickers) | `pages/settings` | **moved 2026-07-09** — style hooks + huh-theme/collapse-path injection |
 | `logging/` | UI-bound logger with subscriber fan-out | `logging` | placeholder — shape depends on the zap decision (tui-base SP-10) |
-| `status/` | Status bar with segments + notifications | `status` | placeholder (X-4) |
+| `status/` | Status bar with segments, info modal, notification surfaces | `status` | **moved 2026-07-10** (wholesale wave) |
+| `notifications/` | Notification manager: severity, TTL, actions, persistence | `notifications` | **moved 2026-07-10** (wholesale wave) |
+| `page/` | Shared page base (sizing + colors) for full-page components | `page` | **moved 2026-07-10** (wholesale wave) |
+| `styles/` | The shared style contract: semantic AppStyle palette, derived lipgloss styles, bubbletint mapping, presets, YAML themes | `theme` | **moved 2026-07-10** (wholesale wave) — tui-base's theme package is now aliases over this |
+| `charts/` | Sparklines, bars, pie/sankey, braille line charts + Canvas | dash `creator` | **moved 2026-07-10** (wholesale wave) |
 
 The three navigation styles live side by side because they satisfy the same
 navigator contract; an app can swap between them at runtime.

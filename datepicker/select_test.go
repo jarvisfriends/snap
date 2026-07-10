@@ -50,15 +50,16 @@ func TestHighlightedDayIsVisiblyDistinct(t *testing.T) {
 	}
 }
 
-// TestDefaultHighlightIsInverted documents the visibility decision: the
-// default styles render the highlighted day with reversed colors, not just
-// bold (bold alone is indistinguishable in many terminals).
-func TestDefaultHighlightIsInverted(t *testing.T) {
+// TestDefaultHighlightIsVisiblyDistinct documents the visibility decision:
+// the cursor day renders in the accent color + bold (the look chosen for the
+// demo gifs), and a confirmed selection renders reversed — neither may fall
+// back to plain text, which is indistinguishable in many terminals.
+func TestDefaultHighlightIsVisiblyDistinct(t *testing.T) {
 	t.Parallel()
 
 	st := DefaultStyles()
-	if !st.FocusedText.GetReverse() {
-		t.Error("FocusedText must default to reversed colors")
+	if !st.FocusedText.GetBold() || st.FocusedText.GetForeground() == st.Text.GetForeground() {
+		t.Error("FocusedText must default to a bold accent distinct from Text")
 	}
 	if !st.SelectedText.GetReverse() {
 		t.Error("SelectedText must default to reversed colors")
