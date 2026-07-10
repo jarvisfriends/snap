@@ -154,9 +154,18 @@ Swept: `w`, `anvil`, `verify_setup`, `weaver_base`, `brick-breaker`,
   `Percent` field for progress-bar notifications; snap/notifications has no
   progress concept. Add Percent + a bar renderer (charts.HBar) to the
   notification model and history panel.
-- [ ] **Badge/pill styles** — aSettings `pages/ui/badges.go` BadgeStyle +
-  categorical palette. Generic pill helper belongs in `styles`; the
-  Catppuccin categorical palette stays app-side.
+- [x] Done 2026-07-10: **Badge/pill styles** — `styles/pill.go`. Six
+  user-selectable `PillShape`s (string-preset pattern like `StylePreset`):
+  Round half-circles (default), Arrow, Slant, Flame — Powerline-extras
+  glyphs, `NeedsNerdFont()` — plus pure-Unicode Block and padded Plain.
+  `Pill` renders one badge, `SegmentedPill` divides one pill by color
+  (solid divider = prev bg over next bg, thin variant when bgs match),
+  `Breadcrumbs` joins items on the thin glyph; nil Fg auto-picks
+  black/white by bg luminance. `examples/pills` demos every shape as
+  badges, segmented status runs, nav items, and breadcrumbs. The
+  Catppuccin categorical palette stays app-side (demo hardcodes its own).
+  NOTE: examples/pills/demo.gif is not rendered yet — this machine has no
+  Docker/Podman; run `go -C tools/rendertapes run .` where one exists.
 - [ ] **Box layout helpers** — w `ui/shared/layout.go` (ContentOrigin,
   InnerSize, RenderInBox). Check overlap with page/geom before porting.
 - [ ] **Input parse helpers** — w `ui/shared/input_validation.go`
