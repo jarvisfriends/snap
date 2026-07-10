@@ -23,7 +23,7 @@ the runtime debugger for any Charm-based app.
 | `navigation/tabs/` | Tab-bar navigator | `navigation` | placeholder (SP-5) |
 | `navigation/sidebar/` | Sidebar navigator | `navigation` | placeholder (SP-5) |
 | `navigation/minimal-top/` | Slim top-nav navigator | `navigation` | placeholder (SP-5) |
-| `pickers/` | Directory/file pickers incl. multi-select | `pages/settings` | planned (SP-7) |
+| `pickers/` | Drive-aware DirPicker + MultiFileEditor (multi-path rows, per-row pickers) | `pages/settings` | **moved 2026-07-09** — style hooks + huh-theme/collapse-path injection |
 | `logging/` | UI-bound logger with subscriber fan-out | `logging` | placeholder — shape depends on the zap decision (tui-base SP-10) |
 | `status/` | Status bar with segments + notifications | `status` | placeholder (X-4) |
 
