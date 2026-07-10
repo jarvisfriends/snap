@@ -16,6 +16,13 @@ type demoApp struct{ dp *datepicker.DatePickerModel }
 func (a demoApp) Init() tea.Cmd { return a.dp.Init() }
 
 func (a demoApp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	// Mouse events reach the component through the root view's OnMouse
+	// (Bubble Tea delivers the raw event to BOTH OnMouse and Update);
+	// forwarding them here too would double-process every click — the first
+	// click would highlight AND select.
+	if _, isMouse := msg.(tea.MouseMsg); isMouse {
+		return a, nil
+	}
 	if k, ok := msg.(tea.KeyPressMsg); ok {
 		if s := k.String(); s == "q" || s == "ctrl+c" {
 			return a, tea.Quit

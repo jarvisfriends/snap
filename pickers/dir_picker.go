@@ -7,7 +7,9 @@ import (
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+
 	"github.com/charmbracelet/x/ansi"
+	"github.com/jarvisfriends/snap/uifx"
 )
 
 // overlayContentWidth returns how many columns a model hosted in a
@@ -100,6 +102,18 @@ type DirPicker struct {
 	// CollapsePath, when set, shortens the displayed directory (e.g.
 	// substituting %USERPROFILE% or ~). Defaults to showing the full path.
 	CollapsePath func(string) string
+
+	// Effects selects the interaction-feedback tier (see uifx.Level):
+	// hover highlighting renders only at LevelHigh, drag tracking at
+	// LevelMedium and above.
+	Effects uifx.Level
+
+	// Mouse hit-zone geometry recorded during View: the y of the first
+	// visible row and the list width. Row i on screen is entries[scrollTop+i].
+	rowsTopY  int
+	rowsWidth int
+	// hoverRow is the entries index under the pointer (-1 none; LevelHigh).
+	hoverRow int
 }
 
 // NewDirPicker returns a picker browsing from initial: the value itself when
@@ -123,9 +137,10 @@ func NewDirPicker(initial string) *DirPicker {
 		dir = abs
 	}
 	return &DirPicker{
-		Styles: DefaultStyles(),
-		dir:    dir,
-		KeyMap: DefaultDirPickerKeyMap(),
+		Styles:   DefaultStyles(),
+		hoverRow: -1,
+		dir:      dir,
+		KeyMap:   DefaultDirPickerKeyMap(),
 	}
 }
 
@@ -239,8 +254,111 @@ func (m *DirPicker) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.Done = true
 			}
 		}
+
+	case tea.MouseClickMsg:
+		return m, m.handleClick(msg.Mouse())
+
+	case tea.MouseWheelMsg:
+		return m, m.handleWheel(msg.Mouse())
+
+	case tea.MouseMotionMsg:
+		m.handleMotion(msg.Mouse())
+
+	case tea.MouseReleaseMsg:
+		// releases end drags; nothing to track beyond motion state
 	}
 	return m, nil
+}
+
+// rowAt maps a content-relative y to an entries index, or -1.
+func (m *DirPicker) rowAt(x, y int) int {
+	if x < 0 || x >= m.rowsWidth || y < m.rowsTopY {
+		return -1
+	}
+	i := m.scrollTop + (y - m.rowsTopY)
+	if i < m.scrollTop+m.listHeight() && i < len(m.entries) {
+		return i
+	}
+	return -1
+}
+
+// handleClick: clicking a row moves the highlight there; clicking the
+// already-highlighted row opens it (mirroring the datepicker's
+// click-to-highlight, click-again-to-act convention).
+func (m *DirPicker) handleClick(me tea.Mouse) tea.Cmd {
+	if me.Button != tea.MouseLeft {
+		return nil
+	}
+	i := m.rowAt(me.X, me.Y)
+	if i < 0 {
+		return nil
+	}
+	if i == m.cursor {
+		return readDirCmd(filepath.Join(m.dir, m.entries[i]))
+	}
+	m.cursor = i
+	m.ensureCursorVisible()
+	return nil
+}
+
+// handleWheel: up/down move the highlight; left goes to the parent
+// directory, right opens the highlighted one — the wheel alone can walk the
+// whole tree.
+func (m *DirPicker) handleWheel(me tea.Mouse) tea.Cmd {
+	switch me.Button {
+	case tea.MouseWheelUp:
+		if m.cursor > 0 {
+			m.cursor--
+		}
+		m.ensureCursorVisible()
+	case tea.MouseWheelDown:
+		if m.cursor < len(m.entries)-1 {
+			m.cursor++
+		}
+		m.ensureCursorVisible()
+	case tea.MouseWheelLeft:
+		return m.navigateBack()
+	case tea.MouseWheelRight:
+		if m.cursor < len(m.entries) {
+			return readDirCmd(filepath.Join(m.dir, m.entries[m.cursor]))
+		}
+	}
+	return nil
+}
+
+// handleMotion: while the left button is held the highlight follows the
+// pointer (LevelMedium+); with no button held the hovered row is tracked for
+// the LevelHigh hover highlight.
+func (m *DirPicker) handleMotion(me tea.Mouse) {
+	i := m.rowAt(me.X, me.Y)
+	if me.Button == tea.MouseLeft {
+		if m.Effects.Drag() && i >= 0 {
+			m.cursor = i
+			m.ensureCursorVisible()
+		}
+		return
+	}
+	if m.Effects.Hover() {
+		m.hoverRow = i
+	}
+}
+
+// navigateBack mirrors the Back key: parent directory, or the drive list at
+// a filesystem root.
+func (m *DirPicker) navigateBack() tea.Cmd {
+	if m.dir == "" {
+		return nil
+	}
+	if parent := filepath.Dir(m.dir); parent != m.dir {
+		return readDirCmd(parent)
+	}
+	if drives := listDrives(); len(drives) > 0 {
+		m.dir = ""
+		m.entries = drives
+		m.cursor, m.scrollTop = 0, 0
+		m.err = nil
+	}
+	return nil
 }
 
 // listHeight returns how many directory rows fit between the header and help
@@ -287,8 +405,13 @@ func (m *DirPicker) View() tea.View {
 		end := min(m.scrollTop+h, len(m.entries))
 		for i := m.scrollTop; i < end; i++ {
 			prefix, style := "  ", normStyle
-			if m.cursor == i {
+			switch {
+			case m.cursor == i:
 				prefix, style = "▶ ", selStyle
+			case m.Effects.Hover() && m.hoverRow == i:
+				// LevelHigh: the row under the pointer renders underlined so
+				// the click target reads before committing.
+				style = normStyle.Underline(true)
 			}
 			rows = append(rows, fitLine(style.Render(prefix+m.entries[i]), maxW))
 		}
@@ -300,5 +423,21 @@ func (m *DirPicker) View() tea.View {
 	))
 
 	body := lipgloss.JoinVertical(lipgloss.Left, rows...)
-	return tea.NewView(lipgloss.JoinVertical(lipgloss.Left, title, current, body, help))
+	content := lipgloss.JoinVertical(lipgloss.Left, title, current, body, help)
+
+	// Record the row hit zones for the mouse handlers: rows start under the
+	// title and location lines.
+	m.rowsTopY = lipgloss.Height(title) + lipgloss.Height(current)
+	m.rowsWidth = maxW
+
+	v := tea.NewView(content)
+	// Route mouse through Update so hosts honoring View.OnMouse get clicks,
+	// wheel navigation, drag, and hover with no extra wiring. Hosts must
+	// deliver mouse via exactly one path (OnMouse or Update), never both —
+	// Bubble Tea itself sends the raw event to both at the root.
+	v.OnMouse = func(mm tea.MouseMsg) tea.Cmd {
+		_, cmd := m.Update(mm)
+		return cmd
+	}
+	return v
 }

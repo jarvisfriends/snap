@@ -15,6 +15,13 @@ type demoApp struct{ tf *timepicker.TimeFieldModel }
 func (a demoApp) Init() tea.Cmd { return a.tf.Init() }
 
 func (a demoApp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	// Mouse events reach the component through the root view's OnMouse
+	// (Bubble Tea delivers the raw event to BOTH OnMouse and Update);
+	// forwarding them here too would double-process every click — the first
+	// click would highlight AND select.
+	if _, isMouse := msg.(tea.MouseMsg); isMouse {
+		return a, nil
+	}
 	m, cmd := a.tf.Update(msg)
 	if tf, ok := m.(*timepicker.TimeFieldModel); ok {
 		a.tf = tf

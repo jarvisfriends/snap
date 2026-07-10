@@ -50,3 +50,21 @@ func TestDemoEnablesMouse(t *testing.T) {
 		t.Fatal("demo root view lost the component's OnMouse handler")
 	}
 }
+
+// TestDemoDoesNotDoubleProcessMouse is the regression test for the
+// double-delivery bug: Bubble Tea sends every mouse event to BOTH the root
+// view's OnMouse and Update, so the demo's Update must ignore mouse messages
+// (OnMouse owns them). Before this, one click highlighted AND selected.
+func TestDemoDoesNotDoubleProcessMouse(t *testing.T) {
+	t.Parallel()
+
+	a := demoApp{dp: datepicker.New(time.Date(2026, 7, 9, 0, 0, 0, 0, time.UTC))}
+	_ = a.View()
+	before := a.dp.Time
+	m, cmd := a.Update(tea.MouseClickMsg{X: 5, Y: 5, Button: tea.MouseLeft})
+	a = m.(demoApp)
+	if !a.dp.Time.Equal(before) || a.dp.Selected || cmd != nil {
+		t.Fatalf("demo Update processed a mouse event (time %v->%v selected=%v)",
+			before, a.dp.Time, a.dp.Selected)
+	}
+}

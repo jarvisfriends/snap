@@ -7,6 +7,8 @@ import (
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+
+	"github.com/jarvisfriends/snap/uifx"
 )
 
 type Field int
@@ -48,6 +50,11 @@ type TimePickerModel struct {
 	InactiveStyle lipgloss.Style
 	HelpStyle     lipgloss.Style
 
+	// Effects selects the interaction-feedback tier (see uifx.Level).
+	Effects uifx.Level
+	// hoverSeg is the segment under the pointer (-1 none; LevelHigh).
+	hoverSeg int
+
 	// segRects are the h/m/s cells' content-relative hit zones, recorded
 	// during View for click-to-focus.
 	segRects [3]cellRect
@@ -55,6 +62,7 @@ type TimePickerModel struct {
 
 func New(d time.Duration) *TimePickerModel {
 	return &TimePickerModel{
+		hoverSeg: -1,
 		Duration: d,
 		KeyMap:   DefaultKeyMap(),
 		Focused:  FieldHours,
@@ -102,10 +110,19 @@ func (m *TimePickerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.increment(-1)
 		}
 	case tea.MouseWheelMsg:
-		if msg.Mouse().Button == tea.MouseWheelUp {
+		switch msg.Mouse().Button {
+		case tea.MouseWheelUp:
 			m.increment(1)
-		} else {
+		case tea.MouseWheelDown:
 			m.increment(-1)
+		case tea.MouseWheelLeft:
+			if m.Focused > FieldHours {
+				m.Focused--
+			}
+		case tea.MouseWheelRight:
+			if m.Focused < FieldSeconds {
+				m.Focused++
+			}
 		}
 
 	case tea.MouseClickMsg:
@@ -115,6 +132,19 @@ func (m *TimePickerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			for i, r := range m.segRects {
 				if r.contains(me.X, me.Y) {
 					m.Focused = Field(i)
+					break
+				}
+			}
+		}
+
+	case tea.MouseMotionMsg:
+		// Hover (LevelHigh): track the segment under the pointer.
+		me := msg.Mouse()
+		if me.Button == tea.MouseNone && m.Effects.Hover() {
+			m.hoverSeg = -1
+			for i, r := range m.segRects {
+				if r.contains(me.X, me.Y) {
+					m.hoverSeg = i
 					break
 				}
 			}
@@ -185,6 +215,9 @@ func (m *TimePickerModel) View() tea.View {
 	styleFor := func(f Field) lipgloss.Style {
 		if m.Focused == f {
 			return m.ActiveStyle
+		}
+		if m.Effects.Hover() && int(f) == m.hoverSeg {
+			return m.InactiveStyle.Underline(true)
 		}
 		return m.InactiveStyle
 	}

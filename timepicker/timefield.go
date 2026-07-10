@@ -7,6 +7,8 @@ import (
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+
+	"github.com/jarvisfriends/snap/uifx"
 )
 
 // Side identifies one of the two time columns.
@@ -89,6 +91,13 @@ type TimeFieldModel struct {
 	// validation) when the column loses focus or the buffer fills.
 	typed string
 
+	// Effects selects the interaction-feedback tier (see uifx.Level).
+	Effects uifx.Level
+	// hoverSide is the column under the pointer (-1 none; LevelHigh).
+	hoverSide Side
+	// hoverRow is the dropdown value under the pointer (-1 none; LevelHigh).
+	hoverRow int
+
 	// Hit zones recorded during View (component-relative).
 	hourRect, minuteRect cellRect
 	rowRects             []cellRect // visible dropdown rows, top first
@@ -98,11 +107,13 @@ type TimeFieldModel struct {
 // (values are clamped into range).
 func NewTimeField(hour, minute int) *TimeFieldModel {
 	m := &TimeFieldModel{
-		Hour:    clamp(hour, 0, 23),
-		Minute:  clamp(minute, 0, 59),
-		KeyMap:  DefaultTimeFieldKeyMap(),
-		Focused: SideHours,
-		open:    -1,
+		Hour:      clamp(hour, 0, 23),
+		Minute:    clamp(minute, 0, 59),
+		KeyMap:    DefaultTimeFieldKeyMap(),
+		Focused:   SideHours,
+		open:      -1,
+		hoverSide: -1,
+		hoverRow:  -1,
 		ActiveStyle: lipgloss.NewStyle().
 			Foreground(lipgloss.Color("212")).
 			Bold(true).
@@ -202,8 +213,42 @@ func (m *TimeFieldModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.handleClick(msg.Mouse())
 	case tea.MouseWheelMsg:
 		m.handleWheel(msg.Mouse())
+	case tea.MouseMotionMsg:
+		m.handleMotion(msg.Mouse())
 	}
 	return m, nil
+}
+
+// handleMotion tracks drags (dropdown highlight follows a held left button,
+// LevelMedium+) and hover (LevelHigh: hovered column or dropdown row).
+func (m *TimeFieldModel) handleMotion(me tea.Mouse) {
+	if me.Button == tea.MouseLeft {
+		if !m.Effects.Drag() || m.open < 0 {
+			return
+		}
+		for i, r := range m.rowRects {
+			if r.contains(me.X, me.Y) {
+				m.cursor = m.top + i
+			}
+		}
+		return
+	}
+	if !m.Effects.Hover() {
+		return
+	}
+	m.hoverSide, m.hoverRow = -1, -1
+	switch {
+	case m.open >= 0:
+		for i, r := range m.rowRects {
+			if r.contains(me.X, me.Y) {
+				m.hoverRow = m.top + i
+			}
+		}
+	case m.hourRect.contains(me.X, me.Y):
+		m.hoverSide = SideHours
+	case m.minuteRect.contains(me.X, me.Y):
+		m.hoverSide = SideMinutes
+	}
 }
 
 func (m *TimeFieldModel) handleKey(msg tea.KeyPressMsg) {
@@ -299,9 +344,20 @@ func (m *TimeFieldModel) handleClick(me tea.Mouse) {
 	}
 }
 
-// handleWheel scrolls the open dropdown window; with none open it spins the
-// focused column (legacy behavior kept for keyboard-free adjustment).
+// handleWheel: vertical scroll moves the open dropdown window (or spins the
+// focused column when closed); horizontal wheel hops between the hour and
+// minute columns.
 func (m *TimeFieldModel) handleWheel(me tea.Mouse) {
+	switch me.Button {
+	case tea.MouseWheelLeft:
+		m.closeDropdown()
+		m.focusSide(SideHours)
+		return
+	case tea.MouseWheelRight:
+		m.closeDropdown()
+		m.focusSide(SideMinutes)
+		return
+	}
 	delta := 1
 	if me.Button == tea.MouseWheelUp {
 		delta = -1
@@ -326,6 +382,9 @@ func (m *TimeFieldModel) View() tea.View {
 	styleFor := func(s Side) lipgloss.Style {
 		if m.Focused == s {
 			return m.ActiveStyle
+		}
+		if m.Effects.Hover() && m.hoverSide == s {
+			return m.InactiveStyle.Underline(true)
 		}
 		return m.InactiveStyle
 	}
@@ -373,8 +432,11 @@ func (m *TimeFieldModel) renderDropdown(cellH, hourW, colonW int) string {
 			break
 		}
 		st := m.RowStyle
-		if v == m.cursor {
+		switch {
+		case v == m.cursor:
 			st = m.SelectedStyle
+		case m.Effects.Hover() && v == m.hoverRow:
+			st = m.RowStyle.Underline(true)
 		}
 		rows = append(rows, st.Render(fmt.Sprintf("%02d", v)))
 	}

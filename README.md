@@ -55,3 +55,42 @@ golangci-lint on windows+linux, shellcheck, markdownlint, go vet,
 Cross-repo development against tui-base uses a `go.work` file (see tui-base's
 go.work recipe in `docs/migration-from-bubbletea.md`); tui-base's `go.mod` only
 ever references tagged snap releases.
+
+## Input contract (mouse + keyboard)
+
+Every visual snap handles rich input through one pipeline:
+
+- **`Update` is the source of truth.** Clicks, wheel (all four directions),
+  drag, hover, and keys are all handled in `Update`; hit zones are recorded
+  by `View` in content-relative coordinates.
+- **`View().OnMouse` routes into `Update`.** Bubble Tea v2 only invokes the
+  *root* view's `OnMouse` (with absolute coordinates) and does **not**
+  translate for children — a parent must adjust x/y itself and forward to the
+  child (tui-base's overlay `ForwardMouse` is the reference implementation).
+  The `Cmd` returned from `OnMouse` is run and its message re-enters `Update`;
+  returning nil suppresses nothing.
+- **Hosts deliver mouse via exactly one path.** Bubble Tea hands the raw
+  event to both the root `OnMouse` *and* `Update`; forwarding it down both
+  paths double-processes every click (the demo apps ignore mouse in `Update`
+  for this reason).
+
+### Effect tiers (`uifx.Level`)
+
+| Tier | Feedback | Root mouse mode |
+|---|---|---|
+| `LevelMinimal` | interactions only — no hover/drag cosmetics, minimal redraw churn (thin links) | `CellMotion` |
+| `LevelMedium` (default) | + wheel everywhere, drag tracking while a button is held | `CellMotion` |
+| `LevelHigh` | + hover highlighting of the element under the pointer | `AllMotion` |
+
+Set a component's `Effects` field and give your root view
+`Effects.MouseMode()`. Hover is a motion-event firehose — that is why it is
+opt-in.
+
+### Testing input without false failures
+
+Input tests assert **semantic state** (the highlighted day, the focused
+column, the cursor row) after events aimed at the component's **own recorded
+hit zones** — never hardcoded screen coordinates and never styled output
+(styles vary by color profile; where rendering must be checked, an injected
+`Transform` marker keeps it profile-independent). That keeps every failure a
+real behavior change.
