@@ -18,4 +18,4 @@ for tape in */demo.tape; do
   vhs "$tape"
 done
 
-echo "done: $(ls -1 ./*/demo.gif 2>/dev/null | wc -l) gif(s)"
+echo "done: $(find . -maxdepth 2 -name 'demo.gif' | wc -l) gif(s)"
