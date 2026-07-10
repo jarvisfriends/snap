@@ -350,7 +350,14 @@ func (m *TimeFieldModel) View() tea.View {
 	} else {
 		parts = append(parts, m.HelpStyle.Render("type/↑↓ set • space/click list • enter save"))
 	}
-	return tea.NewView(lipgloss.JoinVertical(lipgloss.Left, parts...))
+	v := tea.NewView(lipgloss.JoinVertical(lipgloss.Left, parts...))
+	// Route mouse events through Update so hosts that honor View.OnMouse get
+	// click/wheel behavior with no extra wiring.
+	v.OnMouse = func(mm tea.MouseMsg) tea.Cmd {
+		_, cmd := m.Update(mm)
+		return cmd
+	}
+	return v
 }
 
 // renderDropdown draws the open side's scrollable value list under its column
