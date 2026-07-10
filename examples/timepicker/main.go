@@ -31,13 +31,23 @@ func (a demoApp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (a demoApp) View() tea.View {
 	v := a.tf.View()
 	v.MouseMode = tea.MouseModeCellMotion
+	// AltScreen gives the demo the whole window: rendered inline (the
+	// default), the content is pinned to the prompt line and the tall VHS
+	// window stays empty — the "Height not showing up" symptom.
+	v.AltScreen = true
 	return v
 }
 
 func main() {
 	app := demoApp{tf: timepicker.NewTimeField(8, 30)}
-	if _, err := tea.NewProgram(app).Run(); err != nil {
+	final, err := tea.NewProgram(app).Run()
+	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
+	}
+	// Print the confirmed time after the alt-screen restores, so the choice
+	// stays visible in the console (and the VHS tape captures a clean exit).
+	if a, ok := final.(demoApp); ok && a.tf.Done {
+		fmt.Printf("Selected: %02d:%02d\n", a.tf.Hour, a.tf.Minute)
 	}
 }

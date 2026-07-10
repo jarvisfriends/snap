@@ -37,6 +37,10 @@ func (a demoApp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (a demoApp) View() tea.View {
 	v := a.dp.View()
 	v.MouseMode = tea.MouseModeCellMotion
+	// AltScreen gives the demo the whole window: rendered inline (the
+	// default), the content is pinned to the prompt line and the tall VHS
+	// window stays empty — the "Height not showing up" symptom.
+	v.AltScreen = true
 	return v
 }
 
