@@ -1,7 +1,6 @@
 package charts
 
 import (
-	"strings"
 	"testing"
 )
 
@@ -70,39 +69,6 @@ func TestSparkline_BrailleDown_LargeDropUsesDirectionalGlyph(t *testing.T) {
 	}
 }
 
-func TestHBar_Zero(t *testing.T) {
-	got := HBar(0, 10)
-	if !strings.HasPrefix(got, "░") {
-		t.Errorf("HBar(0, 10) = %q, expected all empty", got)
-	}
-	if len([]rune(got)) != 10 {
-		t.Errorf("HBar(0, 10) len = %d, want 10", len([]rune(got)))
-	}
-}
-
-func TestHBar_Full(t *testing.T) {
-	got := HBar(100, 8)
-	if !strings.HasPrefix(got, "█") {
-		t.Errorf("HBar(100, 8) = %q, expected all filled", got)
-	}
-	if strings.Contains(got, "░") {
-		t.Errorf("HBar(100, 8) = %q, should have no empty cells", got)
-	}
-}
-
-func TestHBar_Half(t *testing.T) {
-	got := HBar(50, 10)
-	runes := []rune(got)
-	if len(runes) != 10 {
-		t.Fatalf("HBar(50, 10) len = %d, want 10", len(runes))
-	}
-	filled := strings.Count(got, "█")
-	// Rounding: 50% of 10 = 5 ± 1
-	if filled < 4 || filled > 6 {
-		t.Errorf("HBar(50, 10) filled = %d, want ~5", filled)
-	}
-}
-
 func TestAppendHistory_Cap(t *testing.T) {
 	var h []float64
 	for i := range HistoryLen + 20 {
@@ -114,5 +80,28 @@ func TestAppendHistory_Cap(t *testing.T) {
 	// Most recent value must be at the end.
 	if h[len(h)-1] != float64(HistoryLen+19) {
 		t.Errorf("AppendHistory last = %v, want %v", h[len(h)-1], float64(HistoryLen+19))
+	}
+}
+
+func TestSparklineStyleName(t *testing.T) {
+	t.Parallel()
+
+	styles := []SparklineStyle{
+		SparklineUserBlocks, SparklineBrailleUp, SparklineBrailleDown, SparklineStdBlocks,
+	}
+	seen := map[string]SparklineStyle{}
+	for _, style := range styles {
+		name := SparklineStyleName(style)
+		if name == "" {
+			t.Errorf("SparklineStyleName(%d) is empty", style)
+		}
+		if prev, dup := seen[name]; dup {
+			t.Errorf("styles %d and %d share the name %q", prev, style, name)
+		}
+		seen[name] = style
+	}
+	// Out-of-range values wrap modulo the table instead of panicking.
+	if got := SparklineStyleName(SparklineStyle(len(styles))); got != SparklineStyleName(SparklineUserBlocks) {
+		t.Errorf("out-of-range style name = %q; want wrap to %q", got, SparklineStyleName(SparklineUserBlocks))
 	}
 }

@@ -9,7 +9,7 @@ import (
 
 // clickAt sends a content-relative left click.
 func clickAt(m *DatePickerModel, x, y int) {
-	_, _ = m.Update(tea.MouseClickMsg{X: x, Y: y, Button: tea.MouseLeft})
+	_ = m.View().OnMouse(tea.MouseClickMsg{X: x, Y: y, Button: tea.MouseLeft})
 }
 
 // cellCenter returns the content coordinates of the cell showing date d,
@@ -85,11 +85,11 @@ func TestWheelPagesWeeks(t *testing.T) {
 	t.Parallel()
 
 	m := New(time.Date(2026, 7, 9, 0, 0, 0, 0, time.UTC))
-	_, _ = m.Update(tea.MouseWheelMsg{Button: tea.MouseWheelDown})
+	_ = m.View().OnMouse(tea.MouseWheelMsg{Button: tea.MouseWheelDown})
 	if m.Time.Day() != 16 {
 		t.Fatalf("wheel down = day %d; want 16 (one week later)", m.Time.Day())
 	}
-	_, _ = m.Update(tea.MouseWheelMsg{Button: tea.MouseWheelUp})
+	_ = m.View().OnMouse(tea.MouseWheelMsg{Button: tea.MouseWheelUp})
 	if m.Time.Day() != 9 {
 		t.Fatalf("wheel up = day %d; want 9", m.Time.Day())
 	}
@@ -112,10 +112,10 @@ func TestTitleClickFocusesHeaders(t *testing.T) {
 	}
 }
 
-// TestOnMouseRoutesToUpdate drives a click through View().OnMouse (the path
-// hosts use) and checks it lands exactly like a direct Update call — pinned
-// before OnMouse wiring was centralized in uifx.RouteToUpdate.
-func TestOnMouseRoutesToUpdate(t *testing.T) {
+// TestOnMouseHandlesClick drives a click through View().OnMouse — the
+// pointer's only door (component Updates carry no mouse cases) — and checks
+// it lands on the intended day.
+func TestOnMouseHandlesClick(t *testing.T) {
 	t.Parallel()
 
 	m := New(time.Date(2026, 7, 10, 0, 0, 0, 0, time.UTC))

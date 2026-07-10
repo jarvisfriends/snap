@@ -3,6 +3,7 @@ package timepicker
 import (
 	"fmt"
 	"strconv"
+	"strings"
 
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
@@ -92,9 +93,10 @@ type TimeFieldModel struct {
 	// hoverRow is the dropdown value under the pointer (-1 none; LevelHigh).
 	hoverRow int
 
-	// Hit zones recorded during View (component-relative).
-	hourRect, minuteRect geom.Rect
-	rowRects             []geom.Rect // visible dropdown rows, top first
+	// zones holds the named hit zones recorded during View: the two column
+	// cells and the visible dropdown rows, built from the same blocks the
+	// View renders (uifx.Zones).
+	zones *uifx.Zones
 }
 
 // NewTimeField returns a two-column time field initialized to hour:minute
@@ -126,6 +128,23 @@ func NewTimeField(hour, minute int) *TimeFieldModel {
 		HelpStyle:     lipgloss.NewStyle().Foreground(lipgloss.Color("240")),
 	}
 	return m
+}
+
+// Zone IDs for the field's interactive regions (see uifx.Zones).
+const (
+	zoneHours   = "hours"
+	zoneMinutes = "minutes"
+	zoneRow     = "row-" // + visible dropdown row index
+)
+
+// dropRow parses a dropdown-row zone ID ("row-3") into its visible index.
+func dropRow(id string) (int, bool) {
+	num, ok := strings.CutPrefix(id, zoneRow)
+	if !ok {
+		return 0, false
+	}
+	n, err := strconv.Atoi(num)
+	return n, err == nil
 }
 
 func sideMax(s Side) int {
@@ -192,46 +211,37 @@ func (m *TimeFieldModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyPressMsg:
 		m.handleKey(msg)
-	case tea.MouseClickMsg:
-		m.handleClick(msg.Mouse())
-	case tea.MouseWheelMsg:
-		m.handleWheel(msg.Mouse())
-	case tea.MouseMotionMsg:
-		m.handleMotion(msg.Mouse())
 	}
 	return m, nil
 }
 
 // handleMotion tracks drags (dropdown highlight follows a held left button,
 // LevelMedium+) and hover (LevelHigh: hovered column or dropdown row).
-func (m *TimeFieldModel) handleMotion(me tea.Mouse) {
+func (m *TimeFieldModel) handleMotion(me tea.Mouse) tea.Cmd {
+	id := m.zones.Hit(me.X, me.Y)
 	if me.Button == tea.MouseLeft {
-		if !m.Effects.Drag() || m.open < 0 {
-			return
-		}
-		for i, r := range m.rowRects {
-			if r.Contains(me.X, me.Y) {
+		if m.Effects.Drag() && m.open >= 0 {
+			if i, ok := dropRow(id); ok {
 				m.cursor = m.top + i
 			}
 		}
-		return
+		return nil
 	}
 	if !m.Effects.Hover() {
-		return
+		return nil
 	}
 	m.hoverSide, m.hoverRow = -1, -1
 	switch {
 	case m.open >= 0:
-		for i, r := range m.rowRects {
-			if r.Contains(me.X, me.Y) {
-				m.hoverRow = m.top + i
-			}
+		if i, ok := dropRow(id); ok {
+			m.hoverRow = m.top + i
 		}
-	case m.hourRect.Contains(me.X, me.Y):
+	case id == zoneHours:
 		m.hoverSide = SideHours
-	case m.minuteRect.Contains(me.X, me.Y):
+	case id == zoneMinutes:
 		m.hoverSide = SideMinutes
 	}
+	return nil
 }
 
 func (m *TimeFieldModel) handleKey(msg tea.KeyPressMsg) {
@@ -301,23 +311,20 @@ func (m *TimeFieldModel) moveCursor(delta int) {
 
 // handleClick routes component-relative clicks: a column cell opens (or
 // focuses) its dropdown; a dropdown row commits its value.
-func (m *TimeFieldModel) handleClick(me tea.Mouse) {
+func (m *TimeFieldModel) handleClick(me tea.Mouse) tea.Cmd {
 	if me.Button != tea.MouseLeft {
-		return
+		return nil
 	}
-	if m.open >= 0 {
-		for i, r := range m.rowRects {
-			if r.Contains(me.X, me.Y) {
-				m.setValue(m.open, m.top+i)
-				m.closeDropdown()
-				return
-			}
-		}
+	id := m.zones.Hit(me.X, me.Y)
+	if i, ok := dropRow(id); ok && m.open >= 0 {
+		m.setValue(m.open, m.top+i)
+		m.closeDropdown()
+		return nil
 	}
-	switch {
-	case m.hourRect.Contains(me.X, me.Y):
+	switch id {
+	case zoneHours:
 		m.openDropdown(SideHours)
-	case m.minuteRect.Contains(me.X, me.Y):
+	case zoneMinutes:
 		m.openDropdown(SideMinutes)
 	default:
 		if m.open >= 0 {
@@ -325,21 +332,22 @@ func (m *TimeFieldModel) handleClick(me tea.Mouse) {
 			m.closeDropdown()
 		}
 	}
+	return nil
 }
 
 // handleWheel: vertical scroll moves the open dropdown window (or spins the
 // focused column when closed); horizontal wheel hops between the hour and
 // minute columns.
-func (m *TimeFieldModel) handleWheel(me tea.Mouse) {
+func (m *TimeFieldModel) handleWheel(me tea.Mouse) tea.Cmd {
 	switch me.Button {
 	case tea.MouseWheelLeft:
 		m.closeDropdown()
 		m.focusSide(SideHours)
-		return
+		return nil
 	case tea.MouseWheelRight:
 		m.closeDropdown()
 		m.focusSide(SideMinutes)
-		return
+		return nil
 	}
 	delta := 1
 	if me.Button == tea.MouseWheelUp {
@@ -347,9 +355,10 @@ func (m *TimeFieldModel) handleWheel(me tea.Mouse) {
 	}
 	if m.open >= 0 {
 		m.top = geom.Clamp(m.top+delta, 0, sideMax(m.open)+1-dropdownVisibleRows)
-		return
+		return nil
 	}
 	m.setValue(m.Focused, m.value(m.Focused)-delta)
+	return nil
 }
 
 // displayValue is the column's text, showing the in-progress digit buffer on
@@ -359,6 +368,18 @@ func (m *TimeFieldModel) displayValue(s Side) string {
 		return fmt.Sprintf("%2s", m.typed)
 	}
 	return fmt.Sprintf("%02d", m.value(s))
+}
+
+// onMouse is the View.OnMouse entry point: mouse events dispatch straight to
+// the handler methods, never through Update, so hosts (and the Bubble Tea
+// runtime) deliver pointer input through exactly one door. Parents hosting
+// this component should call onMouse with translated coordinates.
+func (m *TimeFieldModel) onMouse(msg tea.MouseMsg) tea.Cmd {
+	return uifx.MouseHandlers{
+		Click:  m.handleClick,
+		Wheel:  m.handleWheel,
+		Motion: m.handleMotion,
+	}.OnMouse(msg)
 }
 
 func (m *TimeFieldModel) View() tea.View {
@@ -376,30 +397,34 @@ func (m *TimeFieldModel) View() tea.View {
 	colon := m.ColonStyle.Render(":")
 	minuteCell := styleFor(SideMinutes).Render(m.displayValue(SideMinutes))
 
-	// Record component-relative hit zones for the two cells.
+	// Hit zones come from the same blocks this frame renders: the two
+	// column cells now, dropdown rows below (renderDropdown appends them).
 	hw, hh := lipgloss.Width(hourCell), lipgloss.Height(hourCell)
 	cw := lipgloss.Width(colon)
-	mw := lipgloss.Width(minuteCell)
-	m.hourRect = geom.Rect{X: 0, Y: 0, W: hw, H: hh}
-	m.minuteRect = geom.Rect{X: hw + cw, Y: 0, W: mw, H: hh}
+	layers := []*lipgloss.Layer{
+		lipgloss.NewLayer(hourCell).ID(zoneHours),
+		lipgloss.NewLayer(minuteCell).ID(zoneMinutes).X(hw + cw),
+	}
 
 	row := lipgloss.JoinHorizontal(lipgloss.Center, hourCell, colon, minuteCell)
 
 	parts := []string{row}
-	m.rowRects = nil
 	if m.open >= 0 {
-		parts = append(parts, m.renderDropdown(hh, hw, cw))
+		drop, rowLayers := m.renderDropdown(hh, hw, cw)
+		parts = append(parts, drop)
+		layers = append(layers, rowLayers...)
 	} else {
 		parts = append(parts, m.HelpStyle.Render("type/↑↓ set • space/click list • enter save"))
 	}
+	m.zones = uifx.NewZones(layers...)
 	v := tea.NewView(lipgloss.JoinVertical(lipgloss.Left, parts...))
-	v.OnMouse = uifx.RouteToUpdate(m.Update)
+	v.OnMouse = m.onMouse
 	return v
 }
 
 // renderDropdown draws the open side's scrollable value list under its column
-// and records the visible rows' hit zones.
-func (m *TimeFieldModel) renderDropdown(cellH, hourW, colonW int) string {
+// and returns the visible rows' hit-zone layers alongside it.
+func (m *TimeFieldModel) renderDropdown(cellH, hourW, colonW int) (string, []*lipgloss.Layer) {
 	lastTop := sideMax(m.open) + 1 - dropdownVisibleRows
 	m.top = geom.Clamp(m.top, 0, lastTop)
 
@@ -426,18 +451,16 @@ func (m *TimeFieldModel) renderDropdown(cellH, hourW, colonW int) string {
 		indent = hourW + colonW
 	}
 
-	// Row hit zones: inside the list border (+1,+1), one per visible row.
-	listW := lipgloss.Width(list)
-	for i := range rows {
-		m.rowRects = append(m.rowRects, geom.Rect{
-			X: indent + 1,
-			Y: cellH + 1 + i,
-			W: listW - 2,
-			H: 1,
-		})
+	// Row hit zones: the rendered row blocks, placed inside the list border
+	// (+1,+1) exactly where the composed frame shows them.
+	rowLayers := make([]*lipgloss.Layer, 0, len(rows))
+	for i, r := range rows {
+		rowLayers = append(rowLayers,
+			lipgloss.NewLayer(r).ID(fmt.Sprintf("%s%d", zoneRow, i)).
+				X(indent+1).Y(cellH+1+i))
 	}
 	if indent > 0 {
-		return lipgloss.NewStyle().MarginLeft(indent).Render(list)
+		return lipgloss.NewStyle().MarginLeft(indent).Render(list), rowLayers
 	}
-	return list
+	return list, rowLayers
 }

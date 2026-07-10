@@ -254,18 +254,6 @@ func (m *DirPicker) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.Done = true
 			}
 		}
-
-	case tea.MouseClickMsg:
-		return m, m.handleClick(msg.Mouse())
-
-	case tea.MouseWheelMsg:
-		return m, m.handleWheel(msg.Mouse())
-
-	case tea.MouseMotionMsg:
-		m.handleMotion(msg.Mouse())
-
-	case tea.MouseReleaseMsg:
-		// releases end drags; nothing to track beyond motion state
 	}
 	return m, nil
 }
@@ -329,18 +317,19 @@ func (m *DirPicker) handleWheel(me tea.Mouse) tea.Cmd {
 // handleMotion: while the left button is held the highlight follows the
 // pointer (LevelMedium+); with no button held the hovered row is tracked for
 // the LevelHigh hover highlight.
-func (m *DirPicker) handleMotion(me tea.Mouse) {
+func (m *DirPicker) handleMotion(me tea.Mouse) tea.Cmd {
 	i := m.rowAt(me.X, me.Y)
 	if me.Button == tea.MouseLeft {
 		if m.Effects.Drag() && i >= 0 {
 			m.cursor = i
 			m.ensureCursorVisible()
 		}
-		return
+		return nil
 	}
 	if m.Effects.Hover() {
 		m.hoverRow = i
 	}
+	return nil
 }
 
 // navigateBack mirrors the Back key: parent directory, or the drive list at
@@ -378,6 +367,18 @@ func (m *DirPicker) ensureCursorVisible() {
 	if m.scrollTop < 0 {
 		m.scrollTop = 0
 	}
+}
+
+// onMouse is the View.OnMouse entry point: mouse events dispatch straight to
+// the handler methods, never through Update, so hosts (and the Bubble Tea
+// runtime) deliver pointer input through exactly one door. Parents hosting
+// this component should call onMouse with translated coordinates.
+func (m *DirPicker) onMouse(msg tea.MouseMsg) tea.Cmd {
+	return uifx.MouseHandlers{
+		Click:  m.handleClick,
+		Wheel:  m.handleWheel,
+		Motion: m.handleMotion,
+	}.OnMouse(msg)
 }
 
 func (m *DirPicker) View() tea.View {
@@ -435,6 +436,6 @@ func (m *DirPicker) View() tea.View {
 	// wheel navigation, drag, and hover with no extra wiring. Hosts must
 	// deliver mouse via exactly one path (OnMouse or Update), never both —
 	// Bubble Tea itself sends the raw event to both at the root.
-	v.OnMouse = uifx.RouteToUpdate(m.Update)
+	v.OnMouse = m.onMouse
 	return v
 }

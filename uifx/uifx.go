@@ -66,17 +66,40 @@ func (l Level) Hover() bool { return l == LevelHigh }
 // Drag reports whether drag feedback should render at this tier.
 func (l Level) Drag() bool { return l != LevelMinimal }
 
-// RouteToUpdate adapts a component's Update method into a View.OnMouse
-// handler: the mouse message is fed back through Update and the resulting
-// command returned. Components whose mouse handling lives entirely in Update
-// set View.OnMouse = uifx.RouteToUpdate(m.Update) so hosts that honor
-// OnMouse get clicks and wheel with no extra wiring. Hosts must deliver
-// mouse via exactly one path (OnMouse or Update), never both — Bubble Tea
-// v2 hands the root view's OnMouse the message and also delivers it to
-// Update, so a host that calls both double-processes every event.
-func RouteToUpdate(update func(tea.Msg) (tea.Model, tea.Cmd)) func(tea.MouseMsg) tea.Cmd {
-	return func(mm tea.MouseMsg) tea.Cmd {
-		_, cmd := update(mm)
-		return cmd
+// MouseHandlers dispatches View.OnMouse events to per-kind handlers, so a
+// component's mouse logic lives in OnMouse (or functions it calls) and stays
+// out of Update entirely. Keeping the two paths separate means hosts deliver
+// mouse through exactly one door — Bubble Tea v2 hands the root view's
+// OnMouse the message AND delivers it to Update, so a component that reacts
+// in both places double-processes every event — and leaves room to run
+// pointer handling independently of state updates later. Nil handlers ignore
+// that event kind.
+type MouseHandlers struct {
+	Click   func(tea.Mouse) tea.Cmd
+	Release func(tea.Mouse) tea.Cmd
+	Wheel   func(tea.Mouse) tea.Cmd
+	Motion  func(tea.Mouse) tea.Cmd
+}
+
+// OnMouse routes one mouse message; assign it to View.OnMouse.
+func (h MouseHandlers) OnMouse(msg tea.MouseMsg) tea.Cmd {
+	switch msg := msg.(type) {
+	case tea.MouseClickMsg:
+		if h.Click != nil {
+			return h.Click(msg.Mouse())
+		}
+	case tea.MouseReleaseMsg:
+		if h.Release != nil {
+			return h.Release(msg.Mouse())
+		}
+	case tea.MouseWheelMsg:
+		if h.Wheel != nil {
+			return h.Wheel(msg.Mouse())
+		}
+	case tea.MouseMotionMsg:
+		if h.Motion != nil {
+			return h.Motion(msg.Mouse())
+		}
 	}
+	return nil
 }

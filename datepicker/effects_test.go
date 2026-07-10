@@ -14,11 +14,11 @@ func TestWheelLeftRightPagesMonths(t *testing.T) {
 	t.Parallel()
 
 	m := New(time.Date(2026, 7, 9, 0, 0, 0, 0, time.UTC))
-	_, _ = m.Update(tea.MouseWheelMsg{Button: tea.MouseWheelRight})
+	_ = m.View().OnMouse(tea.MouseWheelMsg{Button: tea.MouseWheelRight})
 	if m.Time.Month() != time.August {
 		t.Fatalf("wheel right month = %v; want August", m.Time.Month())
 	}
-	_, _ = m.Update(tea.MouseWheelMsg{Button: tea.MouseWheelLeft})
+	_ = m.View().OnMouse(tea.MouseWheelMsg{Button: tea.MouseWheelLeft})
 	if m.Time.Month() != time.July {
 		t.Fatalf("wheel left month = %v; want July", m.Time.Month())
 	}
@@ -32,7 +32,7 @@ func TestDragMovesHighlightByTier(t *testing.T) {
 	m := New(time.Date(2026, 7, 9, 0, 0, 0, 0, time.UTC))
 	_ = m.View()
 	x, y := cellCenter(t, m, time.Date(2026, 7, 15, 0, 0, 0, 0, time.UTC))
-	_, _ = m.Update(tea.MouseMotionMsg{X: x, Y: y, Button: tea.MouseLeft})
+	_ = m.View().OnMouse(tea.MouseMotionMsg{X: x, Y: y, Button: tea.MouseLeft})
 	if m.Time.Day() != 15 {
 		t.Fatalf("drag at Medium: day = %d; want 15", m.Time.Day())
 	}
@@ -40,7 +40,7 @@ func TestDragMovesHighlightByTier(t *testing.T) {
 	m2 := New(time.Date(2026, 7, 9, 0, 0, 0, 0, time.UTC))
 	m2.Effects = uifx.LevelMinimal
 	_ = m2.View()
-	_, _ = m2.Update(tea.MouseMotionMsg{X: x, Y: y, Button: tea.MouseLeft})
+	_ = m2.View().OnMouse(tea.MouseMotionMsg{X: x, Y: y, Button: tea.MouseLeft})
 	if m2.Time.Day() != 9 {
 		t.Fatalf("drag at Minimal moved the highlight (day=%d)", m2.Time.Day())
 	}
@@ -55,7 +55,7 @@ func TestHoverTracksOnlyAtHigh(t *testing.T) {
 	m.Effects = uifx.LevelHigh
 	_ = m.View()
 	x, y := cellCenter(t, m, time.Date(2026, 7, 15, 0, 0, 0, 0, time.UTC))
-	_, _ = m.Update(tea.MouseMotionMsg{X: x, Y: y, Button: tea.MouseNone})
+	_ = m.View().OnMouse(tea.MouseMotionMsg{X: x, Y: y, Button: tea.MouseNone})
 	if m.hoverDay.Day() != 15 {
 		t.Fatalf("hover at High tracked day %v; want 15", m.hoverDay)
 	}
@@ -65,7 +65,7 @@ func TestHoverTracksOnlyAtHigh(t *testing.T) {
 
 	m2 := New(time.Date(2026, 7, 9, 0, 0, 0, 0, time.UTC))
 	_ = m2.View()
-	_, _ = m2.Update(tea.MouseMotionMsg{X: x, Y: y, Button: tea.MouseNone})
+	_ = m2.View().OnMouse(tea.MouseMotionMsg{X: x, Y: y, Button: tea.MouseNone})
 	if !m2.hoverDay.IsZero() {
 		t.Fatalf("hover tracked below High: %v", m2.hoverDay)
 	}

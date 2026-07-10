@@ -118,7 +118,15 @@ func (m *MultiFileEditor) updateDirPicker(msg tea.Msg) tea.Cmd {
 	if dp, ok := model.(*DirPicker); ok {
 		m.dirPicker = dp
 	}
+	m.finishDirPicker()
+	return cmd
+}
+
+// finishDirPicker applies the browse result once the hosted DirPicker
+// reports Done or Aborted — shared by the Update (keys) and onMouse paths.
+func (m *MultiFileEditor) finishDirPicker() {
 	switch {
+	case m.dirPicker == nil:
 	case m.dirPicker.Done:
 		m.applyPickedPath(m.dirPicker.Value())
 		m.picking = false
@@ -127,7 +135,6 @@ func (m *MultiFileEditor) updateDirPicker(msg tea.Msg) tea.Cmd {
 		m.picking = false
 		m.dirPicker = nil
 	}
-	return cmd
 }
 
 // applyPickedPath stores a non-empty picker result at the pending index,
@@ -148,20 +155,21 @@ func (m *MultiFileEditor) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.Width, m.Height = ws.Width, ws.Height
 	}
 
-	if m.picking && m.dirPicker != nil {
-		return m, m.updateDirPicker(msg)
-	}
-	if m.picking && m.pickerForm != nil {
-		return m, m.updatePicker(msg)
+	if m.picking {
+		// Mouse reaches the hosted picker exclusively via onMouse; a host
+		// that also feeds Update raw mouse must not double-process it.
+		if _, isMouse := msg.(tea.MouseMsg); isMouse {
+			return m, nil
+		}
+		if m.dirPicker != nil {
+			return m, m.updateDirPicker(msg)
+		}
+		if m.pickerForm != nil {
+			return m, m.updatePicker(msg)
+		}
 	}
 
 	switch msg := msg.(type) {
-	case tea.MouseClickMsg:
-		return m, m.handleClick(msg.Mouse())
-	case tea.MouseWheelMsg:
-		m.handleWheel(msg.Mouse())
-	case tea.MouseMotionMsg:
-		m.handleMotion(msg.Mouse())
 	case tea.KeyPressMsg:
 		switch {
 		case key.Matches(msg, m.KeyMap.Cancel):
@@ -276,6 +284,30 @@ func (m *MultiFileEditor) rowAt(x, y int) int {
 	return -1
 }
 
+// onMouse is the View.OnMouse entry point. List-mode events dispatch to the
+// row handlers, never through Update. While browsing, our View is the hosted
+// DirPicker's view verbatim (same coordinate space), so mouse goes to its
+// onMouse; a huh picker form exposes no OnMouse, so its Update is the only
+// door for it.
+func (m *MultiFileEditor) onMouse(msg tea.MouseMsg) tea.Cmd {
+	if m.picking {
+		if m.dirPicker != nil {
+			cmd := m.dirPicker.onMouse(msg)
+			m.finishDirPicker()
+			return cmd
+		}
+		if m.pickerForm != nil {
+			return m.updatePicker(msg)
+		}
+		return nil
+	}
+	return uifx.MouseHandlers{
+		Click:  m.handleClick,
+		Wheel:  m.handleWheel,
+		Motion: m.handleMotion,
+	}.OnMouse(msg)
+}
+
 // handleClick moves the highlight to the clicked row; clicking the
 // highlighted row activates it (opens its picker / adds a path), matching
 // the click-to-highlight, click-again-to-act convention.
@@ -296,7 +328,7 @@ func (m *MultiFileEditor) handleClick(me tea.Mouse) tea.Cmd {
 
 // handleWheel scrolls the highlight through the rows (wrapping like the
 // keyboard bindings do).
-func (m *MultiFileEditor) handleWheel(me tea.Mouse) {
+func (m *MultiFileEditor) handleWheel(me tea.Mouse) tea.Cmd {
 	switch me.Button {
 	case tea.MouseWheelUp:
 		m.cursor--
@@ -309,21 +341,23 @@ func (m *MultiFileEditor) handleWheel(me tea.Mouse) {
 			m.cursor = 0
 		}
 	}
+	return nil
 }
 
 // handleMotion tracks drags (highlight follows a held left button,
 // LevelMedium+) and hover (LevelHigh).
-func (m *MultiFileEditor) handleMotion(me tea.Mouse) {
+func (m *MultiFileEditor) handleMotion(me tea.Mouse) tea.Cmd {
 	i := m.rowAt(me.X, me.Y)
 	if me.Button == tea.MouseLeft {
 		if m.Effects.Drag() && i >= 0 {
 			m.cursor = i
 		}
-		return
+		return nil
 	}
 	if m.Effects.Hover() {
 		m.hoverRow = i
 	}
+	return nil
 }
 
 func (m *MultiFileEditor) View() tea.View {
@@ -380,7 +414,7 @@ func (m *MultiFileEditor) View() tea.View {
 	// Bubble Tea root gets the raw event on both). While a child picker is
 	// open its own View is returned instead, so coordinates always match
 	// what is on screen.
-	v.OnMouse = uifx.RouteToUpdate(m.Update)
+	v.OnMouse = m.onMouse
 	return v
 }
 

@@ -1,6 +1,7 @@
 package timepicker
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -15,11 +16,11 @@ func TestTimeFieldWheelLeftRightSwitchesSides(t *testing.T) {
 	t.Parallel()
 
 	m := NewTimeField(8, 30)
-	_, _ = m.Update(tea.MouseWheelMsg{Button: tea.MouseWheelRight})
+	_ = m.View().OnMouse(tea.MouseWheelMsg{Button: tea.MouseWheelRight})
 	if m.Focused != SideMinutes {
 		t.Fatalf("wheel right focused %v; want minutes", m.Focused)
 	}
-	_, _ = m.Update(tea.MouseWheelMsg{Button: tea.MouseWheelLeft})
+	_ = m.View().OnMouse(tea.MouseWheelMsg{Button: tea.MouseWheelLeft})
 	if m.Focused != SideHours {
 		t.Fatalf("wheel left focused %v; want hours", m.Focused)
 	}
@@ -33,8 +34,12 @@ func TestTimeFieldHoverAndDragTiers(t *testing.T) {
 	m := NewTimeField(8, 30)
 	m.Effects = uifx.LevelHigh
 	_ = m.View()
-	_, _ = m.Update(tea.MouseMotionMsg{
-		X: m.minuteRect.X + 1, Y: m.minuteRect.Y + 1, Button: tea.MouseNone,
+	minutes, ok := m.zones.Bounds(zoneMinutes)
+	if !ok {
+		t.Fatal("minutes zone not recorded")
+	}
+	_ = m.View().OnMouse(tea.MouseMotionMsg{
+		X: minutes.X + 1, Y: minutes.Y + 1, Button: tea.MouseNone,
 	})
 	if m.hoverSide != SideMinutes {
 		t.Fatalf("hover side = %v; want minutes", m.hoverSide)
@@ -43,13 +48,14 @@ func TestTimeFieldHoverAndDragTiers(t *testing.T) {
 	// Open the hours dropdown and drag across a visible row.
 	_, _ = m.Update(tea.KeyPressMsg{Code: tea.KeySpace, Text: " "})
 	_ = m.View()
-	if len(m.rowRects) == 0 {
-		t.Fatal("no dropdown rows recorded")
+	last := dropdownVisibleRows - 1
+	r, ok := m.zones.Bounds(fmt.Sprintf("%s%d", zoneRow, last))
+	if !ok {
+		t.Fatal("no dropdown row zones recorded")
 	}
-	r := m.rowRects[len(m.rowRects)-1]
-	_, _ = m.Update(tea.MouseMotionMsg{X: r.X, Y: r.Y, Button: tea.MouseLeft})
-	if m.cursor != m.top+len(m.rowRects)-1 {
-		t.Fatalf("drag over last visible row set cursor %d; want %d", m.cursor, m.top+len(m.rowRects)-1)
+	_ = m.View().OnMouse(tea.MouseMotionMsg{X: r.X, Y: r.Y, Button: tea.MouseLeft})
+	if m.cursor != m.top+last {
+		t.Fatalf("drag over last visible row set cursor %d; want %d", m.cursor, m.top+last)
 	}
 }
 
@@ -60,11 +66,11 @@ func TestDurationPickerWheelLeftRightMovesFocus(t *testing.T) {
 
 	m := New(time.Hour)
 	before := m.Duration
-	_, _ = m.Update(tea.MouseWheelMsg{Button: tea.MouseWheelRight})
+	_ = m.View().OnMouse(tea.MouseWheelMsg{Button: tea.MouseWheelRight})
 	if m.Focused != FieldMinutes {
 		t.Fatalf("wheel right focused %v; want minutes", m.Focused)
 	}
-	_, _ = m.Update(tea.MouseWheelMsg{Button: tea.MouseWheelLeft})
+	_ = m.View().OnMouse(tea.MouseWheelMsg{Button: tea.MouseWheelLeft})
 	if m.Focused != FieldHours {
 		t.Fatalf("wheel left focused %v; want hours", m.Focused)
 	}
@@ -81,15 +87,18 @@ func TestDurationPickerHoverSegmentAtHigh(t *testing.T) {
 	m := New(time.Hour)
 	m.Effects = uifx.LevelHigh
 	_ = m.View()
-	r := m.segRects[FieldSeconds]
-	_, _ = m.Update(tea.MouseMotionMsg{X: r.X + 1, Y: r.Y + 1, Button: tea.MouseNone})
+	r, ok := m.zones.Bounds(fmt.Sprintf("%s%d", zoneRow, int(FieldSeconds)))
+	if !ok {
+		t.Fatal("seconds segment zone not recorded")
+	}
+	_ = m.View().OnMouse(tea.MouseMotionMsg{X: r.X + 1, Y: r.Y + 1, Button: tea.MouseNone})
 	if m.hoverSeg != int(FieldSeconds) {
 		t.Fatalf("hover segment = %d; want seconds", m.hoverSeg)
 	}
 
 	m2 := New(time.Hour)
 	_ = m2.View()
-	_, _ = m2.Update(tea.MouseMotionMsg{X: r.X + 1, Y: r.Y + 1, Button: tea.MouseNone})
+	_ = m2.View().OnMouse(tea.MouseMotionMsg{X: r.X + 1, Y: r.Y + 1, Button: tea.MouseNone})
 	if m2.hoverSeg != -1 {
 		t.Fatalf("hover tracked below High (seg=%d)", m2.hoverSeg)
 	}

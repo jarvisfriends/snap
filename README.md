@@ -28,6 +28,9 @@ the runtime debugger for any Charm-based app.
 | `page/` | Shared page base (sizing + colors) for full-page components | `page` | **moved 2026-07-10** (wholesale wave) |
 | `styles/` | The shared style contract: semantic AppStyle palette, derived lipgloss styles, bubbletint mapping, presets, YAML themes | `theme` | **moved 2026-07-10** (wholesale wave) — tui-base's theme package is now aliases over this |
 | `charts/` | Sparklines, bars, pie/sankey, braille line charts + Canvas | dash `creator` | **moved 2026-07-10** (wholesale wave) |
+| `scrollbar/` | Vertical scrollbar column + offset clamping | tribble console `ui/scrollbar.go` | **ported 2026-07-10** (repo sweep) |
+| `menu/` | Right-click context menu (mouse + keyboard, terminal-clamped) | tribble console `ui/context_menu.go` | **ported 2026-07-10** (repo sweep) |
+| `osc/` | Taskbar/tab progress via OSC 9;4 (WT, ConEmu, iTerm2) | aSettings `pages/ui/osc.go` | **ported 2026-07-10** (repo sweep) — extended with error/paused/determinate states |
 
 The three navigation styles live side by side because they satisfy the same
 navigator contract; an app can swap between them at runtime.
@@ -58,21 +61,30 @@ ever references tagged snap releases.
 
 ## Input contract (mouse + keyboard)
 
-Every visual snap handles rich input through one pipeline:
+Every visual snap splits input by concern:
 
-- **`Update` is the source of truth.** Clicks, wheel (all four directions),
-  drag, hover, and keys are all handled in `Update`; hit zones are recorded
-  by `View` in content-relative coordinates.
-- **`View().OnMouse` routes into `Update`.** Bubble Tea v2 only invokes the
-  *root* view's `OnMouse` (with absolute coordinates) and does **not**
-  translate for children — a parent must adjust x/y itself and forward to the
-  child (tui-base's overlay `ForwardMouse` is the reference implementation).
-  The `Cmd` returned from `OnMouse` is run and its message re-enters `Update`;
-  returning nil suppresses nothing.
-- **Hosts deliver mouse via exactly one path.** Bubble Tea hands the raw
-  event to both the root `OnMouse` *and* `Update`; forwarding it down both
-  paths double-processes every click (the demo apps ignore mouse in `Update`
-  for this reason).
+- **`OnMouse` owns the pointer.** Clicks, wheel (all four directions), drag,
+  and hover are handled in `View().OnMouse` (dispatched by
+  `uifx.MouseHandlers` to the component's handler methods) — never in
+  `Update`. Keeping the two paths separate isolates pointer logic from state
+  transitions and leaves room to process them independently later.
+- **`Update` owns keys and messages.** Component `Update`s contain no
+  `tea.MouseMsg` cases; a host that feeds one raw mouse anyway hits dead
+  code, not a second handler.
+- **Hit zones are named layers, not hand-kept rectangles.** Components build
+  `uifx.Zones` from the same `lipgloss.NewLayer(content).ID(name)` blocks the
+  frame is composed of, and handlers ask `zones.Hit(x, y)` which zone the
+  pointer landed in — powered by lipgloss v2's `Compositor.Hit`, so zones
+  track layout changes and resolve overlap by z-order (the timepicker package
+  is the reference; the datepicker's uniform grid and the pickers' list rows
+  still use direct arithmetic where that is simpler).
+- **Parents translate and call the child's `OnMouse`.** Bubble Tea v2 only
+  invokes the *root* view's `OnMouse` (absolute coordinates) and does **not**
+  translate for children — a parent adjusts x/y itself and calls the child's
+  `View().OnMouse` (tui-base's overlay `ForwardMouse` is the reference
+  implementation). Never forward mouse into a child's `Update` — the runtime
+  hands the raw event to both the root `OnMouse` *and* `Update`, so two doors
+  means every click processed twice.
 
 ### Effect tiers (`uifx.Level`)
 

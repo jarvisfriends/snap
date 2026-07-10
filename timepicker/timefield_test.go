@@ -84,8 +84,12 @@ func TestTimeFieldMouseFlow(t *testing.T) {
 	_ = m.View() // records the cell hit zones
 
 	// Click the minutes cell: its dropdown opens.
-	_, _ = m.Update(tea.MouseClickMsg{
-		X: m.minuteRect.X + 1, Y: m.minuteRect.Y + 1, Button: tea.MouseLeft,
+	minutes, ok := m.zones.Bounds(zoneMinutes)
+	if !ok {
+		t.Fatal("minutes zone not recorded")
+	}
+	_ = m.View().OnMouse(tea.MouseClickMsg{
+		X: minutes.X + 1, Y: minutes.Y + 1, Button: tea.MouseLeft,
 	})
 	if s, ok := m.DropdownOpen(); !ok || s != SideMinutes {
 		t.Fatalf("clicking minutes did not open its dropdown (open=%v ok=%v)", s, ok)
@@ -93,12 +97,12 @@ func TestTimeFieldMouseFlow(t *testing.T) {
 
 	// Render to lay out the rows, then click the first visible row.
 	_ = m.View()
-	if len(m.rowRects) == 0 {
+	first := m.top
+	r, rowOK := m.zones.Bounds(zoneRow + "0")
+	if !rowOK {
 		t.Fatal("no dropdown row hit zones recorded")
 	}
-	first := m.top
-	r := m.rowRects[0]
-	_, _ = m.Update(tea.MouseClickMsg{X: r.X, Y: r.Y, Button: tea.MouseLeft})
+	_ = m.View().OnMouse(tea.MouseClickMsg{X: r.X, Y: r.Y, Button: tea.MouseLeft})
 	if m.Minute != first {
 		t.Fatalf("clicking the first row set minute=%d; want %d", m.Minute, first)
 	}
@@ -108,7 +112,7 @@ func TestTimeFieldMouseFlow(t *testing.T) {
 
 	// Wheel with no dropdown spins the focused column.
 	before := m.Minute
-	_, _ = m.Update(tea.MouseWheelMsg{Button: tea.MouseWheelUp})
+	_ = m.View().OnMouse(tea.MouseWheelMsg{Button: tea.MouseWheelUp})
 	if m.Minute != before+1 {
 		t.Fatalf("wheel up changed minute %d -> %d; want +1", before, m.Minute)
 	}
@@ -121,7 +125,7 @@ func TestTimeFieldDropdownScrollWindow(t *testing.T) {
 
 	// Wheel scrolls the window without moving the cursor.
 	topBefore := m.top
-	_, _ = m.Update(tea.MouseWheelMsg{Button: tea.MouseWheelDown})
+	_ = m.View().OnMouse(tea.MouseWheelMsg{Button: tea.MouseWheelDown})
 	if m.top != topBefore+1 {
 		t.Fatalf("wheel did not scroll the dropdown window (%d -> %d)", topBefore, m.top)
 	}

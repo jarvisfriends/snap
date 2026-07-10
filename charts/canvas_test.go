@@ -74,3 +74,13 @@ func TestCanvasTextOverlaysBraille(t *testing.T) {
 	c.SetPixel(999, 999, nil)
 	require.Equal(t, 3, lipgloss.Height(c.Render()))
 }
+
+func TestCanvasPixelSize(t *testing.T) {
+	t.Parallel()
+
+	c := NewCanvas(10, 5)
+	w, h := c.PixelSize()
+	if w != 20 || h != 20 {
+		t.Fatalf("PixelSize() = %dx%d; want 20x20 (2 px per cell wide, 4 tall)", w, h)
+	}
+}

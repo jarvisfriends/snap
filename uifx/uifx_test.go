@@ -35,23 +35,40 @@ func TestLevelContract(t *testing.T) {
 	}
 }
 
-// TestRouteToUpdateForwardsMouseAndCmd pins the OnMouse adapter contract:
-// the mouse message reaches Update unchanged and Update's command comes back.
-func TestRouteToUpdateForwardsMouseAndCmd(t *testing.T) {
+// TestMouseHandlersDispatch pins the OnMouse dispatch contract: each event
+// kind reaches only its handler with the unwrapped tea.Mouse, the handler's
+// command comes back, and nil handlers (and releases here) fall through to a
+// nil command instead of panicking.
+func TestMouseHandlersDispatch(t *testing.T) {
 	t.Parallel()
 
-	var got tea.Msg
-	want := func() tea.Msg { return nil }
-	h := RouteToUpdate(func(msg tea.Msg) (tea.Model, tea.Cmd) {
-		got = msg
-		return nil, want
-	})
-	click := tea.MouseClickMsg{X: 3, Y: 4, Button: tea.MouseLeft}
-	if cmd := h(click); cmd == nil {
-		t.Fatal("RouteToUpdate dropped Update's command")
+	var got []string
+	rec := func(kind string) func(tea.Mouse) tea.Cmd {
+		return func(m tea.Mouse) tea.Cmd {
+			got = append(got, kind)
+			return func() tea.Msg { return nil }
+		}
 	}
-	if got != tea.MouseMsg(click) {
-		t.Fatalf("Update received %#v; want the click", got)
+	h := MouseHandlers{Click: rec("click"), Wheel: rec("wheel"), Motion: rec("motion")}
+
+	if cmd := h.OnMouse(tea.MouseClickMsg{X: 1, Y: 2, Button: tea.MouseLeft}); cmd == nil {
+		t.Fatal("click handler's command was dropped")
+	}
+	_ = h.OnMouse(tea.MouseWheelMsg{Button: tea.MouseWheelUp})
+	_ = h.OnMouse(tea.MouseMotionMsg{X: 3, Y: 4})
+	// Release has no handler: must be a silent nil, not a panic.
+	if cmd := h.OnMouse(tea.MouseReleaseMsg{Button: tea.MouseLeft}); cmd != nil {
+		t.Fatal("nil Release handler must yield a nil command")
+	}
+
+	want := []string{"click", "wheel", "motion"}
+	if len(got) != len(want) {
+		t.Fatalf("handlers called: %v; want %v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("handlers called: %v; want %v", got, want)
+		}
 	}
 }
 

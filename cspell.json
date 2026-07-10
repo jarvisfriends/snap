@@ -4,14 +4,29 @@
 	"words": [
 		"amarcum",
 		"bubbletea",
+		"catppuccin",
 		"charmbracelet",
 		"choco",
+		"dedupe",
+		"errorf",
+		"funcs",
 		"goarch",
 		"gofmt",
+		"gofumpt",
 		"golangci",
+		"iface",
 		"lipgloss",
+		"logrus",
+		"nolint",
+		"notif",
 		"pgdn",
 		"pgdown",
-		"pgup"
+		"pgup",
+		"prefs",
+		"sirupsen",
+		"sparkline",
+		"sprintf",
+		"staticcheck",
+		"strconv"
 	]
 }

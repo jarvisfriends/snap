@@ -180,44 +180,42 @@ func (m *DatePickerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				// no next field to move to
 			}
 		}
-	case tea.MouseClickMsg:
-		m.handleClick(msg.Mouse())
-
-	case tea.MouseWheelMsg:
-		// Vertical wheel pages weeks (mirroring up/down); horizontal wheel
-		// pages whole months, so the wheel alone can reach any date.
-		switch msg.Mouse().Button {
-		case tea.MouseWheelUp:
-			m.Time = m.Time.AddDate(0, 0, -7)
-		case tea.MouseWheelDown:
-			m.Time = m.Time.AddDate(0, 0, 7)
-		case tea.MouseWheelLeft:
-			m.Time = m.Time.AddDate(0, -1, 0)
-		case tea.MouseWheelRight:
-			m.Time = m.Time.AddDate(0, 1, 0)
-		}
-
-	case tea.MouseMotionMsg:
-		m.handleMotion(msg.Mouse())
 	}
 	return m, nil
+}
+
+// handleWheel: vertical wheel pages weeks (mirroring up/down); horizontal
+// wheel pages whole months, so the wheel alone can reach any date.
+func (m *DatePickerModel) handleWheel(me tea.Mouse) tea.Cmd {
+	switch me.Button {
+	case tea.MouseWheelUp:
+		m.Time = m.Time.AddDate(0, 0, -7)
+	case tea.MouseWheelDown:
+		m.Time = m.Time.AddDate(0, 0, 7)
+	case tea.MouseWheelLeft:
+		m.Time = m.Time.AddDate(0, -1, 0)
+	case tea.MouseWheelRight:
+		m.Time = m.Time.AddDate(0, 1, 0)
+	}
+	return nil
 }
 
 // handleMotion tracks drags (the highlight follows a held left button
 // across day cells, LevelMedium+) and hover (LevelHigh: the day under the
 // pointer renders underlined so the click target reads before committing).
-func (m *DatePickerModel) handleMotion(me tea.Mouse) {
+func (m *DatePickerModel) handleMotion(me tea.Mouse) tea.Cmd {
 	day := m.dayAt(me.X, me.Y)
 	if me.Button == tea.MouseLeft {
 		if m.Effects.Drag() && !day.IsZero() {
 			m.Time = day
 			m.SetFocus(FocusCalendar)
 		}
-		return
+		return nil
 	}
 	if m.Effects.Hover() {
 		m.hoverDay = day
 	}
+	return nil
 }
 
 // dayAt maps content-relative coordinates to the date in that grid cell
@@ -237,9 +235,9 @@ func (m *DatePickerModel) dayAt(x, y int) time.Time {
 // handleClick routes a content-relative left click: a day cell moves the
 // highlight there (clicking the highlighted day again confirms it, setting
 // Selected); the title line focuses the month (left half) or year (right).
-func (m *DatePickerModel) handleClick(me tea.Mouse) {
+func (m *DatePickerModel) handleClick(me tea.Mouse) tea.Cmd {
 	if me.Button != tea.MouseLeft {
-		return
+		return nil
 	}
 	if me.Y < m.titleH {
 		if me.X < m.totalW/2 {
@@ -247,19 +245,20 @@ func (m *DatePickerModel) handleClick(me tea.Mouse) {
 		} else {
 			m.SetFocus(FocusHeaderYear)
 		}
-		return
+		return nil
 	}
 	day := m.dayAt(me.X, me.Y)
 	if day.IsZero() {
-		return
+		return nil
 	}
 	sameDay := day.Day() == m.Time.Day() && day.Month() == m.Time.Month() && day.Year() == m.Time.Year()
 	if sameDay && m.Focused == FocusCalendar {
 		m.Selected = true
-		return
+		return nil
 	}
 	m.Time = day
 	m.SetFocus(FocusCalendar)
+	return nil
 }
 
 func (m *DatePickerModel) updateUp() {
@@ -312,6 +311,18 @@ func (m *DatePickerModel) updateLeft() {
 	case FocusNone:
 		// do nothing
 	}
+}
+
+// onMouse is the View.OnMouse entry point: mouse events dispatch straight to
+// the handler methods, never through Update, so hosts (and the Bubble Tea
+// runtime) deliver pointer input through exactly one door. Parents hosting
+// this component should call onMouse with translated coordinates.
+func (m *DatePickerModel) onMouse(msg tea.MouseMsg) tea.Cmd {
+	return uifx.MouseHandlers{
+		Click:  m.handleClick,
+		Wheel:  m.handleWheel,
+		Motion: m.handleMotion,
+	}.OnMouse(msg)
 }
 
 // View renders a month view as a multiline string in the bubbletea application.
@@ -429,7 +440,7 @@ func (m *DatePickerModel) View() tea.View {
 	m.gridOffX = max((m.totalW-7*m.cellW)/2, 0)
 
 	v := tea.NewView(b.String())
-	v.OnMouse = uifx.RouteToUpdate(m.Update)
+	v.OnMouse = m.onMouse
 	return v
 }
 
