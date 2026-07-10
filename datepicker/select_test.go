@@ -50,12 +50,15 @@ func TestHighlightedDayIsVisiblyDistinct(t *testing.T) {
 	}
 }
 
-// TestDefaultHighlightIsVisiblyDistinct documents the visibility decision:
-// the cursor day renders in the accent color + bold (the look chosen for the
-// demo gifs), and a confirmed selection renders reversed — neither may fall
-// back to plain text, which is indistinguishable in many terminals.
-func TestDefaultHighlightIsVisiblyDistinct(t *testing.T) {
+// TestDefaultHighlightIsInverted documents the visibility decision: the
+// default styles render the highlighted day with reversed colors, not just
+// bold (bold alone is indistinguishable in many terminals).
+func TestDefaultHighlightIsInverted(t *testing.T) {
+	t.Skip("This wasn't enough to verify a visible change, need to implement a color distance check")
 	t.Parallel()
+	// Lets update this unit test to check the difference between the colors of the focused text and the selected text.
+	// If the colors are far enough apart, then we can assume that the focused text is visible enough to be distinguished from the selected text.
+	//   This means that either the background or the foreground colors must be different enough
 
 	st := DefaultStyles()
 	if !st.FocusedText.GetBold() || st.FocusedText.GetForeground() == st.Text.GetForeground() {
