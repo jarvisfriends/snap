@@ -16,3 +16,11 @@ func TestDependenciesAndBuildInfo(t *testing.T) {
 		t.Log("ExpandedBuildInfo returned nil (not in module context)")
 	}
 }
+
+func TestNormalizeVersion(t *testing.T) {
+	t.Parallel()
+
+	if normalizeVersion("(devel)") != "development" {
+		t.Fatal("expected normalizeVersion to normalize devel builds")
+	}
+}
