@@ -106,26 +106,41 @@ jobs:
           fi
 
   lint:
-    name: Lint (target GOOS=${{ matrix.target_goos }})
+    name: Lint
     runs-on: ubuntu-24.04
-    strategy:
-      fail-fast: false
-      matrix:
-        target_goos: [linux, windows]
-    env:
-      GOOS: ${{ matrix.target_goos }}
-      GOARCH: amd64
     steps:
       - uses: actions/checkout@v7
       - name: Set up Go
         uses: actions/setup-go@v6
         with:
           go-version: '1.26.x'
-      - name: Lint
+      - name: Lint (GOOS=linux, full)
         uses: golangci/golangci-lint-action@v9
         with:
           # Pinned: keep in sync with tui-base and tools/local_verify.sh.
           version: v2.12.2
+      - name: Find OS-specific packages
+        id: ospkgs
+        # Only packages whose sources diverge by OS (file suffixes or
+        # //go:build tags) need a second-GOOS lint pass — everything else
+        # typechecks identically, so a full re-run is pure duplication.
+        # Keep the detection in sync with tools/local_verify.sh.
+        run: |
+          pkgs=$({
+            git ls-files '*_windows.go' '*_linux.go' '*_unix.go' '*_darwin.go' '*_other.go'
+            git ls-files '*.go' | xargs -r grep -lE '^//go:build .*(windows|linux|darwin|unix)' || true
+          } | xargs -r -n1 dirname | sort -u | sed 's|^|./|; s|$|/...|' | tr '\n' ' ')
+          echo "pkgs=${pkgs}" >> "$GITHUB_OUTPUT"
+          echo "OS-specific packages: ${pkgs:-none}"
+      - name: Lint (GOOS=windows, OS-specific packages only)
+        if: steps.ospkgs.outputs.pkgs != ''
+        uses: golangci/golangci-lint-action@v9
+        env:
+          GOOS: windows
+          GOARCH: amd64
+        with:
+          version: v2.12.2
+          args: ${{ steps.ospkgs.outputs.pkgs }}
       - name: Lint rendertapes (nested module)
         uses: golangci/golangci-lint-action@v9
         with:

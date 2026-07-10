@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
@@ -19,6 +20,7 @@ type Side int
 const (
 	SideHours Side = iota
 	SideMinutes
+	SideSeconds
 )
 
 // dropdownVisibleRows is how many values the open dropdown shows at once.
@@ -59,8 +61,14 @@ func DefaultTimeFieldKeyMap() TimeFieldKeyMap {
 // top-left cell (the standard tui-base overlay convention); the hit zones are
 // recorded during View.
 type TimeFieldModel struct {
-	Hour   int // 0–23
-	Minute int // 0–59
+	// ShowSeconds adds a third seconds column. Set it before the first View.
+	ShowSeconds bool
+
+	// base carries the date (and location) the clock values are applied to,
+	// so Time() round-trips the full timestamp handed to NewTimeField or
+	// SetTime with only the clock edited.
+	base                 time.Time
+	hour, minute, second int
 
 	KeyMap  TimeFieldKeyMap
 	Focused Side
@@ -99,12 +107,12 @@ type TimeFieldModel struct {
 	zones *uifx.Zones
 }
 
-// NewTimeField returns a two-column time field initialized to hour:minute
-// (values are clamped into range).
-func NewTimeField(hour, minute int) *TimeFieldModel {
+// NewTimeField returns a time field editing t's clock. The date part of t
+// is preserved: Time() returns it with the edited hour/minute/second, so the
+// field pairs naturally with the datepicker when editing a full timestamp.
+// Seconds are hidden until ShowSeconds is set.
+func NewTimeField(t time.Time) *TimeFieldModel {
 	m := &TimeFieldModel{
-		Hour:      geom.Clamp(hour, 0, 23),
-		Minute:    geom.Clamp(minute, 0, 59),
 		KeyMap:    DefaultTimeFieldKeyMap(),
 		Focused:   SideHours,
 		open:      -1,
@@ -127,15 +135,73 @@ func NewTimeField(hour, minute int) *TimeFieldModel {
 		RowStyle:      lipgloss.NewStyle().Foreground(lipgloss.Color("245")).Padding(0, 1),
 		HelpStyle:     lipgloss.NewStyle().Foreground(lipgloss.Color("240")),
 	}
+	m.SetTime(t)
 	return m
+}
+
+// SetTime replaces the edited timestamp: the clock loads into the columns
+// and the date part is kept for Time().
+func (m *TimeFieldModel) SetTime(t time.Time) {
+	m.base = t
+	m.hour, m.minute, m.second = t.Clock()
+}
+
+// Time returns the edited timestamp: the date (and location) given to
+// NewTimeField/SetTime with the current hour, minute, and second.
+func (m *TimeFieldModel) Time() time.Time {
+	y, mo, d := m.base.Date()
+	return time.Date(y, mo, d, m.hour, m.minute, m.second, 0, m.base.Location())
+}
+
+// sides lists the visible columns in order.
+func (m *TimeFieldModel) sides() []Side {
+	if m.ShowSeconds {
+		return []Side{SideHours, SideMinutes, SideSeconds}
+	}
+	return []Side{SideHours, SideMinutes}
+}
+
+// lastSide is the right-most visible column.
+func (m *TimeFieldModel) lastSide() Side {
+	if m.ShowSeconds {
+		return SideSeconds
+	}
+	return SideMinutes
 }
 
 // Zone IDs for the field's interactive regions (see uifx.Zones).
 const (
 	zoneHours   = "hours"
 	zoneMinutes = "minutes"
+	zoneSeconds = "seconds"
 	zoneRow     = "row-" // + visible dropdown row index
 )
+
+// zoneFor is the hit-zone ID of a column.
+func zoneFor(s Side) string {
+	switch s {
+	case SideHours:
+		return zoneHours
+	case SideMinutes:
+		return zoneMinutes
+	case SideSeconds:
+		return zoneSeconds
+	}
+	return ""
+}
+
+// sideForZone is the inverse of zoneFor ( -1 when id is not a column).
+func sideForZone(id string) Side {
+	switch id {
+	case zoneHours:
+		return SideHours
+	case zoneMinutes:
+		return SideMinutes
+	case zoneSeconds:
+		return SideSeconds
+	}
+	return -1
+}
 
 // dropRow parses a dropdown-row zone ID ("row-3") into its visible index.
 func dropRow(id string) (int, bool) {
@@ -155,18 +221,29 @@ func sideMax(s Side) int {
 }
 
 func (m *TimeFieldModel) value(s Side) int {
-	if s == SideHours {
-		return m.Hour
+	switch s {
+	case SideMinutes:
+		return m.minute
+	case SideSeconds:
+		return m.second
+	case SideHours:
+		return m.hour
+	default:
+		return m.hour
 	}
-	return m.Minute
 }
 
 func (m *TimeFieldModel) setValue(s Side, v int) {
 	v = geom.Clamp(v, 0, sideMax(s))
-	if s == SideHours {
-		m.Hour = v
-	} else {
-		m.Minute = v
+	switch s {
+	case SideMinutes:
+		m.minute = v
+	case SideSeconds:
+		m.second = v
+	case SideHours:
+		m.hour = v
+	default:
+		m.hour = v
 	}
 }
 
@@ -236,10 +313,8 @@ func (m *TimeFieldModel) handleMotion(me tea.Mouse) tea.Cmd {
 		if i, ok := dropRow(id); ok {
 			m.hoverRow = m.top + i
 		}
-	case id == zoneHours:
-		m.hoverSide = SideHours
-	case id == zoneMinutes:
-		m.hoverSide = SideMinutes
+	default:
+		m.hoverSide = sideForZone(id)
 	}
 	return nil
 }
@@ -279,10 +354,10 @@ func (m *TimeFieldModel) handleKey(msg tea.KeyPressMsg) {
 		}
 	case key.Matches(msg, m.KeyMap.NextField):
 		m.closeDropdown()
-		m.focusSide(SideMinutes)
+		m.focusSide(min(m.Focused+1, m.lastSide()))
 	case key.Matches(msg, m.KeyMap.PrevField):
 		m.closeDropdown()
-		m.focusSide(SideHours)
+		m.focusSide(max(m.Focused-1, SideHours))
 	case key.Matches(msg, m.KeyMap.Up):
 		if m.open >= 0 {
 			m.moveCursor(-1)
@@ -321,16 +396,13 @@ func (m *TimeFieldModel) handleClick(me tea.Mouse) tea.Cmd {
 		m.closeDropdown()
 		return nil
 	}
-	switch id {
-	case zoneHours:
-		m.openDropdown(SideHours)
-	case zoneMinutes:
-		m.openDropdown(SideMinutes)
-	default:
-		if m.open >= 0 {
-			// Click elsewhere closes the dropdown without committing.
-			m.closeDropdown()
-		}
+	if side := sideForZone(id); side >= 0 {
+		m.openDropdown(side)
+		return nil
+	}
+	if m.open >= 0 {
+		// Click elsewhere closes the dropdown without committing.
+		m.closeDropdown()
 	}
 	return nil
 }
@@ -342,11 +414,11 @@ func (m *TimeFieldModel) handleWheel(me tea.Mouse) tea.Cmd {
 	switch me.Button {
 	case tea.MouseWheelLeft:
 		m.closeDropdown()
-		m.focusSide(SideHours)
+		m.focusSide(max(m.Focused-1, SideHours))
 		return nil
 	case tea.MouseWheelRight:
 		m.closeDropdown()
-		m.focusSide(SideMinutes)
+		m.focusSide(min(m.Focused+1, m.lastSide()))
 		return nil
 	}
 	delta := 1
@@ -393,24 +465,36 @@ func (m *TimeFieldModel) View() tea.View {
 		return m.InactiveStyle
 	}
 
-	hourCell := styleFor(SideHours).Render(m.displayValue(SideHours))
+	// Build the colon-separated column cells; hit zones come from the same
+	// blocks this frame renders (dropdown rows below via renderDropdown).
 	colon := m.ColonStyle.Render(":")
-	minuteCell := styleFor(SideMinutes).Render(m.displayValue(SideMinutes))
-
-	// Hit zones come from the same blocks this frame renders: the two
-	// column cells now, dropdown rows below (renderDropdown appends them).
-	hw, hh := lipgloss.Width(hourCell), lipgloss.Height(hourCell)
 	cw := lipgloss.Width(colon)
-	layers := []*lipgloss.Layer{
-		lipgloss.NewLayer(hourCell).ID(zoneHours),
-		lipgloss.NewLayer(minuteCell).ID(zoneMinutes).X(hw + cw),
+	var (
+		blocks   []string
+		layers   []*lipgloss.Layer
+		x, cellH int
+		openX    int // x offset of the open side's cell, for the dropdown
+	)
+	for i, side := range m.sides() {
+		if i > 0 {
+			blocks = append(blocks, colon)
+			x += cw
+		}
+		cell := styleFor(side).Render(m.displayValue(side))
+		blocks = append(blocks, cell)
+		layers = append(layers, lipgloss.NewLayer(cell).ID(zoneFor(side)).X(x))
+		if side == m.open {
+			openX = x
+		}
+		x += lipgloss.Width(cell)
+		cellH = lipgloss.Height(cell)
 	}
 
-	row := lipgloss.JoinHorizontal(lipgloss.Center, hourCell, colon, minuteCell)
+	row := lipgloss.JoinHorizontal(lipgloss.Center, blocks...)
 
 	parts := []string{row}
 	if m.open >= 0 {
-		drop, rowLayers := m.renderDropdown(hh, hw, cw)
+		drop, rowLayers := m.renderDropdown(cellH, openX)
 		parts = append(parts, drop)
 		layers = append(layers, rowLayers...)
 	} else {
@@ -422,9 +506,10 @@ func (m *TimeFieldModel) View() tea.View {
 	return v
 }
 
-// renderDropdown draws the open side's scrollable value list under its column
-// and returns the visible rows' hit-zone layers alongside it.
-func (m *TimeFieldModel) renderDropdown(cellH, hourW, colonW int) (string, []*lipgloss.Layer) {
+// renderDropdown draws the open side's scrollable value list under its
+// column (indent = that cell's x offset) and returns the visible rows'
+// hit-zone layers alongside it.
+func (m *TimeFieldModel) renderDropdown(cellH, indent int) (string, []*lipgloss.Layer) {
 	lastTop := sideMax(m.open) + 1 - dropdownVisibleRows
 	m.top = geom.Clamp(m.top, 0, lastTop)
 
@@ -444,12 +529,6 @@ func (m *TimeFieldModel) renderDropdown(cellH, hourW, colonW int) (string, []*li
 		rows = append(rows, st.Render(fmt.Sprintf("%02d", v)))
 	}
 	list := m.ListStyle.Render(lipgloss.JoinVertical(lipgloss.Left, rows...))
-
-	// Align the list under its column: hours at x=0, minutes after hour+colon.
-	indent := 0
-	if m.open == SideMinutes {
-		indent = hourW + colonW
-	}
 
 	// Row hit zones: the rendered row blocks, placed inside the list border
 	// (+1,+1) exactly where the composed frame shows them.

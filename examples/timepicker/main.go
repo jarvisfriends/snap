@@ -4,6 +4,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 
@@ -46,7 +47,9 @@ func (a demoApp) View() tea.View {
 }
 
 func main() {
-	app := demoApp{tf: timepicker.NewTimeField(8, 30)}
+	tf := timepicker.NewTimeField(time.Date(2026, 7, 10, 8, 30, 45, 0, time.Local))
+	tf.ShowSeconds = true
+	app := demoApp{tf: tf}
 	final, err := tea.NewProgram(app).Run()
 	if err != nil {
 		fmt.Println(err)
@@ -55,6 +58,6 @@ func main() {
 	// Print the confirmed time after the alt-screen restores, so the choice
 	// stays visible in the console (and the VHS tape captures a clean exit).
 	if a, ok := final.(demoApp); ok && a.tf.Done {
-		fmt.Printf("Selected: %02d:%02d\n", a.tf.Hour, a.tf.Minute)
+		fmt.Printf("Selected: %s\n", a.tf.Time().Format("15:04:05"))
 	}
 }

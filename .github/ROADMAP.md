@@ -7,17 +7,43 @@
 - [x] Done 2026-07-10: both tapes showcase ScrollUp/ScrollDown alongside keyboard input.
 - [ ] Create high level README.md file that includes the gif created for each snap with a brief description of what it is
 - [ ] Add all remaining demo.tape files for those components that don't have it
-- [ ] Search for tapes by *.tape instead of just demo.tape, useful for things like the charts folder
-- [ ] Whats the difference between the osc showing progress and the tea.View.ProgressBar showing it? does the osc offer any that we can't get with the tea.ProgressBar? 
-- [ ] My desire with the running of the lint twice was to catch issues that are present on one OS but not another... What if we always run the linux one, then do a grep for the build flags and only run the golangci linters against those files that call out a different OS than linux? There is probably a nicer way to do that... Can you research for a bit to figure out what people usually do and then go for that route? Just make sure we are not running things multiple times that we don't need to... 
+- [x] Done 2026-07-10: rendertapes walks the repo for every `*.tape` at any depth (skipping .git/tools), so `charts/sparkline.tape` etc. render too.
+- [x] Answered 2026-07-10: they are the **same wire protocol** — Bubble Tea
+  v2's renderer emits OSC 9;4 for `tea.View.ProgressBar` (states None/
+  Default/Error/Indeterminate/Warning map to protocol states 0/1/2/3/4,
+  see bubbletea `cursed_renderer.go` `setProgressBar`). Inside a running
+  program, prefer `View.ProgressBar`: the renderer diffs it (re-emits only
+  on change), serializes it with frame output, and resets it on exit. The
+  `osc` package offers exactly one thing `View.ProgressBar` can't: progress
+  **outside** a running Bubble Tea program — cobra commands, pre-`tea.Run`
+  setup phases, post-exit work, plain scripts. Its doc comment now says so.
+- [x] Done 2026-07-10: cross-GOOS lint is now targeted. Research notes:
+  most Go projects either lint once per CI-runner OS (paying full double
+  runs) or ignore the problem; golangci-lint has no per-file GOOS mode
+  (typechecking needs whole packages), so the sweet spot is per-package.
+  We now run one **full** lint on the native GOOS, then detect packages
+  whose sources actually diverge by OS (`*_windows.go`-style suffixes or
+  `//go:build` lines naming an OS — currently just `winterm/`) and lint
+  **only those** under the other GOOS. Implemented identically in
+  `tools/local_verify.sh` and `.github/workflows/ci.yml` (detection logic
+  kept in sync, commented on both sides).
 
 ## Date Picker
-- [ ] Let the user change the year and Month as well instead of having to go through each week if they wanted to for instance set their birthday
+- [x] Done 2026-07-10: month/year jump without week-walking, three ways —
+  PgUp/PgDn (or `[` / `]`) page months and Shift+PgUp/PgDn (`{` / `}`) page
+  years from any focus; the mouse wheel over the title line pages months on
+  its left half and years on its right; and the existing Tab-to-header +
+  arrows still works. All in DefaultKeyMap so apps can rebind.
 
 
 ## Time Picker
 
-- [ ] Add in an optional seconds value, make private or remove hour and minute, use time.Time to store and retrieve Hour Minute and Second
+- [x] Done 2026-07-10: `NewTimeField(t time.Time)` + `SetTime`/`Time()` —
+  the date part (and location) of the timestamp round-trips untouched with
+  only the clock edited, so the field pairs with the datepicker for full
+  timestamps. `Hour`/`Minute` are private; `ShowSeconds` adds an optional
+  third column (dropdown, type-ahead, wheel, hover — all side-generic now).
+  Breaking change, absorbed by the example + tests (no other consumers).
 
 
 ## Charts

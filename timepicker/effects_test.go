@@ -15,7 +15,7 @@ import (
 func TestTimeFieldWheelLeftRightSwitchesSides(t *testing.T) {
 	t.Parallel()
 
-	m := NewTimeField(8, 30)
+	m := NewTimeField(time.Date(2026, 7, 10, 8, 30, 0, 0, time.UTC))
 	_ = m.View().OnMouse(tea.MouseWheelMsg{Button: tea.MouseWheelRight})
 	if m.Focused != SideMinutes {
 		t.Fatalf("wheel right focused %v; want minutes", m.Focused)
@@ -31,7 +31,7 @@ func TestTimeFieldWheelLeftRightSwitchesSides(t *testing.T) {
 func TestTimeFieldHoverAndDragTiers(t *testing.T) {
 	t.Parallel()
 
-	m := NewTimeField(8, 30)
+	m := NewTimeField(time.Date(2026, 7, 10, 8, 30, 0, 0, time.UTC))
 	m.Effects = uifx.LevelHigh
 	_ = m.View()
 	minutes, ok := m.zones.Bounds(zoneMinutes)

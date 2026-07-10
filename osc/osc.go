@@ -1,8 +1,12 @@
 // Package osc emits terminal OSC escape sequences for taskbar / tab progress
-// (the ConEmu OSC 9;4 protocol, honored by Windows Terminal and others): a
-// long-running TUI task can show determinate or indeterminate progress on the
-// window without drawing anything in the frame. Ported from aSettings'
-// page-level helpers and extended with the full protocol states.
+// (the ConEmu OSC 9;4 protocol, honored by Windows Terminal and others).
+//
+// Inside a running Bubble Tea program, set tea.View.ProgressBar instead —
+// the v2 renderer speaks this exact protocol, diffs the value so sequences
+// are only re-emitted on change, and resets the indicator on exit. This
+// package covers the phases a program's View cannot: cobra/CLI commands,
+// setup work before tea.Run, and cleanup after it returns. Ported from
+// aSettings' page-level helpers and extended with the full protocol states.
 package osc
 
 import (

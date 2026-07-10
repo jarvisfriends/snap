@@ -42,6 +42,12 @@ type KeyMap struct {
 	FocusNext key.Binding
 	Select    key.Binding
 	Quit      key.Binding
+	// Month/year paging works from any focus, so reaching a far-away date
+	// (a birthday, say) never means arrowing week by week.
+	PrevMonth key.Binding
+	NextMonth key.Binding
+	PrevYear  key.Binding
+	NextYear  key.Binding
 }
 
 // DefaultKeyMap returns a KeyMap struct with default values
@@ -55,6 +61,10 @@ func DefaultKeyMap() KeyMap {
 		FocusNext: key.NewBinding(key.WithKeys("tab")),
 		Select:    key.NewBinding(key.WithKeys("enter")),
 		Quit:      key.NewBinding(key.WithKeys("ctrl+c", "q")),
+		PrevMonth: key.NewBinding(key.WithKeys("pgup", "[")),
+		NextMonth: key.NewBinding(key.WithKeys("pgdown", "]")),
+		PrevYear:  key.NewBinding(key.WithKeys("shift+pgup", "{")),
+		NextYear:  key.NewBinding(key.WithKeys("shift+pgdown", "}")),
 	}
 }
 
@@ -160,6 +170,18 @@ func (m *DatePickerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, m.KeyMap.Left):
 			m.updateLeft()
 
+		case key.Matches(msg, m.KeyMap.PrevYear):
+			m.LastYear()
+
+		case key.Matches(msg, m.KeyMap.NextYear):
+			m.NextYear()
+
+		case key.Matches(msg, m.KeyMap.PrevMonth):
+			m.LastMonth()
+
+		case key.Matches(msg, m.KeyMap.NextMonth):
+			m.NextMonth()
+
 		case key.Matches(msg, m.KeyMap.FocusPrev):
 			switch m.Focused {
 			case FocusHeaderYear:
@@ -184,14 +206,31 @@ func (m *DatePickerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-// handleWheel: vertical wheel pages weeks (mirroring up/down); horizontal
-// wheel pages whole months, so the wheel alone can reach any date.
+// handleWheel: over the calendar, the vertical wheel pages weeks (mirroring
+// up/down) and the horizontal wheel pages whole months; over the title line
+// it pages the unit under the pointer — months on the left half, years on
+// the right — so the wheel alone reaches any date quickly.
 func (m *DatePickerModel) handleWheel(me tea.Mouse) tea.Cmd {
+	overTitle := me.Y >= 0 && me.Y < m.titleH
 	switch me.Button {
 	case tea.MouseWheelUp:
-		m.Time = m.Time.AddDate(0, 0, -7)
+		switch {
+		case overTitle && me.X >= m.totalW/2:
+			m.LastYear()
+		case overTitle:
+			m.LastMonth()
+		default:
+			m.Time = m.Time.AddDate(0, 0, -7)
+		}
 	case tea.MouseWheelDown:
-		m.Time = m.Time.AddDate(0, 0, 7)
+		switch {
+		case overTitle && me.X >= m.totalW/2:
+			m.NextYear()
+		case overTitle:
+			m.NextMonth()
+		default:
+			m.Time = m.Time.AddDate(0, 0, 7)
+		}
 	case tea.MouseWheelLeft:
 		m.Time = m.Time.AddDate(0, -1, 0)
 	case tea.MouseWheelRight:

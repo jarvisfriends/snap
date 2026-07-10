@@ -16,7 +16,7 @@ func TestAllTimepickerViewsSetOnMouse(t *testing.T) {
 	if New(time.Hour).View().OnMouse == nil {
 		t.Error("TimePickerModel View must set OnMouse")
 	}
-	if NewTimeField(8, 30).View().OnMouse == nil {
+	if NewTimeField(time.Date(2026, 7, 10, 8, 30, 0, 0, time.UTC)).View().OnMouse == nil {
 		t.Error("TimeFieldModel View must set OnMouse")
 	}
 }
@@ -49,7 +49,7 @@ func TestSegmentClickFocuses(t *testing.T) {
 func TestOnMouseOpensDropdown(t *testing.T) {
 	t.Parallel()
 
-	m := NewTimeField(8, 30)
+	m := NewTimeField(time.Date(2026, 7, 10, 8, 30, 0, 0, time.UTC))
 	v := m.View()
 	hours, ok := m.zones.Bounds(zoneHours)
 	if !ok {

@@ -59,12 +59,28 @@ if [[ -f go.mod && ${GO_FILE_COUNT} -gt 0 ]]; then
     if [[ $ver =~ ([0-9]+)\.[0-9]+\.[0-9]+ && ${BASH_REMATCH[1]} == 1 ]]; then
       FAILURES+=("golangci-lint v1 detected — install v2: go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest")
     else
-      # Plain shell resolution, not `env`: on Windows dev boxes a stray Linux
-      # ELF of the same name earlier in PATH breaks `env`-style invocation.
-      lint_goos() { GOOS="$1" GOARCH=amd64 golangci-lint run ./...; }
-      for target_os in windows linux; do
-        run_gate FAIL "golangci-lint (GOOS=${target_os})" lint_goos "${target_os}"
-      done
+      # Full lint once with the native GOOS. Other platforms only re-lint
+      # the packages whose sources actually diverge by OS (file suffixes or
+      # //go:build tags) — everything else typechecks identically, so a
+      # second full pass is pure duplication. Plain shell resolution, not
+      # `env`: on Windows dev boxes a stray Linux ELF of the same name
+      # earlier in PATH breaks `env`-style invocation.
+      lint_goos() { GOOS="$1" GOARCH=amd64 golangci-lint run "${@:2}"; }
+      native_goos="$(go env GOOS)"
+      run_gate FAIL "golangci-lint (GOOS=${native_goos})" lint_goos "${native_goos}" ./...
+
+      os_specific_pkgs() {
+        {
+          git ls-files '*_windows.go' '*_linux.go' '*_unix.go' '*_darwin.go' '*_other.go'
+          git ls-files '*.go' | xargs grep -lE '^//go:build .*(windows|linux|darwin|unix)' 2>/dev/null
+        } | xargs -r -n1 dirname | sort -u | sed 's|^|./|; s|$|/...|'
+      }
+      mapfile -t OS_PKGS < <(os_specific_pkgs)
+      other_goos=linux
+      [[ "${native_goos}" == linux ]] && other_goos=windows
+      if [[ ${#OS_PKGS[@]} -gt 0 ]]; then
+        run_gate FAIL "golangci-lint (GOOS=${other_goos}, OS-specific pkgs: ${OS_PKGS[*]})"           lint_goos "${other_goos}" "${OS_PKGS[@]}"
+      fi
       if [[ -f tools/rendertapes/go.mod ]]; then
         lint_rendertapes() { (cd tools/rendertapes && golangci-lint run ./...); }
         run_gate FAIL "golangci-lint (tools/rendertapes)" lint_rendertapes

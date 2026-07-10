@@ -21,11 +21,13 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"io/fs"
 	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"sync"
 
 	"github.com/docker/docker/api/types/container"
@@ -65,12 +67,12 @@ func run() error {
 	}
 	root = absRoot
 
-	tapes, err := filepath.Glob(filepath.Join(root, "*", "demo.tape"))
+	tapes, err := findTapes(root)
 	if err != nil {
-		return fmt.Errorf("scan for */demo.tape under %s: %w", root, err)
+		return fmt.Errorf("scan for *.tape under %s: %w", root, err)
 	}
 	if len(tapes) == 0 {
-		return fmt.Errorf("no */demo.tape found under %s", root)
+		return fmt.Errorf("no *.tape files found under %s", root)
 	}
 
 	if buildErr := buildDemoBinaries(root); buildErr != nil {
@@ -122,6 +124,30 @@ func run() error {
 	}
 	log.Printf("rendertapes: %d gif(s) rendered", len(tapes))
 	return nil
+}
+
+// findTapes walks the repo for every *.tape file (any name, any depth —
+// a package can ship several, e.g. charts/sparkline.tape next to
+// charts/pie.tape), skipping VCS and tool directories.
+func findTapes(root string) ([]string, error) {
+	var tapes []string
+	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() {
+			switch d.Name() {
+			case ".git", "tools", "node_modules":
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if strings.HasSuffix(d.Name(), ".tape") {
+			tapes = append(tapes, path)
+		}
+		return nil
+	})
+	return tapes, err
 }
 
 // ensureImage pulls the VHS image when it is not already present.
