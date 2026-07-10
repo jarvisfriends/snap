@@ -77,7 +77,7 @@ func DefaultStyles() Styles {
 		HeaderText:   r.Bold(true),
 		Text:         r.Foreground(lipgloss.Color("247")),
 		SelectedText: r.Reverse(true).Bold(true),
-		FocusedText:  r.Reverse(true).Bold(true).Foreground(lipgloss.Color("212")),
+		FocusedText:  r.Bold(true).Foreground(lipgloss.Color("212")),
 	}
 }
 

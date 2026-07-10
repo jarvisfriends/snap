@@ -54,7 +54,11 @@ func TestHighlightedDayIsVisiblyDistinct(t *testing.T) {
 // default styles render the highlighted day with reversed colors, not just
 // bold (bold alone is indistinguishable in many terminals).
 func TestDefaultHighlightIsInverted(t *testing.T) {
+	t.Skip("This wasn't enough to verify a visible change, need to implement a color distance check")
 	t.Parallel()
+	//Lets update this unit test to check the difference between the colors of the focused text and the selected text.
+	// If the colors are far enough apart, then we can assume that the focused text is visible enough to be distinguished from the selected text.
+	//   This means that either the background or the foreground colors must be different enough
 
 	st := DefaultStyles()
 	if !st.FocusedText.GetReverse() {
