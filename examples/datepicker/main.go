@@ -31,12 +31,19 @@ func (a demoApp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return a, cmd
 }
 
+
 func (a demoApp) View() tea.View { return a.dp.View() }
 
 func main() {
 	app := demoApp{dp: datepicker.New(time.Now())}
-	if _, err := tea.NewProgram(app).Run(); err != nil {
+	final, err := tea.NewProgram(app).Run()
+	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
+	}
+	// Print the confirmed date after the alt-screen restores, so the choice
+	// stays visible in the console (and the VHS tape captures a clean exit).
+	if a, ok := final.(demoApp); ok && a.dp.Selected {
+		fmt.Println("Selected:", a.dp.Time.Format("Monday, January 2, 2006"))
 	}
 }

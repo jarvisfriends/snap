@@ -38,6 +38,7 @@ type KeyMap struct {
 	Left      key.Binding
 	FocusPrev key.Binding
 	FocusNext key.Binding
+	Select    key.Binding
 	Quit      key.Binding
 }
 
@@ -50,6 +51,7 @@ func DefaultKeyMap() KeyMap {
 		Left:      key.NewBinding(key.WithKeys("left")),
 		FocusPrev: key.NewBinding(key.WithKeys("shift+tab")),
 		FocusNext: key.NewBinding(key.WithKeys("tab")),
+		Select:    key.NewBinding(key.WithKeys("enter")),
 		Quit:      key.NewBinding(key.WithKeys("ctrl+c", "q")),
 	}
 }
@@ -74,8 +76,8 @@ func DefaultStyles() Styles {
 		Date:         r.Padding(0, 1, 1),
 		HeaderText:   r.Bold(true),
 		Text:         r.Foreground(lipgloss.Color("247")),
-		SelectedText: r.Bold(true),
-		FocusedText:  r.Foreground(lipgloss.Color("212")).Bold(true),
+		SelectedText: r.Reverse(true).Bold(true),
+		FocusedText:  r.Reverse(true).Bold(true).Foreground(lipgloss.Color("212")),
 	}
 }
 
@@ -122,6 +124,11 @@ func (m *DatePickerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch {
 		case key.Matches(msg, m.KeyMap.Quit):
 			return m, tea.Quit
+
+		case key.Matches(msg, m.KeyMap.Select):
+			// Confirm the highlighted date. The embedding app decides what
+			// happens next (the example prints it and quits).
+			m.Selected = true
 
 		case key.Matches(msg, m.KeyMap.Up):
 			m.updateUp()
@@ -274,9 +281,10 @@ func (m *DatePickerModel) View() tea.View {
 		style := m.Styles.Date
 		textStyle := m.Styles.Text
 		switch {
-		case !m.Selected:
-			// skip modifications to the date
 		case day.Day() == m.Time.Day() && day.Month() == m.Time.Month() && m.Focused == FocusCalendar:
+			// The cursor day is always visibly highlighted (inverted colors by
+			// default) — regression: it used to render like every other day
+			// until Selected was set, which no binding ever did.
 			textStyle = m.Styles.FocusedText
 		case day.Day() == m.Time.Day() && day.Month() == m.Time.Month():
 			textStyle = m.Styles.SelectedText
