@@ -1,6 +1,7 @@
 package pickers
 
 import (
+	"runtime"
 	"strings"
 	"testing"
 
@@ -92,7 +93,8 @@ func TestDirPickerNavigatesAboveStartAndListsDrives(t *testing.T) {
 			break
 		}
 	}
-	if dp.dir != "" {
+	// Remember that on linux and macOS the root directory is "/", so the drive list is never shown.
+	if dp.dir != "" && (runtime.GOOS != "windows" && dp.dir != "/") {
 		t.Fatalf("Back never reached the drive list; still browsing %q", dp.dir)
 	}
 	if len(dp.entries) == 0 {
