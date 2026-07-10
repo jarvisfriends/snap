@@ -8,9 +8,13 @@
 - [x] Done 2026-07-10: README gained a Gallery section — every demo gif (datepicker, timepicker, charts, pickers, menu, scrollbar, table) with a brief description; gifs regenerate via `go -C tools/rendertapes run .`.
 - [x] Mostly done 2026-07-10: new demos + tapes for pickers, menu, scrollbar,
   table, and the charts model example (7 tapes render clean end to end).
-  Remaining: navigation, status, and notifications need a host-shaped app
+  ~~Remaining: navigation, status, and notifications need a host-shaped app
   (router + pages) to demo meaningfully — their tape should live in the
-  tui-base reference app instead of a synthetic snap example.
+  tui-base reference app instead of a synthetic snap example.~~ Done
+  2026-07-10 in tui-base: `examples/multipage/demo.tape` (navigation) and
+  `cmd/tui-base/notifications.tape` (toasts + status bar), rendered by
+  tui-base's own `tools/rendertapes` port; gifs pending a Docker-equipped
+  machine.
 - [x] Done 2026-07-10: rendertapes walks the repo for every `*.tape` at any depth (skipping .git/tools), so `charts/sparkline.tape` etc. render too.
 - [x] Answered 2026-07-10: they are the **same wire protocol** — Bubble Tea
   v2's renderer emits OSC 9;4 for `tea.View.ProgressBar` (states None/
