@@ -98,6 +98,16 @@ type DatePickerModel struct {
 
 	// Selected indicates whether a date is Selected in the datepicker
 	Selected bool
+
+	// Mouse hit-zone geometry recorded during View (content-relative cells).
+	// dayGrid[row][col] is the date shown in that cell (zero for blanks).
+	dayGrid  [][]time.Time
+	titleH   int
+	gridTopY int
+	gridOffX int
+	cellW    int
+	cellH    int
+	totalW   int
 }
 
 // New returns the Model of the datepicker
@@ -162,8 +172,54 @@ func (m *DatePickerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				// no next field to move to
 			}
 		}
+	case tea.MouseClickMsg:
+		m.handleClick(msg.Mouse())
+
+	case tea.MouseWheelMsg:
+		// The wheel pages through weeks, mirroring up/down on the calendar.
+		if msg.Mouse().Button == tea.MouseWheelUp {
+			m.Time = m.Time.AddDate(0, 0, -7)
+		} else {
+			m.Time = m.Time.AddDate(0, 0, 7)
+		}
 	}
 	return m, nil
+}
+
+// handleClick routes a content-relative left click: a day cell moves the
+// highlight there (clicking the highlighted day again confirms it, setting
+// Selected); the title line focuses the month (left half) or year (right).
+func (m *DatePickerModel) handleClick(me tea.Mouse) {
+	if me.Button != tea.MouseLeft {
+		return
+	}
+	if me.Y < m.titleH {
+		if me.X < m.totalW/2 {
+			m.SetFocus(FocusHeaderMonth)
+		} else {
+			m.SetFocus(FocusHeaderYear)
+		}
+		return
+	}
+	if me.Y < m.gridTopY || m.cellW == 0 || m.cellH == 0 {
+		return
+	}
+	col := (me.X - m.gridOffX) / m.cellW
+	row := (me.Y - m.gridTopY) / m.cellH
+	if col < 0 || col > 6 || row < 0 || row >= len(m.dayGrid) || col >= len(m.dayGrid[row]) {
+		return
+	}
+	day := m.dayGrid[row][col]
+	if day.IsZero() {
+		return
+	}
+	sameDay := day.Day() == m.Time.Day() && day.Month() == m.Time.Month() && day.Year() == m.Time.Year()
+	if sameDay && m.Focused == FocusCalendar {
+		m.Selected = true
+		return
+	}
+	m.Time = day
+	m.SetFocus(FocusCalendar)
 }
 
 func (m *DatePickerModel) updateUp() {
@@ -267,15 +323,22 @@ func (m *DatePickerModel) View() tea.View {
 	}
 
 	cal := [][]string{weekHeaders}
+	dayGrid := [][]time.Time{}
 	j := 1
 
 	for day.Before(firstSundayOfNextMonth) {
 		if j >= len(cal) {
 			cal = append(cal, []string{})
+			dayGrid = append(dayGrid, make([]time.Time, 0, 7))
+		}
+		if len(dayGrid) < j {
+			dayGrid = append(dayGrid, make([]time.Time, 0, 7))
 		}
 		out := "  "
+		cellDate := time.Time{}
 		if day.Month() == month {
 			out = fmt.Sprintf("%02d", day.Day())
+			cellDate = day
 		}
 
 		style := m.Styles.Date
@@ -292,6 +355,11 @@ func (m *DatePickerModel) View() tea.View {
 
 		out = style.Inherit(textStyle).Render(out)
 		cal[j] = append(cal[j], out)
+		dayGrid[j-1] = append(dayGrid[j-1], cellDate)
+		if m.cellW == 0 {
+			m.cellW = lipgloss.Width(out)
+			m.cellH = lipgloss.Height(out)
+		}
 
 		if day.Weekday() == time.Saturday {
 			j++
@@ -304,9 +372,25 @@ func (m *DatePickerModel) View() tea.View {
 	for _, row := range cal {
 		rows = append(rows, lipgloss.JoinHorizontal(lipgloss.Center, row...))
 	}
-	b.WriteString(lipgloss.JoinVertical(lipgloss.Center, rows...))
+	content := lipgloss.JoinVertical(lipgloss.Center, rows...)
+	b.WriteString(content)
 
-	return tea.NewView(b.String())
+	// Record hit-zone geometry for handleClick: the title block, then the
+	// weekday-header row, then the day grid; JoinVertical(Center) indents
+	// narrower rows, so the grid's x offset is derived from the final width.
+	m.dayGrid = dayGrid
+	m.titleH = lipgloss.Height(title)
+	m.totalW = lipgloss.Width(content)
+	headerH := lipgloss.Height(rows[1])
+	m.gridTopY = m.titleH + headerH
+	m.gridOffX = max((m.totalW-7*m.cellW)/2, 0)
+
+	v := tea.NewView(b.String())
+	v.OnMouse = func(mm tea.MouseMsg) tea.Cmd {
+		_, cmd := m.Update(mm)
+		return cmd
+	}
+	return v
 }
 
 // SetsFocus focuses one of the datepicker components. This can also be used to blur

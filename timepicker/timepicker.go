@@ -47,6 +47,10 @@ type TimePickerModel struct {
 	ActiveStyle   lipgloss.Style
 	InactiveStyle lipgloss.Style
 	HelpStyle     lipgloss.Style
+
+	// segRects are the h/m/s cells' content-relative hit zones, recorded
+	// during View for click-to-focus.
+	segRects [3]cellRect
 }
 
 func New(d time.Duration) *TimePickerModel {
@@ -102,6 +106,18 @@ func (m *TimePickerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.increment(1)
 		} else {
 			m.increment(-1)
+		}
+
+	case tea.MouseClickMsg:
+		// Clicking a segment cell focuses it; the wheel then adjusts it.
+		me := msg.Mouse()
+		if me.Button == tea.MouseLeft {
+			for i, r := range m.segRects {
+				if r.contains(me.X, me.Y) {
+					m.Focused = Field(i)
+					break
+				}
+			}
 		}
 	}
 	return m, nil
@@ -175,16 +191,34 @@ func (m *TimePickerModel) View() tea.View {
 
 	title := lipgloss.NewStyle().Bold(true).Padding(0, 1).Render("Duration")
 
-	body := lipgloss.JoinHorizontal(
-		lipgloss.Top,
+	cells := []string{
 		styleFor(FieldHours).Render(hStr),
 		styleFor(FieldMinutes).Render(mStr),
 		styleFor(FieldSeconds).Render(sStr),
-	)
+	}
+	body := lipgloss.JoinHorizontal(lipgloss.Top, cells...)
 
 	help := m.HelpStyle.
 		MarginTop(1).
 		Render("↑/↓: Adjust • ←/→: Select • Enter: Save")
 
-	return tea.NewView(lipgloss.JoinVertical(lipgloss.Center, title, body, help))
+	content := lipgloss.JoinVertical(lipgloss.Center, title, body, help)
+
+	// Record the segment hit zones: cells sit under the title, offset by the
+	// centering indent JoinVertical applies to the (narrower) body row.
+	titleH := lipgloss.Height(title)
+	offX := max((lipgloss.Width(content)-lipgloss.Width(body))/2, 0)
+	x := offX
+	for i, c := range cells {
+		w := lipgloss.Width(c)
+		m.segRects[i] = cellRect{x: x, y: titleH, w: w, h: lipgloss.Height(c)}
+		x += w
+	}
+
+	v := tea.NewView(content)
+	v.OnMouse = func(mm tea.MouseMsg) tea.Cmd {
+		_, cmd := m.Update(mm)
+		return cmd
+	}
+	return v
 }
