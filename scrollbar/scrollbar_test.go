@@ -3,6 +3,8 @@ package scrollbar
 import (
 	"strings"
 	"testing"
+
+	"github.com/charmbracelet/x/ansi"
 )
 
 // column renders with plain styles so glyphs are countable.
@@ -82,5 +84,57 @@ func TestClampOffset(t *testing.T) {
 	}
 	if got := ClampOffset(3, 5, 10); got != 0 {
 		t.Fatalf("ClampOffset with fitting content = %d; want 0", got)
+	}
+}
+
+// TestPresetGlyphDefaults: each preset picks its signature glyphs when no
+// overrides are given.
+func TestPresetGlyphDefaults(t *testing.T) {
+	t.Parallel()
+
+	line := ansi.Strip(Vertical(100, 10, 0, 10, Styles{}))
+	if !strings.Contains(line, "┃") || !strings.Contains(line, "│") {
+		t.Fatalf("line preset missing thin/heavy glyphs: %q", line)
+	}
+	classic := ansi.Strip(Vertical(100, 10, 0, 10, Styles{Preset: PresetClassic}))
+	if !strings.Contains(classic, "█") || !strings.Contains(classic, "░") {
+		t.Fatalf("classic preset missing retro glyphs: %q", classic)
+	}
+}
+
+// TestSmoothPresetSubCellGlide pins the eighth-block behavior: a mid-way
+// offset produces partial-block boundary cells, offsets one line apart
+// produce distinct frames (sub-cell motion), and the ends are exact.
+func TestSmoothPresetSubCellGlide(t *testing.T) {
+	t.Parallel()
+
+	st := Styles{Preset: PresetSmooth}
+	render := func(offset int) []string {
+		return strings.Split(ansi.Strip(Vertical(200, 20, offset, 10, st)), "\n")
+	}
+
+	top := render(0)
+	if len(top) != 10 || top[0] != "█" {
+		t.Fatalf("smooth thumb at offset 0 not flush with the top: %v", top)
+	}
+	bottom := render(180)
+	if bottom[len(bottom)-1] != "█" {
+		t.Fatalf("smooth thumb at max offset not flush with the bottom: %v", bottom)
+	}
+
+	// A mid-way offset must land the thumb edges inside cells: at least one
+	// partial (eighth-block) boundary glyph.
+	partials := "▁▂▃▄▅▆▇"
+	mid := strings.Join(render(37), "")
+	if !strings.ContainsAny(mid, partials) {
+		t.Fatalf("smooth thumb at odd offset has no sub-cell boundary: %q", mid)
+	}
+
+	// Nearby offsets render differently — the point of sub-cell resolution.
+	// (Exact adjacency can share an eighth: 180 scroll positions map onto 72
+	// eighth-steps here, so compare offsets ≥ one eighth-step apart. A
+	// cell-based thumb would need ~20 lines of scrolling to move at all.)
+	if a, b := render(40), render(45); strings.Join(a, "") == strings.Join(b, "") {
+		t.Fatal("nearby offsets rendered identically; sub-cell glide lost")
 	}
 }

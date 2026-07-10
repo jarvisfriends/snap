@@ -5,8 +5,12 @@
 - [x] ~~Height issue~~ Fixed 2026-07-10: demo roots render inline by default, pinning content to the prompt line — they now set AltScreen. (The empty gifs had a second cause: the vhs container has no Go toolchain, so in-tape `go build` failed; rendertapes now cross-compiles demo binaries on the host.)
 - [x] Done 2026-07-10: `tools/rendertapes` (own module) renders all tapes through the official vhs container via the Docker/Podman Go client, worker pool = NumCPU.
 - [x] Done 2026-07-10: both tapes showcase ScrollUp/ScrollDown alongside keyboard input.
-- [ ] Create high level README.md file that includes the gif created for each snap with a brief description of what it is
-- [ ] Add all remaining demo.tape files for those components that don't have it
+- [x] Done 2026-07-10: README gained a Gallery section — every demo gif (datepicker, timepicker, charts, pickers, menu, scrollbar, table) with a brief description; gifs regenerate via `go -C tools/rendertapes run .`.
+- [x] Mostly done 2026-07-10: new demos + tapes for pickers, menu, scrollbar,
+  table, and the charts model example (7 tapes render clean end to end).
+  Remaining: navigation, status, and notifications need a host-shaped app
+  (router + pages) to demo meaningfully — their tape should live in the
+  tui-base reference app instead of a synthetic snap example.
 - [x] Done 2026-07-10: rendertapes walks the repo for every `*.tape` at any depth (skipping .git/tools), so `charts/sparkline.tape` etc. render too.
 - [x] Answered 2026-07-10: they are the **same wire protocol** — Bubble Tea
   v2's renderer emits OSC 9;4 for `tea.View.ProgressBar` (states None/
@@ -70,7 +74,19 @@ new `*Model` types wrap them per chart file:
   host renders a legend (the example does).
 
 ## Scrollbar
-This still looks old school, and not in a good retro way... Can we figure out some better characters to use, or show it on the screen differently... I am not sure what would make it look better, you will have to be the expert on this one after you research a bit on some cool looking scroll bars
+
+- [x] Restyled 2026-07-10. Research: modern TUIs converge on two looks —
+  fzf/yazi use a thin line track with a heavier thumb (or a floating thumb
+  and no track), and btop gets its polish from **sub-cell precision**:
+  partial cells drawn with eighth-block glyphs so the thumb glides instead
+  of jumping a whole cell at a time. Both are in as presets:
+  - `PresetLine` (new default): dim `│` track, bright heavy `┃` thumb.
+  - `PresetSmooth`: floating block thumb with 1/8-cell resolution — the
+    thumb's bottom edge renders as a lower-eighth block and its top edge as
+    the inverted complement (there are no upper-eighth glyphs, so the style
+    reverses to paint the remainder), giving 8x the positional steps.
+  - `PresetClassic`: the old `░` / `█` for the actually-retro moods.
+  Glyphs and colors stay overridable per Styles.
 
 ## Maintenance pass (2026-07-10)
 

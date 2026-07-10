@@ -35,6 +35,66 @@ the runtime debugger for any Charm-based app.
 The three navigation styles live side by side because they satisfy the same
 navigator contract; an app can swap between them at runtime.
 
+## Gallery
+
+Every demo below is a VHS tape rendered in the official vhs container —
+regenerate them all with `go -C tools/rendertapes run .` (Docker or Podman;
+the tool cross-compiles each example, runs every `*.tape` in parallel, and
+drops the gifs next to their tapes).
+
+### Date picker
+
+![datepicker demo](datepicker/demo.gif)
+
+Calendar with click-to-highlight / click-again-to-confirm days, header
+month/year focus, and paging: PgUp/PgDn months, Shift+PgUp/PgDn years, the
+wheel over the title pages the unit under the pointer.
+
+### Time picker
+
+![timepicker demo](timepicker/demo.gif)
+
+Two (or three, with `ShowSeconds`) colon-separated columns editing a
+`time.Time`'s clock: digits type ahead, Space/click opens a value dropdown,
+the wheel spins the focused column and hops columns horizontally.
+
+### Charts
+
+![charts demo](examples/charts/demo.gif)
+
+The chart models live-streaming ID-routed data: two sparklines, a braille
+pie (thin slices fold into "Other" with a legend), a sankey, and an hbar,
+all stretching into the space the window split gives them.
+
+### Pickers
+
+![pickers demo](examples/pickers/demo.gif)
+
+Drive-aware directory picker: keyboard and wheel walk the tree (wheel left
+= parent, right = open), Space selects, Ctrl+S picks the browsed folder.
+
+### Context menu
+
+![menu demo](examples/menu/demo.gif)
+
+Right-click (or keyboard) pop-up menu at the pointer: disabled items are
+skipped, hover and wheel move the cursor, clicking outside dismisses,
+edges clamp to the terminal.
+
+### Scrollbar
+
+![scrollbar demo](examples/scrollbar/demo.gif)
+
+The three presets over one scrolling pane — Smooth (sub-cell eighth-block
+glide), Line (thin default), Classic (retro blocks).
+
+### Table
+
+![table demo](examples/table/demo.gif)
+
+Sortable, filterable data table: header clicks sort, `/` filters, Enter or
+double-click opens a row, wheel scrolls the selection.
+
 ## Design rules
 
 - **Theme-free with style hooks.** Components take injected styles (the
