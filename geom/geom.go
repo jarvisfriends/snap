@@ -27,3 +27,15 @@ func (r Rect) CenteredIn(areaW, areaH int) Rect {
 	r.Y = max(0, (areaH-r.H)/2)
 	return r
 }
+
+// Clamp bounds v into [lo, hi]. Shared by components that pin cursor and
+// scroll positions into their content ranges.
+func Clamp(v, lo, hi int) int {
+	if v < lo {
+		return lo
+	}
+	if v > hi {
+		return hi
+	}
+	return v
+}

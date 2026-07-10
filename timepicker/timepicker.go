@@ -7,6 +7,8 @@ import (
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+
+	"github.com/jarvisfriends/snap/uifx"
 )
 
 type Field int
@@ -48,13 +50,19 @@ type TimePickerModel struct {
 	InactiveStyle lipgloss.Style
 	HelpStyle     lipgloss.Style
 
-	// segRects are the h/m/s cells' content-relative hit zones, recorded
-	// during View for click-to-focus.
-	segRects [3]cellRect
+	// Effects selects the interaction-feedback tier (see uifx.Level).
+	Effects uifx.Level
+	// hoverSeg is the segment under the pointer (-1 none; LevelHigh).
+	hoverSeg int
+
+	// zones holds the h/m/s cells' hit zones (uifx.Zones), rebuilt each
+	// View from the rendered cells for click-to-focus and hover.
+	zones *uifx.Zones
 }
 
 func New(d time.Duration) *TimePickerModel {
 	return &TimePickerModel{
+		hoverSeg: -1,
 		Duration: d,
 		KeyMap:   DefaultKeyMap(),
 		Focused:  FieldHours,
@@ -101,26 +109,50 @@ func (m *TimePickerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, m.KeyMap.Down):
 			m.increment(-1)
 		}
-	case tea.MouseWheelMsg:
-		if msg.Mouse().Button == tea.MouseWheelUp {
-			m.increment(1)
-		} else {
-			m.increment(-1)
-		}
-
-	case tea.MouseClickMsg:
-		// Clicking a segment cell focuses it; the wheel then adjusts it.
-		me := msg.Mouse()
-		if me.Button == tea.MouseLeft {
-			for i, r := range m.segRects {
-				if r.contains(me.X, me.Y) {
-					m.Focused = Field(i)
-					break
-				}
-			}
-		}
 	}
 	return m, nil
+}
+
+// handleWheel: vertical wheel adjusts the focused segment; horizontal wheel
+// moves the focus between segments.
+func (m *TimePickerModel) handleWheel(me tea.Mouse) tea.Cmd {
+	switch me.Button {
+	case tea.MouseWheelUp:
+		m.increment(1)
+	case tea.MouseWheelDown:
+		m.increment(-1)
+	case tea.MouseWheelLeft:
+		if m.Focused > FieldHours {
+			m.Focused--
+		}
+	case tea.MouseWheelRight:
+		if m.Focused < FieldSeconds {
+			m.Focused++
+		}
+	}
+	return nil
+}
+
+// handleClick: clicking a segment cell focuses it; the wheel then adjusts it.
+func (m *TimePickerModel) handleClick(me tea.Mouse) tea.Cmd {
+	if me.Button != tea.MouseLeft {
+		return nil
+	}
+	if i, ok := dropRow(m.zones.Hit(me.X, me.Y)); ok {
+		m.Focused = Field(i)
+	}
+	return nil
+}
+
+// handleMotion tracks hover (LevelHigh): the segment under the pointer.
+func (m *TimePickerModel) handleMotion(me tea.Mouse) tea.Cmd {
+	if me.Button == tea.MouseNone && m.Effects.Hover() {
+		m.hoverSeg = -1
+		if i, ok := dropRow(m.zones.Hit(me.X, me.Y)); ok {
+			m.hoverSeg = i
+		}
+	}
+	return nil
 }
 
 func (m *TimePickerModel) increment(dir int) {
@@ -173,6 +205,18 @@ func (m *TimePickerModel) increment(dir int) {
 	)*time.Second
 }
 
+// onMouse is the View.OnMouse entry point: mouse events dispatch straight to
+// the handler methods, never through Update, so hosts (and the Bubble Tea
+// runtime) deliver pointer input through exactly one door. Parents hosting
+// this component should call onMouse with translated coordinates.
+func (m *TimePickerModel) onMouse(msg tea.MouseMsg) tea.Cmd {
+	return uifx.MouseHandlers{
+		Click:  m.handleClick,
+		Wheel:  m.handleWheel,
+		Motion: m.handleMotion,
+	}.OnMouse(msg)
+}
+
 func (m *TimePickerModel) View() tea.View {
 	hours := int64(m.Duration.Hours())
 	minutes := int64(m.Duration.Minutes()) % 60
@@ -185,6 +229,9 @@ func (m *TimePickerModel) View() tea.View {
 	styleFor := func(f Field) lipgloss.Style {
 		if m.Focused == f {
 			return m.ActiveStyle
+		}
+		if m.Effects.Hover() && int(f) == m.hoverSeg {
+			return m.InactiveStyle.Underline(true)
 		}
 		return m.InactiveStyle
 	}
@@ -207,18 +254,18 @@ func (m *TimePickerModel) View() tea.View {
 	// Record the segment hit zones: cells sit under the title, offset by the
 	// centering indent JoinVertical applies to the (narrower) body row.
 	titleH := lipgloss.Height(title)
+	// Segment hit zones: the rendered cells at their composed positions.
 	offX := max((lipgloss.Width(content)-lipgloss.Width(body))/2, 0)
 	x := offX
+	layers := make([]*lipgloss.Layer, 0, len(cells))
 	for i, c := range cells {
-		w := lipgloss.Width(c)
-		m.segRects[i] = cellRect{x: x, y: titleH, w: w, h: lipgloss.Height(c)}
-		x += w
+		layers = append(layers,
+			lipgloss.NewLayer(c).ID(fmt.Sprintf("%s%d", zoneRow, i)).X(x).Y(titleH))
+		x += lipgloss.Width(c)
 	}
+	m.zones = uifx.NewZones(layers...)
 
 	v := tea.NewView(content)
-	v.OnMouse = func(mm tea.MouseMsg) tea.Cmd {
-		_, cmd := m.Update(mm)
-		return cmd
-	}
+	v.OnMouse = m.onMouse
 	return v
 }

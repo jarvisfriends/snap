@@ -8,3 +8,8 @@
 .idea/
 .history/
 dist/
+
+# built example binaries (tapes build/run/delete them)
+examples/*/datepicker
+examples/*/timepicker
+examples/*/*.exe

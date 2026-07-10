@@ -16,6 +16,13 @@ type demoApp struct{ dp *datepicker.DatePickerModel }
 func (a demoApp) Init() tea.Cmd { return a.dp.Init() }
 
 func (a demoApp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	// Mouse events reach the component through the root view's OnMouse
+	// (Bubble Tea delivers the raw event to BOTH OnMouse and Update);
+	// forwarding them here too would double-process every click — the first
+	// click would highlight AND select.
+	if _, isMouse := msg.(tea.MouseMsg); isMouse {
+		return a, nil
+	}
 	if k, ok := msg.(tea.KeyPressMsg); ok {
 		if s := k.String(); s == "q" || s == "ctrl+c" {
 			return a, tea.Quit
@@ -31,8 +38,18 @@ func (a demoApp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return a, cmd
 }
 
-
-func (a demoApp) View() tea.View { return a.dp.View() }
+// View enables mouse reporting on the root view — in Bubble Tea v2 the
+// terminal only sends mouse events when the root view asks for them, so
+// without this the component's OnMouse never fires.
+func (a demoApp) View() tea.View {
+	v := a.dp.View()
+	v.MouseMode = tea.MouseModeCellMotion
+	// AltScreen gives the demo the whole window: rendered inline (the
+	// default), the content is pinned to the prompt line and the tall VHS
+	// window stays empty — the "Height not showing up" symptom.
+	v.AltScreen = true
+	return v
+}
 
 func main() {
 	app := demoApp{dp: datepicker.New(time.Now())}

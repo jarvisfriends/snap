@@ -56,13 +56,13 @@ func TestHighlightedDayIsVisiblyDistinct(t *testing.T) {
 func TestDefaultHighlightIsInverted(t *testing.T) {
 	t.Skip("This wasn't enough to verify a visible change, need to implement a color distance check")
 	t.Parallel()
-	//Lets update this unit test to check the difference between the colors of the focused text and the selected text.
+	// Lets update this unit test to check the difference between the colors of the focused text and the selected text.
 	// If the colors are far enough apart, then we can assume that the focused text is visible enough to be distinguished from the selected text.
 	//   This means that either the background or the foreground colors must be different enough
 
 	st := DefaultStyles()
-	if !st.FocusedText.GetReverse() {
-		t.Error("FocusedText must default to reversed colors")
+	if !st.FocusedText.GetBold() || st.FocusedText.GetForeground() == st.Text.GetForeground() {
+		t.Error("FocusedText must default to a bold accent distinct from Text")
 	}
 	if !st.SelectedText.GetReverse() {
 		t.Error("SelectedText must default to reversed colors")

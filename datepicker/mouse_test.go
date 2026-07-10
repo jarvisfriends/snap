@@ -9,12 +9,12 @@ import (
 
 // clickAt sends a content-relative left click.
 func clickAt(m *DatePickerModel, x, y int) {
-	_, _ = m.Update(tea.MouseClickMsg{X: x, Y: y, Button: tea.MouseLeft})
+	_ = m.View().OnMouse(tea.MouseClickMsg{X: x, Y: y, Button: tea.MouseLeft})
 }
 
 // cellCenter returns the content coordinates of the cell showing date d,
 // using the geometry recorded by the last View.
-func cellCenter(t *testing.T, m *DatePickerModel, d time.Time) (int, int) {
+func cellCenter(t *testing.T, m *DatePickerModel, d time.Time) (x, y int) {
 	t.Helper()
 	for row, days := range m.dayGrid {
 		for col, day := range days {
@@ -80,18 +80,66 @@ func TestClickOnBlankCellIsNoOp(t *testing.T) {
 	}
 }
 
-// TestWheelPagesWeeks: the wheel mirrors up/down week navigation.
+// TestWheelPagesWeeks: over the calendar grid the wheel mirrors up/down
+// week navigation.
 func TestWheelPagesWeeks(t *testing.T) {
 	t.Parallel()
 
 	m := New(time.Date(2026, 7, 9, 0, 0, 0, 0, time.UTC))
-	_, _ = m.Update(tea.MouseWheelMsg{Button: tea.MouseWheelDown})
+	_ = m.View() // record grid geometry
+	x, y := cellCenter(t, m, m.Time)
+	_ = m.View().OnMouse(tea.MouseWheelMsg{X: x, Y: y, Button: tea.MouseWheelDown})
 	if m.Time.Day() != 16 {
 		t.Fatalf("wheel down = day %d; want 16 (one week later)", m.Time.Day())
 	}
-	_, _ = m.Update(tea.MouseWheelMsg{Button: tea.MouseWheelUp})
+	_ = m.View().OnMouse(tea.MouseWheelMsg{X: x, Y: y, Button: tea.MouseWheelUp})
 	if m.Time.Day() != 9 {
 		t.Fatalf("wheel up = day %d; want 9", m.Time.Day())
+	}
+}
+
+// TestWheelOverTitlePagesMonthAndYear: the title line's left half pages
+// months under the wheel, the right half pages years — a fast path to
+// far-away dates without walking weeks.
+func TestWheelOverTitlePagesMonthAndYear(t *testing.T) {
+	t.Parallel()
+
+	m := New(time.Date(2026, 7, 9, 0, 0, 0, 0, time.UTC))
+	_ = m.View() // record geometry
+	_ = m.View().OnMouse(tea.MouseWheelMsg{X: 1, Y: 0, Button: tea.MouseWheelDown})
+	if m.Time.Month() != time.August {
+		t.Fatalf("wheel down on the month half = %v; want August", m.Time.Month())
+	}
+	_ = m.View().OnMouse(tea.MouseWheelMsg{X: m.totalW - 2, Y: 0, Button: tea.MouseWheelDown})
+	if m.Time.Year() != 2027 {
+		t.Fatalf("wheel down on the year half = %d; want 2027", m.Time.Year())
+	}
+	_ = m.View().OnMouse(tea.MouseWheelMsg{X: m.totalW - 2, Y: 0, Button: tea.MouseWheelUp})
+	_ = m.View().OnMouse(tea.MouseWheelMsg{X: 1, Y: 0, Button: tea.MouseWheelUp})
+	if m.Time.Month() != time.July || m.Time.Year() != 2026 {
+		t.Fatalf("wheel up did not undo the paging (at %v)", m.Time)
+	}
+}
+
+// TestMonthYearPagingKeys: PgUp/PgDn page months and Shift+PgUp/PgDn page
+// years from any focus (no header tabbing required).
+func TestMonthYearPagingKeys(t *testing.T) {
+	t.Parallel()
+
+	m := New(time.Date(2026, 7, 9, 0, 0, 0, 0, time.UTC))
+	m.Focused = FocusCalendar
+	_, _ = m.Update(tea.KeyPressMsg{Code: tea.KeyPgDown})
+	if m.Time.Month() != time.August {
+		t.Fatalf("pgdown month = %v; want August", m.Time.Month())
+	}
+	_, _ = m.Update(tea.KeyPressMsg{Code: tea.KeyPgDown, Mod: tea.ModShift})
+	if m.Time.Year() != 2027 {
+		t.Fatalf("shift+pgdown year = %d; want 2027", m.Time.Year())
+	}
+	_, _ = m.Update(tea.KeyPressMsg{Code: tea.KeyPgUp, Mod: tea.ModShift})
+	_, _ = m.Update(tea.KeyPressMsg{Code: tea.KeyPgUp})
+	if m.Time.Month() != time.July || m.Time.Year() != 2026 {
+		t.Fatalf("paging keys did not round-trip (at %v)", m.Time)
 	}
 }
 
@@ -109,5 +157,22 @@ func TestTitleClickFocusesHeaders(t *testing.T) {
 	clickAt(m, m.totalW-2, m.titleH-1)
 	if m.Focused != FocusHeaderYear {
 		t.Fatalf("right title click focused %v; want year", m.Focused)
+	}
+}
+
+// TestOnMouseHandlesClick drives a click through View().OnMouse — the
+// pointer's only door (component Updates carry no mouse cases) — and checks
+// it lands on the intended day.
+func TestOnMouseHandlesClick(t *testing.T) {
+	t.Parallel()
+
+	m := New(time.Date(2026, 7, 10, 0, 0, 0, 0, time.UTC))
+	m.Focused = FocusCalendar
+	v := m.View()
+	target := time.Date(2026, 7, 21, 0, 0, 0, 0, time.UTC)
+	x, y := cellCenter(t, m, target)
+	_ = v.OnMouse(tea.MouseClickMsg{X: x, Y: y, Button: tea.MouseLeft})
+	if !m.Time.Equal(target) {
+		t.Fatalf("click via OnMouse landed on %v; want %v", m.Time, target)
 	}
 }

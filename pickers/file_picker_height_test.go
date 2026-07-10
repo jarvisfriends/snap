@@ -14,7 +14,7 @@ import (
 func TestFilePickerKeyMapSplitsOpenAndSelect(t *testing.T) {
 	t.Parallel()
 
-	km := filePickerKeyMap()
+	km := FilePickerKeyMap()
 
 	if slices.Contains(km.FilePicker.Select.Keys(), "enter") {
 		t.Fatal(

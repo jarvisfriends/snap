@@ -276,7 +276,7 @@ func TestSecondsDownAtZeroNoBorrow(t *testing.T) {
 func TestMouseWheelUpIncrements(t *testing.T) {
 	t.Parallel()
 	m := New(0)
-	m = send(m, tea.MouseWheelMsg(tea.Mouse{Button: tea.MouseWheelUp}))
+	_ = m.View().OnMouse(tea.MouseWheelMsg(tea.Mouse{Button: tea.MouseWheelUp}))
 	if m.Duration != time.Hour {
 		t.Errorf("mouse wheel up: Duration = %v; want 1h", m.Duration)
 	}
@@ -285,7 +285,7 @@ func TestMouseWheelUpIncrements(t *testing.T) {
 func TestMouseWheelDownDecrements(t *testing.T) {
 	t.Parallel()
 	m := New(time.Hour)
-	m = send(m, tea.MouseWheelMsg(tea.Mouse{Button: tea.MouseWheelDown}))
+	_ = m.View().OnMouse(tea.MouseWheelMsg(tea.Mouse{Button: tea.MouseWheelDown}))
 	if m.Duration != 0 {
 		t.Errorf("mouse wheel down from 1h: Duration = %v; want 0", m.Duration)
 	}

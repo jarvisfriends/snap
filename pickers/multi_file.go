@@ -7,6 +7,8 @@ import (
 	tea "charm.land/bubbletea/v2"
 	huh "charm.land/huh/v2"
 	"charm.land/lipgloss/v2"
+
+	"github.com/jarvisfriends/snap/uifx"
 )
 
 type MultiFileKeyMap struct {
@@ -45,6 +47,16 @@ type MultiFileEditor struct {
 	HuhTheme func() huh.Theme
 	// CollapsePath is forwarded to row DirPickers (see DirPicker.CollapsePath).
 	CollapsePath func(string) string
+	// Effects selects the interaction-feedback tier (see uifx.Level); it is
+	// forwarded to row DirPickers.
+	Effects uifx.Level
+
+	// Row hit-zone geometry recorded during View: rows start at rowsTopY and
+	// row i is paths[i], with the "[ Add Path ]" row at index len(paths).
+	rowsTopY  int
+	rowsWidth int
+	// hoverRow tracks the row under the pointer (-1 none; LevelHigh only).
+	hoverRow int
 	// DirsOnly makes each row's picker a directory-only DirPicker (with
 	// drive navigation) instead of the mixed file/folder browser.
 	DirsOnly bool
@@ -63,9 +75,10 @@ func NewMultiFileEditor(value string) *MultiFileEditor {
 		}
 	}
 	return &MultiFileEditor{
-		Styles: DefaultStyles(),
-		paths:  paths,
-		KeyMap: DefaultMultiFileKeyMap(),
+		Styles:   DefaultStyles(),
+		hoverRow: -1,
+		paths:    paths,
+		KeyMap:   DefaultMultiFileKeyMap(),
 	}
 }
 
@@ -105,7 +118,15 @@ func (m *MultiFileEditor) updateDirPicker(msg tea.Msg) tea.Cmd {
 	if dp, ok := model.(*DirPicker); ok {
 		m.dirPicker = dp
 	}
+	m.finishDirPicker()
+	return cmd
+}
+
+// finishDirPicker applies the browse result once the hosted DirPicker
+// reports Done or Aborted — shared by the Update (keys) and onMouse paths.
+func (m *MultiFileEditor) finishDirPicker() {
 	switch {
+	case m.dirPicker == nil:
 	case m.dirPicker.Done:
 		m.applyPickedPath(m.dirPicker.Value())
 		m.picking = false
@@ -114,7 +135,6 @@ func (m *MultiFileEditor) updateDirPicker(msg tea.Msg) tea.Cmd {
 		m.picking = false
 		m.dirPicker = nil
 	}
-	return cmd
 }
 
 // applyPickedPath stores a non-empty picker result at the pending index,
@@ -135,11 +155,18 @@ func (m *MultiFileEditor) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.Width, m.Height = ws.Width, ws.Height
 	}
 
-	if m.picking && m.dirPicker != nil {
-		return m, m.updateDirPicker(msg)
-	}
-	if m.picking && m.pickerForm != nil {
-		return m, m.updatePicker(msg)
+	if m.picking {
+		// Mouse reaches the hosted picker exclusively via onMouse; a host
+		// that also feeds Update raw mouse must not double-process it.
+		if _, isMouse := msg.(tea.MouseMsg); isMouse {
+			return m, nil
+		}
+		if m.dirPicker != nil {
+			return m, m.updateDirPicker(msg)
+		}
+		if m.pickerForm != nil {
+			return m, m.updatePicker(msg)
+		}
 	}
 
 	switch msg := msg.(type) {
@@ -191,6 +218,7 @@ func (m *MultiFileEditor) startPicking(index int) tea.Cmd {
 		dp := NewDirPicker(initialValue)
 		dp.Styles = m.Styles
 		dp.CollapsePath = m.CollapsePath
+		dp.Effects = m.Effects
 		dp.Width, dp.Height = m.Width, m.Height
 		m.dirPicker = dp
 		m.picking = true
@@ -213,7 +241,7 @@ func (m *MultiFileEditor) startPicking(index int) tea.Cmd {
 
 	m.pickerForm = huh.NewForm(huh.NewGroup(fp)).
 		WithTheme(m.huhTheme()).
-		WithKeyMap(filePickerKeyMap()).
+		WithKeyMap(FilePickerKeyMap()).
 		WithWidth(overlayContentWidth(m.Width))
 	if m.Height > 0 {
 		// The form height must be set explicitly: huh freezes each group's
@@ -243,6 +271,95 @@ func (m *MultiFileEditor) startPicking(index int) tea.Cmd {
 	return initCmd
 }
 
+// rowAt maps content-relative coordinates to a row index (paths rows, then
+// the "[ Add Path ]" row at len(paths)); -1 when outside the list.
+func (m *MultiFileEditor) rowAt(x, y int) int {
+	if x < 0 || x >= m.rowsWidth || y < m.rowsTopY {
+		return -1
+	}
+	i := y - m.rowsTopY
+	if i <= len(m.paths) {
+		return i
+	}
+	return -1
+}
+
+// onMouse is the View.OnMouse entry point. List-mode events dispatch to the
+// row handlers, never through Update. While browsing, our View is the hosted
+// DirPicker's view verbatim (same coordinate space), so mouse goes to its
+// onMouse; a huh picker form exposes no OnMouse, so its Update is the only
+// door for it.
+func (m *MultiFileEditor) onMouse(msg tea.MouseMsg) tea.Cmd {
+	if m.picking {
+		if m.dirPicker != nil {
+			cmd := m.dirPicker.onMouse(msg)
+			m.finishDirPicker()
+			return cmd
+		}
+		if m.pickerForm != nil {
+			return m.updatePicker(msg)
+		}
+		return nil
+	}
+	return uifx.MouseHandlers{
+		Click:  m.handleClick,
+		Wheel:  m.handleWheel,
+		Motion: m.handleMotion,
+	}.OnMouse(msg)
+}
+
+// handleClick moves the highlight to the clicked row; clicking the
+// highlighted row activates it (opens its picker / adds a path), matching
+// the click-to-highlight, click-again-to-act convention.
+func (m *MultiFileEditor) handleClick(me tea.Mouse) tea.Cmd {
+	if me.Button != tea.MouseLeft {
+		return nil
+	}
+	i := m.rowAt(me.X, me.Y)
+	if i < 0 {
+		return nil
+	}
+	if i == m.cursor {
+		return m.startPicking(m.cursor)
+	}
+	m.cursor = i
+	return nil
+}
+
+// handleWheel scrolls the highlight through the rows (wrapping like the
+// keyboard bindings do).
+func (m *MultiFileEditor) handleWheel(me tea.Mouse) tea.Cmd {
+	switch me.Button {
+	case tea.MouseWheelUp:
+		m.cursor--
+		if m.cursor < 0 {
+			m.cursor = len(m.paths)
+		}
+	case tea.MouseWheelDown:
+		m.cursor++
+		if m.cursor > len(m.paths) {
+			m.cursor = 0
+		}
+	}
+	return nil
+}
+
+// handleMotion tracks drags (highlight follows a held left button,
+// LevelMedium+) and hover (LevelHigh).
+func (m *MultiFileEditor) handleMotion(me tea.Mouse) tea.Cmd {
+	i := m.rowAt(me.X, me.Y)
+	if me.Button == tea.MouseLeft {
+		if m.Effects.Drag() && i >= 0 {
+			m.cursor = i
+		}
+		return nil
+	}
+	if m.Effects.Hover() {
+		m.hoverRow = i
+	}
+	return nil
+}
+
 func (m *MultiFileEditor) View() tea.View {
 	if m.picking && m.dirPicker != nil {
 		return m.dirPicker.View()
@@ -262,9 +379,12 @@ func (m *MultiFileEditor) View() tea.View {
 	for i, p := range m.paths {
 		prefix := "  "
 		style := normStyle
-		if m.cursor == i {
+		switch {
+		case m.cursor == i:
 			prefix = "▶ "
 			style = selStyle
+		case m.Effects.Hover() && m.hoverRow == i:
+			style = normStyle.Underline(true)
 		}
 		rows = append(rows, fitLine(style.Render(prefix+p), maxW))
 	}
@@ -283,7 +403,19 @@ func (m *MultiFileEditor) View() tea.View {
 	))
 
 	body := lipgloss.JoinVertical(lipgloss.Left, rows...)
-	return tea.NewView(lipgloss.JoinVertical(lipgloss.Left, title, body, help))
+	content := lipgloss.JoinVertical(lipgloss.Left, title, body, help)
+
+	// Record row hit zones: rows start directly under the title.
+	m.rowsTopY = lipgloss.Height(title)
+	m.rowsWidth = maxW
+
+	v := tea.NewView(content)
+	// One mouse path: hosts deliver via OnMouse or Update, never both (the
+	// Bubble Tea root gets the raw event on both). While a child picker is
+	// open its own View is returned instead, so coordinates always match
+	// what is on screen.
+	v.OnMouse = m.onMouse
+	return v
 }
 
 // huhTheme resolves the injected huh theme, defaulting to huh's base theme

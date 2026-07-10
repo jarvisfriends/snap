@@ -5,7 +5,7 @@ import (
 	huh "charm.land/huh/v2"
 )
 
-// filePickerKeyMap returns the form keymap for file-picker fields.
+// FilePickerKeyMap returns the form keymap for file-picker fields.
 //
 // huh's defaults bind both "open folder" and "select entry" to enter, and the
 // underlying bubbles filepicker resolves that overlap by selecting — so enter
@@ -17,7 +17,7 @@ import (
 // also match Open (so space appears in both), and any Select match submits the
 // highlighted entry immediately (so enter cannot both descend and select).
 // Navigation uses standardized keys only — no vim fallbacks (ADR-011).
-func filePickerKeyMap() *huh.KeyMap {
+func FilePickerKeyMap() *huh.KeyMap {
 	km := huh.NewDefaultKeyMap()
 	km.FilePicker.Open = key.NewBinding(
 		key.WithKeys("enter", "right", "space"),
