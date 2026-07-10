@@ -15,7 +15,7 @@ func TestBrailleLineChartDimensionsAndScale(t *testing.T) {
 	chart, scale := BrailleLineChart([]LineSeries{rx, tx}, 20, 6, 0)
 	require.Equal(t, 80.0, scale, "auto-scale should track the window peak")
 	require.Equal(t, 6, lipgloss.Height(chart))
-	for _, line := range strings.Split(chart, "\n") {
+	for line := range strings.SplitSeq(chart, "\n") {
 		require.Equal(t, 20, lipgloss.Width(line))
 	}
 	hasBraille := false

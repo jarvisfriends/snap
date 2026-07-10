@@ -52,3 +52,23 @@ func TestRectCenteredIn(t *testing.T) {
 		t.Fatalf("CenteredIn oversize = %v, want X=0 Y=0", got)
 	}
 }
+
+// TestClamp pins the bounds contract shared by the pickers and timepicker
+// cursor math (Clamp replaced their package-local clamp helpers).
+func TestClamp(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct{ v, lo, hi, want int }{
+		{5, 0, 10, 5},   // inside
+		{-3, 0, 10, 0},  // below
+		{42, 0, 10, 10}, // above
+		{0, 0, 10, 0},   // at lower bound
+		{10, 0, 10, 10}, // at upper bound
+		{7, 7, 7, 7},    // degenerate range
+	}
+	for _, c := range cases {
+		if got := Clamp(c.v, c.lo, c.hi); got != c.want {
+			t.Errorf("Clamp(%d, %d, %d) = %d; want %d", c.v, c.lo, c.hi, got, c.want)
+		}
+	}
+}

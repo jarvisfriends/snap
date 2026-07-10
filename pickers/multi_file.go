@@ -380,10 +380,7 @@ func (m *MultiFileEditor) View() tea.View {
 	// Bubble Tea root gets the raw event on both). While a child picker is
 	// open its own View is returned instead, so coordinates always match
 	// what is on screen.
-	v.OnMouse = func(mm tea.MouseMsg) tea.Cmd {
-		_, cmd := m.Update(mm)
-		return cmd
-	}
+	v.OnMouse = uifx.RouteToUpdate(m.Update)
 	return v
 }
 

@@ -34,7 +34,7 @@ func TestTimeFieldHoverAndDragTiers(t *testing.T) {
 	m.Effects = uifx.LevelHigh
 	_ = m.View()
 	_, _ = m.Update(tea.MouseMotionMsg{
-		X: m.minuteRect.x + 1, Y: m.minuteRect.y + 1, Button: tea.MouseNone,
+		X: m.minuteRect.X + 1, Y: m.minuteRect.Y + 1, Button: tea.MouseNone,
 	})
 	if m.hoverSide != SideMinutes {
 		t.Fatalf("hover side = %v; want minutes", m.hoverSide)
@@ -47,7 +47,7 @@ func TestTimeFieldHoverAndDragTiers(t *testing.T) {
 		t.Fatal("no dropdown rows recorded")
 	}
 	r := m.rowRects[len(m.rowRects)-1]
-	_, _ = m.Update(tea.MouseMotionMsg{X: r.x, Y: r.y, Button: tea.MouseLeft})
+	_, _ = m.Update(tea.MouseMotionMsg{X: r.X, Y: r.Y, Button: tea.MouseLeft})
 	if m.cursor != m.top+len(m.rowRects)-1 {
 		t.Fatalf("drag over last visible row set cursor %d; want %d", m.cursor, m.top+len(m.rowRects)-1)
 	}
@@ -82,14 +82,14 @@ func TestDurationPickerHoverSegmentAtHigh(t *testing.T) {
 	m.Effects = uifx.LevelHigh
 	_ = m.View()
 	r := m.segRects[FieldSeconds]
-	_, _ = m.Update(tea.MouseMotionMsg{X: r.x + 1, Y: r.y + 1, Button: tea.MouseNone})
+	_, _ = m.Update(tea.MouseMotionMsg{X: r.X + 1, Y: r.Y + 1, Button: tea.MouseNone})
 	if m.hoverSeg != int(FieldSeconds) {
 		t.Fatalf("hover segment = %d; want seconds", m.hoverSeg)
 	}
 
 	m2 := New(time.Hour)
 	_ = m2.View()
-	_, _ = m2.Update(tea.MouseMotionMsg{X: r.x + 1, Y: r.y + 1, Button: tea.MouseNone})
+	_, _ = m2.Update(tea.MouseMotionMsg{X: r.X + 1, Y: r.Y + 1, Button: tea.MouseNone})
 	if m2.hoverSeg != -1 {
 		t.Fatalf("hover tracked below High (seg=%d)", m2.hoverSeg)
 	}

@@ -8,6 +8,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 
+	"github.com/jarvisfriends/snap/geom"
 	"github.com/jarvisfriends/snap/uifx"
 )
 
@@ -57,7 +58,7 @@ type TimePickerModel struct {
 
 	// segRects are the h/m/s cells' content-relative hit zones, recorded
 	// during View for click-to-focus.
-	segRects [3]cellRect
+	segRects [3]geom.Rect
 }
 
 func New(d time.Duration) *TimePickerModel {
@@ -130,7 +131,7 @@ func (m *TimePickerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		me := msg.Mouse()
 		if me.Button == tea.MouseLeft {
 			for i, r := range m.segRects {
-				if r.contains(me.X, me.Y) {
+				if r.Contains(me.X, me.Y) {
 					m.Focused = Field(i)
 					break
 				}
@@ -143,7 +144,7 @@ func (m *TimePickerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if me.Button == tea.MouseNone && m.Effects.Hover() {
 			m.hoverSeg = -1
 			for i, r := range m.segRects {
-				if r.contains(me.X, me.Y) {
+				if r.Contains(me.X, me.Y) {
 					m.hoverSeg = i
 					break
 				}
@@ -244,14 +245,11 @@ func (m *TimePickerModel) View() tea.View {
 	x := offX
 	for i, c := range cells {
 		w := lipgloss.Width(c)
-		m.segRects[i] = cellRect{x: x, y: titleH, w: w, h: lipgloss.Height(c)}
+		m.segRects[i] = geom.Rect{X: x, Y: titleH, W: w, H: lipgloss.Height(c)}
 		x += w
 	}
 
 	v := tea.NewView(content)
-	v.OnMouse = func(mm tea.MouseMsg) tea.Cmd {
-		_, cmd := m.Update(mm)
-		return cmd
-	}
+	v.OnMouse = uifx.RouteToUpdate(m.Update)
 	return v
 }

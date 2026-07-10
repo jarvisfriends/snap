@@ -34,3 +34,38 @@ func TestLevelContract(t *testing.T) {
 		}
 	}
 }
+
+// TestRouteToUpdateForwardsMouseAndCmd pins the OnMouse adapter contract:
+// the mouse message reaches Update unchanged and Update's command comes back.
+func TestRouteToUpdateForwardsMouseAndCmd(t *testing.T) {
+	t.Parallel()
+
+	var got tea.Msg
+	want := func() tea.Msg { return nil }
+	h := RouteToUpdate(func(msg tea.Msg) (tea.Model, tea.Cmd) {
+		got = msg
+		return nil, want
+	})
+	click := tea.MouseClickMsg{X: 3, Y: 4, Button: tea.MouseLeft}
+	if cmd := h(click); cmd == nil {
+		t.Fatal("RouteToUpdate dropped Update's command")
+	}
+	if got != tea.MouseMsg(click) {
+		t.Fatalf("Update received %#v; want the click", got)
+	}
+}
+
+func TestLevelString(t *testing.T) {
+	t.Parallel()
+
+	for l, want := range map[Level]string{
+		LevelMinimal: "minimal",
+		LevelMedium:  "medium",
+		LevelHigh:    "high",
+		Level(99):    "medium", // unknown values read as the default tier
+	} {
+		if got := l.String(); got != want {
+			t.Errorf("Level(%d).String() = %q; want %q", l, got, want)
+		}
+	}
+}

@@ -8,6 +8,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 
+	"github.com/jarvisfriends/snap/geom"
 	"github.com/jarvisfriends/snap/uifx"
 )
 
@@ -21,13 +22,6 @@ const (
 
 // dropdownVisibleRows is how many values the open dropdown shows at once.
 const dropdownVisibleRows = 7
-
-// cellRect is a component-relative hit zone recorded during View.
-type cellRect struct{ x, y, w, h int }
-
-func (r cellRect) contains(x, y int) bool {
-	return x >= r.x && x < r.x+r.w && y >= r.y && y < r.y+r.h
-}
 
 // TimeFieldKeyMap holds the key bindings for the two-column time field.
 type TimeFieldKeyMap struct {
@@ -99,16 +93,16 @@ type TimeFieldModel struct {
 	hoverRow int
 
 	// Hit zones recorded during View (component-relative).
-	hourRect, minuteRect cellRect
-	rowRects             []cellRect // visible dropdown rows, top first
+	hourRect, minuteRect geom.Rect
+	rowRects             []geom.Rect // visible dropdown rows, top first
 }
 
 // NewTimeField returns a two-column time field initialized to hour:minute
 // (values are clamped into range).
 func NewTimeField(hour, minute int) *TimeFieldModel {
 	m := &TimeFieldModel{
-		Hour:      clamp(hour, 0, 23),
-		Minute:    clamp(minute, 0, 59),
+		Hour:      geom.Clamp(hour, 0, 23),
+		Minute:    geom.Clamp(minute, 0, 59),
 		KeyMap:    DefaultTimeFieldKeyMap(),
 		Focused:   SideHours,
 		open:      -1,
@@ -134,22 +128,11 @@ func NewTimeField(hour, minute int) *TimeFieldModel {
 	return m
 }
 
-// max value (inclusive) for a side.
 func sideMax(s Side) int {
 	if s == SideHours {
 		return 23
 	}
 	return 59
-}
-
-func clamp(v, lo, hi int) int {
-	if v < lo {
-		return lo
-	}
-	if v > hi {
-		return hi
-	}
-	return v
 }
 
 func (m *TimeFieldModel) value(s Side) int {
@@ -160,7 +143,7 @@ func (m *TimeFieldModel) value(s Side) int {
 }
 
 func (m *TimeFieldModel) setValue(s Side, v int) {
-	v = clamp(v, 0, sideMax(s))
+	v = geom.Clamp(v, 0, sideMax(s))
 	if s == SideHours {
 		m.Hour = v
 	} else {
@@ -177,7 +160,7 @@ func (m *TimeFieldModel) openDropdown(s Side) {
 	m.Focused = s
 	m.open = s
 	m.cursor = m.value(s)
-	m.top = clamp(m.cursor-dropdownVisibleRows/2, 0, sideMax(s)+1-dropdownVisibleRows)
+	m.top = geom.Clamp(m.cursor-dropdownVisibleRows/2, 0, sideMax(s)+1-dropdownVisibleRows)
 }
 
 func (m *TimeFieldModel) closeDropdown() { m.open = -1 }
@@ -227,7 +210,7 @@ func (m *TimeFieldModel) handleMotion(me tea.Mouse) {
 			return
 		}
 		for i, r := range m.rowRects {
-			if r.contains(me.X, me.Y) {
+			if r.Contains(me.X, me.Y) {
 				m.cursor = m.top + i
 			}
 		}
@@ -240,13 +223,13 @@ func (m *TimeFieldModel) handleMotion(me tea.Mouse) {
 	switch {
 	case m.open >= 0:
 		for i, r := range m.rowRects {
-			if r.contains(me.X, me.Y) {
+			if r.Contains(me.X, me.Y) {
 				m.hoverRow = m.top + i
 			}
 		}
-	case m.hourRect.contains(me.X, me.Y):
+	case m.hourRect.Contains(me.X, me.Y):
 		m.hoverSide = SideHours
-	case m.minuteRect.contains(me.X, me.Y):
+	case m.minuteRect.Contains(me.X, me.Y):
 		m.hoverSide = SideMinutes
 	}
 }
@@ -306,7 +289,7 @@ func (m *TimeFieldModel) handleKey(msg tea.KeyPressMsg) {
 }
 
 func (m *TimeFieldModel) moveCursor(delta int) {
-	m.cursor = clamp(m.cursor+delta, 0, sideMax(m.open))
+	m.cursor = geom.Clamp(m.cursor+delta, 0, sideMax(m.open))
 	// Keep the cursor inside the scroll window.
 	if m.cursor < m.top {
 		m.top = m.cursor
@@ -324,7 +307,7 @@ func (m *TimeFieldModel) handleClick(me tea.Mouse) {
 	}
 	if m.open >= 0 {
 		for i, r := range m.rowRects {
-			if r.contains(me.X, me.Y) {
+			if r.Contains(me.X, me.Y) {
 				m.setValue(m.open, m.top+i)
 				m.closeDropdown()
 				return
@@ -332,9 +315,9 @@ func (m *TimeFieldModel) handleClick(me tea.Mouse) {
 		}
 	}
 	switch {
-	case m.hourRect.contains(me.X, me.Y):
+	case m.hourRect.Contains(me.X, me.Y):
 		m.openDropdown(SideHours)
-	case m.minuteRect.contains(me.X, me.Y):
+	case m.minuteRect.Contains(me.X, me.Y):
 		m.openDropdown(SideMinutes)
 	default:
 		if m.open >= 0 {
@@ -363,7 +346,7 @@ func (m *TimeFieldModel) handleWheel(me tea.Mouse) {
 		delta = -1
 	}
 	if m.open >= 0 {
-		m.top = clamp(m.top+delta, 0, sideMax(m.open)+1-dropdownVisibleRows)
+		m.top = geom.Clamp(m.top+delta, 0, sideMax(m.open)+1-dropdownVisibleRows)
 		return
 	}
 	m.setValue(m.Focused, m.value(m.Focused)-delta)
@@ -397,8 +380,8 @@ func (m *TimeFieldModel) View() tea.View {
 	hw, hh := lipgloss.Width(hourCell), lipgloss.Height(hourCell)
 	cw := lipgloss.Width(colon)
 	mw := lipgloss.Width(minuteCell)
-	m.hourRect = cellRect{x: 0, y: 0, w: hw, h: hh}
-	m.minuteRect = cellRect{x: hw + cw, y: 0, w: mw, h: hh}
+	m.hourRect = geom.Rect{X: 0, Y: 0, W: hw, H: hh}
+	m.minuteRect = geom.Rect{X: hw + cw, Y: 0, W: mw, H: hh}
 
 	row := lipgloss.JoinHorizontal(lipgloss.Center, hourCell, colon, minuteCell)
 
@@ -410,12 +393,7 @@ func (m *TimeFieldModel) View() tea.View {
 		parts = append(parts, m.HelpStyle.Render("type/↑↓ set • space/click list • enter save"))
 	}
 	v := tea.NewView(lipgloss.JoinVertical(lipgloss.Left, parts...))
-	// Route mouse events through Update so hosts that honor View.OnMouse get
-	// click/wheel behavior with no extra wiring.
-	v.OnMouse = func(mm tea.MouseMsg) tea.Cmd {
-		_, cmd := m.Update(mm)
-		return cmd
-	}
+	v.OnMouse = uifx.RouteToUpdate(m.Update)
 	return v
 }
 
@@ -423,7 +401,7 @@ func (m *TimeFieldModel) View() tea.View {
 // and records the visible rows' hit zones.
 func (m *TimeFieldModel) renderDropdown(cellH, hourW, colonW int) string {
 	lastTop := sideMax(m.open) + 1 - dropdownVisibleRows
-	m.top = clamp(m.top, 0, lastTop)
+	m.top = geom.Clamp(m.top, 0, lastTop)
 
 	rows := make([]string, 0, dropdownVisibleRows)
 	for i := range dropdownVisibleRows {
@@ -451,11 +429,11 @@ func (m *TimeFieldModel) renderDropdown(cellH, hourW, colonW int) string {
 	// Row hit zones: inside the list border (+1,+1), one per visible row.
 	listW := lipgloss.Width(list)
 	for i := range rows {
-		m.rowRects = append(m.rowRects, cellRect{
-			x: indent + 1,
-			y: cellH + 1 + i,
-			w: listW - 2,
-			h: 1,
+		m.rowRects = append(m.rowRects, geom.Rect{
+			X: indent + 1,
+			Y: cellH + 1 + i,
+			W: listW - 2,
+			H: 1,
 		})
 	}
 	if indent > 0 {

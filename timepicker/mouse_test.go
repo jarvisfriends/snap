@@ -28,10 +28,10 @@ func TestSegmentClickFocuses(t *testing.T) {
 	m := New(time.Hour)
 	_ = m.View() // record segment hit zones
 	r := m.segRects[FieldMinutes]
-	if r.w == 0 {
+	if r.W == 0 {
 		t.Fatal("minutes segment rect not recorded during View")
 	}
-	_, _ = m.Update(tea.MouseClickMsg{X: r.x + r.w/2, Y: r.y + r.h/2, Button: tea.MouseLeft})
+	_, _ = m.Update(tea.MouseClickMsg{X: r.X + r.W/2, Y: r.Y + r.H/2, Button: tea.MouseLeft})
 	if m.Focused != FieldMinutes {
 		t.Fatalf("segment click focused %v; want minutes", m.Focused)
 	}
@@ -51,7 +51,7 @@ func TestOnMouseRoutesToUpdate(t *testing.T) {
 	m := NewTimeField(8, 30)
 	v := m.View()
 	_ = v.OnMouse(tea.MouseClickMsg{
-		X: m.hourRect.x + 1, Y: m.hourRect.y + 1, Button: tea.MouseLeft,
+		X: m.hourRect.X + 1, Y: m.hourRect.Y + 1, Button: tea.MouseLeft,
 	})
 	if s, ok := m.DropdownOpen(); !ok || s != SideHours {
 		t.Fatalf("OnMouse click did not open the hours dropdown (side=%v ok=%v)", s, ok)

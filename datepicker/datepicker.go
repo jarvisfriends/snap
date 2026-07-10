@@ -429,10 +429,7 @@ func (m *DatePickerModel) View() tea.View {
 	m.gridOffX = max((m.totalW-7*m.cellW)/2, 0)
 
 	v := tea.NewView(b.String())
-	v.OnMouse = func(mm tea.MouseMsg) tea.Cmd {
-		_, cmd := m.Update(mm)
-		return cmd
-	}
+	v.OnMouse = uifx.RouteToUpdate(m.Update)
 	return v
 }
 

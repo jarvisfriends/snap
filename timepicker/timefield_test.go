@@ -85,7 +85,7 @@ func TestTimeFieldMouseFlow(t *testing.T) {
 
 	// Click the minutes cell: its dropdown opens.
 	_, _ = m.Update(tea.MouseClickMsg{
-		X: m.minuteRect.x + 1, Y: m.minuteRect.y + 1, Button: tea.MouseLeft,
+		X: m.minuteRect.X + 1, Y: m.minuteRect.Y + 1, Button: tea.MouseLeft,
 	})
 	if s, ok := m.DropdownOpen(); !ok || s != SideMinutes {
 		t.Fatalf("clicking minutes did not open its dropdown (open=%v ok=%v)", s, ok)
@@ -98,7 +98,7 @@ func TestTimeFieldMouseFlow(t *testing.T) {
 	}
 	first := m.top
 	r := m.rowRects[0]
-	_, _ = m.Update(tea.MouseClickMsg{X: r.x, Y: r.y, Button: tea.MouseLeft})
+	_, _ = m.Update(tea.MouseClickMsg{X: r.X, Y: r.Y, Button: tea.MouseLeft})
 	if m.Minute != first {
 		t.Fatalf("clicking the first row set minute=%d; want %d", m.Minute, first)
 	}

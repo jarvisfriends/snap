@@ -12,6 +12,16 @@ import (
 
 // TestDemoFlowSelectsAndQuits drives the demo app the way the VHS tape does:
 // the highlighted day is visible, Enter selects, and the app quits.
+// asDemo asserts the returned model is still the demoApp wrapper.
+func asDemo(t *testing.T, m tea.Model) demoApp {
+	t.Helper()
+	a, ok := m.(demoApp)
+	if !ok {
+		t.Fatalf("Update returned %T; want demoApp", m)
+	}
+	return a
+}
+
 func TestDemoFlowSelectsAndQuits(t *testing.T) {
 	t.Parallel()
 
@@ -22,9 +32,9 @@ func TestDemoFlowSelectsAndQuits(t *testing.T) {
 	}
 
 	m, _ := a.Update(tea.KeyPressMsg{Code: tea.KeyRight})
-	a = m.(demoApp)
+	a = asDemo(t, m)
 	m, cmd := a.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
-	a = m.(demoApp)
+	a = asDemo(t, m)
 	if !a.dp.Selected || a.dp.Time.Day() != 10 {
 		t.Fatalf(
 			"enter did not select the expected day (selected=%v day=%d)",
@@ -62,7 +72,7 @@ func TestDemoDoesNotDoubleProcessMouse(t *testing.T) {
 	_ = a.View()
 	before := a.dp.Time
 	m, cmd := a.Update(tea.MouseClickMsg{X: 5, Y: 5, Button: tea.MouseLeft})
-	a = m.(demoApp)
+	a = asDemo(t, m)
 	if !a.dp.Time.Equal(before) || a.dp.Selected || cmd != nil {
 		t.Fatalf("demo Update processed a mouse event (time %v->%v selected=%v)",
 			before, a.dp.Time, a.dp.Selected)

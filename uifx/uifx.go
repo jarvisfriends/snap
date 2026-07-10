@@ -32,6 +32,10 @@ const (
 	LevelHigh
 )
 
+// levelNameMedium is the default tier's name — also what unknown Level
+// values read as, mirroring how the zero value behaves everywhere else.
+const levelNameMedium = "medium"
+
 // String returns the tier name.
 func (l Level) String() string {
 	switch l {
@@ -39,8 +43,10 @@ func (l Level) String() string {
 		return "minimal"
 	case LevelHigh:
 		return "high"
+	case LevelMedium:
+		return levelNameMedium
 	default:
-		return "medium"
+		return levelNameMedium
 	}
 }
 
@@ -59,3 +65,18 @@ func (l Level) Hover() bool { return l == LevelHigh }
 
 // Drag reports whether drag feedback should render at this tier.
 func (l Level) Drag() bool { return l != LevelMinimal }
+
+// RouteToUpdate adapts a component's Update method into a View.OnMouse
+// handler: the mouse message is fed back through Update and the resulting
+// command returned. Components whose mouse handling lives entirely in Update
+// set View.OnMouse = uifx.RouteToUpdate(m.Update) so hosts that honor
+// OnMouse get clicks and wheel with no extra wiring. Hosts must deliver
+// mouse via exactly one path (OnMouse or Update), never both — Bubble Tea
+// v2 hands the root view's OnMouse the message and also delivers it to
+// Update, so a host that calls both double-processes every event.
+func RouteToUpdate(update func(tea.Msg) (tea.Model, tea.Cmd)) func(tea.MouseMsg) tea.Cmd {
+	return func(mm tea.MouseMsg) tea.Cmd {
+		_, cmd := update(mm)
+		return cmd
+	}
+}

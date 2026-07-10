@@ -140,3 +140,61 @@ func TestGateRegistry_ConcurrentAccess(t *testing.T) {
 	}
 	wg.Wait()
 }
+
+// TestGateRegistryIntrospection covers the registry's read-side API the
+// settings Feature Flags UI is built on: Defs/Order preserve registration
+// order, Snapshot copies values, ApplyMap only touches registered gates.
+func TestGateRegistryIntrospection(t *testing.T) {
+	g := NewGateRegistry()
+	g.RegisterAll([]FeatureGate{
+		{Name: "zeta", Default: true},
+		{Name: "alpha", Default: false},
+	})
+
+	if got := g.Order(); len(got) != 2 || got[0] != "zeta" || got[1] != "alpha" {
+		t.Fatalf("Order() = %v; want registration order [zeta alpha]", got)
+	}
+	defs := g.Defs()
+	if len(defs) != 2 || defs[0].Name != "zeta" || defs[1].Name != "alpha" {
+		t.Fatalf("Defs() = %v; want registration order", defs)
+	}
+
+	snap := g.Snapshot()
+	if !snap["zeta"] || snap["alpha"] {
+		t.Fatalf("Snapshot() = %v; want defaults zeta=true alpha=false", snap)
+	}
+	// The snapshot is a copy: mutating it must not touch the registry.
+	snap["zeta"] = false
+	if !g.Value("zeta") {
+		t.Fatal("mutating a Snapshot changed the registry")
+	}
+
+	g.ApplyMap(map[string]bool{"alpha": true, "ghost": true})
+	if !g.Value("alpha") {
+		t.Fatal("ApplyMap did not apply a registered gate")
+	}
+	if _, ok := g.Snapshot()["ghost"]; ok {
+		t.Fatal("ApplyMap invented an unregistered gate")
+	}
+}
+
+// TestLoadFromEnvPrefix pins the prefix form used by branded apps: gate names
+// are upcased with non-alphanumerics mapped to underscores.
+func TestLoadFromEnvPrefix(t *testing.T) {
+	g := NewGateRegistry()
+	g.Register(FeatureGate{Name: "inspector.accessibility-tab", Default: false})
+	t.Setenv("MYAPP_GATE_INSPECTOR_ACCESSIBILITY_TAB", "1")
+	g.LoadFromEnvPrefix("MYAPP_GATE_")
+	if !g.Value("inspector.accessibility-tab") {
+		t.Fatal("LoadFromEnvPrefix did not apply the env override")
+	}
+
+	// Unset / junk values leave the default alone.
+	g2 := NewGateRegistry()
+	g2.Register(FeatureGate{Name: "other", Default: true})
+	t.Setenv("MYAPP_GATE_OTHER", "banana")
+	g2.LoadFromEnvPrefix("MYAPP_GATE_")
+	if !g2.Value("other") {
+		t.Fatal("junk env value changed a gate")
+	}
+}

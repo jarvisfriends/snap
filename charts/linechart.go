@@ -34,7 +34,7 @@ var brailleDotBit = [2][4]int{
 // charW/charH are terminal cells. maxVal fixes the top of the scale; pass
 // <= 0 to auto-scale to the visible window. Returns the chart and the scale
 // actually used, so callers can label it.
-func BrailleLineChart(series []LineSeries, charW, charH int, maxVal float64) (string, float64) {
+func BrailleLineChart(series []LineSeries, charW, charH int, maxVal float64) (chart string, scale float64) {
 	if charW <= 0 || charH <= 0 {
 		return "", 0
 	}
@@ -61,7 +61,7 @@ func BrailleLineChart(series []LineSeries, charW, charH int, maxVal float64) (st
 		}
 		sampled[si] = samples
 	}
-	scale := maxVal
+	scale = maxVal
 	if scale <= 0 {
 		scale = peak
 	}

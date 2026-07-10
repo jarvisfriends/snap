@@ -435,9 +435,6 @@ func (m *DirPicker) View() tea.View {
 	// wheel navigation, drag, and hover with no extra wiring. Hosts must
 	// deliver mouse via exactly one path (OnMouse or Update), never both —
 	// Bubble Tea itself sends the raw event to both at the root.
-	v.OnMouse = func(mm tea.MouseMsg) tea.Cmd {
-		_, cmd := m.Update(mm)
-		return cmd
-	}
+	v.OnMouse = uifx.RouteToUpdate(m.Update)
 	return v
 }

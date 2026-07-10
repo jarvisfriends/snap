@@ -14,7 +14,7 @@ func TestCanvasRenderDimensions(t *testing.T) {
 	c := NewCanvas(12, 5)
 	out := c.Render()
 	require.Equal(t, 5, lipgloss.Height(out))
-	for _, line := range strings.Split(out, "\n") {
+	for line := range strings.SplitSeq(out, "\n") {
 		require.Equal(t, 12, lipgloss.Width(line))
 	}
 }

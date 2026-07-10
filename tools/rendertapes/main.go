@@ -36,7 +36,14 @@ import (
 
 func main() {
 	log.SetFlags(0)
+	if err := run(); err != nil {
+		log.Fatalf("rendertapes: %v", err)
+	}
+}
 
+// run holds the real body so deferred cleanup (demo binaries, the Docker
+// client) executes on error paths — log.Fatal in main would skip defers.
+func run() error {
 	var (
 		imageRef = flag.String("image", "ghcr.io/charmbracelet/vhs", "VHS container image")
 		workers  = flag.Int("workers", runtime.NumCPU(), "parallel renders (default: CPU count)")
@@ -48,35 +55,38 @@ func main() {
 	if root == "" {
 		wd, err := os.Getwd()
 		if err != nil {
-			log.Fatalf("rendertapes: %v", err)
+			return err
 		}
 		root = filepath.Dir(filepath.Dir(wd)) // tools/rendertapes -> repo root
 	}
-	abs, err := filepath.Abs(root)
+	absRoot, err := filepath.Abs(root)
 	if err != nil {
-		log.Fatalf("rendertapes: %v", err)
+		return err
 	}
-	root = abs
+	root = absRoot
 
 	tapes, err := filepath.Glob(filepath.Join(root, "*", "demo.tape"))
-	if err != nil || len(tapes) == 0 {
-		log.Fatalf("rendertapes: no */demo.tape found under %s (err=%v)", root, err)
+	if err != nil {
+		return fmt.Errorf("scan for */demo.tape under %s: %w", root, err)
+	}
+	if len(tapes) == 0 {
+		return fmt.Errorf("no */demo.tape found under %s", root)
 	}
 
-	if err := buildDemoBinaries(root); err != nil {
-		log.Fatalf("rendertapes: %v", err)
+	if buildErr := buildDemoBinaries(root); buildErr != nil {
+		return buildErr
 	}
 	defer cleanDemoBinaries(root)
 
 	ctx := context.Background()
 	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
 	if err != nil {
-		log.Fatalf("rendertapes: docker/podman client: %v", err)
+		return fmt.Errorf("docker/podman client: %w", err)
 	}
 	defer cli.Close() //nolint:errcheck // process exit follows
 
 	if err := ensureImage(ctx, cli, *imageRef); err != nil {
-		log.Fatalf("rendertapes: pull %s: %v", *imageRef, err)
+		return fmt.Errorf("pull %s: %w", *imageRef, err)
 	}
 
 	jobs := make(chan string)
@@ -84,11 +94,8 @@ func main() {
 	var mu sync.Mutex
 	failures := 0
 
-	n := max(*workers, 1)
-	for range n {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+	for range max(*workers, 1) {
+		wg.Go(func() {
 			for tape := range jobs {
 				rel, _ := filepath.Rel(root, tape)
 				rel = filepath.ToSlash(rel)
@@ -102,7 +109,7 @@ func main() {
 				}
 				log.Printf("ok   %s", rel)
 			}
-		}()
+		})
 	}
 	for _, t := range tapes {
 		jobs <- t
@@ -111,9 +118,10 @@ func main() {
 	wg.Wait()
 
 	if failures > 0 {
-		log.Fatalf("rendertapes: %d of %d tape(s) failed", failures, len(tapes))
+		return fmt.Errorf("%d of %d tape(s) failed", failures, len(tapes))
 	}
 	log.Printf("rendertapes: %d gif(s) rendered", len(tapes))
+	return nil
 }
 
 // ensureImage pulls the VHS image when it is not already present.
@@ -205,7 +213,7 @@ func buildDemoBinaries(root string) error {
 		cmd.Dir = root
 		cmd.Env = append(os.Environ(), "GOOS=linux", "GOARCH=amd64", "CGO_ENABLED=0")
 		if outb, err := cmd.CombinedOutput(); err != nil {
-			return fmt.Errorf("build %s: %v\n%s", dir, err, outb)
+			return fmt.Errorf("build %s: %w\n%s", dir, err, outb)
 		}
 		log.Printf("built %s", filepath.ToSlash(mustRel(root, out)))
 	}

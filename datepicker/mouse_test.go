@@ -14,7 +14,7 @@ func clickAt(m *DatePickerModel, x, y int) {
 
 // cellCenter returns the content coordinates of the cell showing date d,
 // using the geometry recorded by the last View.
-func cellCenter(t *testing.T, m *DatePickerModel, d time.Time) (int, int) {
+func cellCenter(t *testing.T, m *DatePickerModel, d time.Time) (x, y int) {
 	t.Helper()
 	for row, days := range m.dayGrid {
 		for col, day := range days {
@@ -109,5 +109,22 @@ func TestTitleClickFocusesHeaders(t *testing.T) {
 	clickAt(m, m.totalW-2, m.titleH-1)
 	if m.Focused != FocusHeaderYear {
 		t.Fatalf("right title click focused %v; want year", m.Focused)
+	}
+}
+
+// TestOnMouseRoutesToUpdate drives a click through View().OnMouse (the path
+// hosts use) and checks it lands exactly like a direct Update call — pinned
+// before OnMouse wiring was centralized in uifx.RouteToUpdate.
+func TestOnMouseRoutesToUpdate(t *testing.T) {
+	t.Parallel()
+
+	m := New(time.Date(2026, 7, 10, 0, 0, 0, 0, time.UTC))
+	m.Focused = FocusCalendar
+	v := m.View()
+	target := time.Date(2026, 7, 21, 0, 0, 0, 0, time.UTC)
+	x, y := cellCenter(t, m, target)
+	_ = v.OnMouse(tea.MouseClickMsg{X: x, Y: y, Button: tea.MouseLeft})
+	if !m.Time.Equal(target) {
+		t.Fatalf("click via OnMouse landed on %v; want %v", m.Time, target)
 	}
 }

@@ -1,0 +1,171 @@
+name: CI
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+  workflow_call: # let a future release workflow require CI to pass first
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Verify (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        # Windows is a first-class target (drive listing, path handling);
+        # ubuntu covers the release/lint platform.
+        os: [ubuntu-24.04, windows-2022]
+    steps:
+      - uses: actions/checkout@v7
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: '1.26.x'
+      - name: Cache Go modules
+        uses: actions/cache@v6
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+      - name: Build
+        run: go build ./...
+      - name: Build rendertapes (nested module)
+        run: go -C tools/rendertapes build ./...
+      - name: Test (race)
+        run: go test -race ./... -v
+      - name: Vet
+        run: go vet ./...
+      - name: gofmt check
+        if: matrix.os == 'ubuntu-24.04'
+        run: |
+          files=$(gofmt -l .)
+          if [ -n "$files" ]; then
+            echo "gofmt drift detected:"
+            echo "$files"
+            exit 1
+          fi
+      - name: go mod tidy check
+        if: matrix.os == 'ubuntu-24.04'
+        run: |
+          go mod tidy
+          go -C tools/rendertapes mod tidy
+          if ! git diff --exit-code -- go.mod go.sum tools/rendertapes/go.mod tools/rendertapes/go.sum; then
+            echo "go mod tidy would change files — run 'go mod tidy' (root and tools/rendertapes) and commit the result"
+            exit 1
+          fi
+      - name: go mod verify
+        if: matrix.os == 'ubuntu-24.04'
+        run: go mod verify
+
+  go-generate:
+    name: go generate drift
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: '1.26.x'
+      - name: Install stringer
+        # Pinned: bump alongside the golang.org/x/tools dependency.
+        run: go install golang.org/x/tools/cmd/stringer@v0.47.0
+      - name: Check for go generate drift
+        run: |
+          go generate ./...
+          if ! git diff --exit-code; then
+            echo "go generate produced changes — run 'go generate ./...' locally and commit the result"
+            exit 1
+          fi
+
+  go-fix:
+    name: go fix drift
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: '1.26.x'
+      - name: Check for go fix drift
+        run: |
+          if ! go fix -diff ./...; then
+            echo "go fix found suggestions — run 'go fix ./...' locally, review the diff, and commit the result"
+            exit 1
+          fi
+
+  lint:
+    name: Lint (target GOOS=${{ matrix.target_goos }})
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        target_goos: [linux, windows]
+    env:
+      GOOS: ${{ matrix.target_goos }}
+      GOARCH: amd64
+    steps:
+      - uses: actions/checkout@v7
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: '1.26.x'
+      - name: Lint
+        uses: golangci/golangci-lint-action@v9
+        with:
+          # Pinned: keep in sync with tui-base and tools/local_verify.sh.
+          version: v2.12.2
+      - name: Lint rendertapes (nested module)
+        uses: golangci/golangci-lint-action@v9
+        with:
+          version: v2.12.2
+          working-directory: tools/rendertapes
+
+  workflow-lint:
+    name: Workflow Lint (actionlint)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - name: actionlint
+        uses: reviewdog/action-actionlint@v1
+
+  docs:
+    name: Docs Lint and Links
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - name: Markdown lint
+        uses: DavidAnson/markdownlint-cli2-action@v24
+        with:
+          globs: |
+            **/*.md
+      - name: Link check
+        uses: lycheeverse/lychee-action@v2
+        env:
+          # Authenticated GitHub requests avoid the anonymous rate limit
+          # that makes github.com links flake.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          fail: true
+          args: --no-progress --verbose --max-retries 3 --retry-wait-time 5 "./**/*.md"
+
+  shellcheck:
+    name: Shellcheck
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - name: Shellcheck scripts
+        uses: ludeeus/action-shellcheck@2.0.0
+        with:
+          scandir: './'

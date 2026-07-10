@@ -29,7 +29,7 @@ func pumpDir(t *testing.T, effects uifx.Level) *DirPicker {
 }
 
 // rowPoint returns coordinates inside visible row i.
-func (m *DirPicker) rowPoint(i int) (int, int) { return 1, m.rowsTopY + (i - m.scrollTop) }
+func (m *DirPicker) rowPoint(i int) (x, y int) { return 1, m.rowsTopY + (i - m.scrollTop) }
 
 func TestDirPickerViewSetsOnMouse(t *testing.T) {
 	t.Parallel()

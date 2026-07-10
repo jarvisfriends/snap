@@ -35,27 +35,43 @@ var cvdMatrices = [...][3][3]float64{
 	},
 }
 
-// colorPairsFromSimple generates color pairs for the fallback dark-terminal palette.
+// colorPairsFromSimple generates color pairs for the fallback dark-terminal
+// palette: an empty tint makes tintPairs fall back to the numbered terminal
+// colors on a dark gray background.
 func colorPairsFromSimple() []ColorPair {
-	bg := lipgloss.Color("235")
-	return []ColorPair{
-		{Name: "Black", Fg: lipgloss.Color("16"), Bg: bg},
-		{Name: "Red", Fg: lipgloss.Color("1"), Bg: bg},
-		{Name: "Green", Fg: lipgloss.Color("2"), Bg: bg},
-		{Name: "Yellow", Fg: lipgloss.Color("3"), Bg: bg},
-		{Name: "Blue", Fg: lipgloss.Color("4"), Bg: bg},
-		{Name: "Magenta", Fg: lipgloss.Color("5"), Bg: bg},
-		{Name: "Cyan", Fg: lipgloss.Color("6"), Bg: bg},
-		{Name: "White", Fg: lipgloss.Color("7"), Bg: bg},
-		{Name: "Bright Black", Fg: lipgloss.Color("240"), Bg: bg},
-		{Name: "Bright Red", Fg: lipgloss.Color("9"), Bg: bg},
-		{Name: "Bright Green", Fg: lipgloss.Color("10"), Bg: bg},
-		{Name: "Bright Yellow", Fg: lipgloss.Color("11"), Bg: bg},
-		{Name: "Bright Blue", Fg: lipgloss.Color("12"), Bg: bg},
-		{Name: "Bright Magenta", Fg: lipgloss.Color("13"), Bg: bg},
-		{Name: "Bright Cyan", Fg: lipgloss.Color("14"), Bg: bg},
-		{Name: "Bright White", Fg: lipgloss.Color("15"), Bg: bg},
+	return tintPairs(&tint.Tint{}, "", lipgloss.Color("235"))
+}
+
+// tintPairs lists the tint's 16-color palette on the given background, with
+// each name prefixed (base palette: no prefix; selection palette: "Select ").
+func tintPairs(t *tint.Tint, prefix string, bg color.Color) []ColorPair {
+	slots := []struct {
+		name     string
+		c        *tint.Color
+		fallback string
+	}{
+		{"Black", t.Black, "16"},
+		{"Red", t.Red, "1"},
+		{"Green", t.Green, "2"},
+		{"Yellow", t.Yellow, "3"},
+		{"Blue", t.Blue, "4"},
+		{"Purple", t.Purple, "5"},
+		{"Cyan", t.Cyan, "6"},
+		{"White", t.White, "7"},
+		{"Bright Black", t.BrightBlack, "240"},
+		{"Bright Red", t.BrightRed, "9"},
+		{"Bright Green", t.BrightGreen, "10"},
+		{"Bright Yellow", t.BrightYellow, "11"},
+		{"Bright Blue", t.BrightBlue, "12"},
+		{"Bright Purple", t.BrightPurple, "13"},
+		{"Bright Cyan", t.BrightCyan, "14"},
+		{"Bright White", t.BrightWhite, "15"},
 	}
+	pairs := make([]ColorPair, 0, len(slots))
+	for _, sl := range slots {
+		pairs = append(pairs, ColorPair{Name: prefix + sl.name, Fg: col(sl.c, sl.fallback), Bg: bg})
+	}
+	return pairs
 }
 
 // colorPairsFromTint generates color pairs from a bubbletint Tint.
@@ -67,48 +83,10 @@ func colorPairsFromTint(t *tint.Tint, adjustForAccess bool) []ColorPair {
 
 	var pairs []ColorPair
 	if t.Bg != nil {
-		bg := t.Bg
-		pairs = append(
-			pairs,
-			ColorPair{Name: "Black", Fg: col(t.Black, "16"), Bg: bg},
-			ColorPair{Name: "Red", Fg: col(t.Red, "1"), Bg: bg},
-			ColorPair{Name: "Green", Fg: col(t.Green, "2"), Bg: bg},
-			ColorPair{Name: "Yellow", Fg: col(t.Yellow, "3"), Bg: bg},
-			ColorPair{Name: "Blue", Fg: col(t.Blue, "4"), Bg: bg},
-			ColorPair{Name: "Purple", Fg: col(t.Purple, "5"), Bg: bg},
-			ColorPair{Name: "Cyan", Fg: col(t.Cyan, "6"), Bg: bg},
-			ColorPair{Name: "White", Fg: col(t.White, "7"), Bg: bg},
-			ColorPair{Name: "Bright Black", Fg: col(t.BrightBlack, "240"), Bg: bg},
-			ColorPair{Name: "Bright Red", Fg: col(t.BrightRed, "9"), Bg: bg},
-			ColorPair{Name: "Bright Green", Fg: col(t.BrightGreen, "10"), Bg: bg},
-			ColorPair{Name: "Bright Yellow", Fg: col(t.BrightYellow, "11"), Bg: bg},
-			ColorPair{Name: "Bright Blue", Fg: col(t.BrightBlue, "12"), Bg: bg},
-			ColorPair{Name: "Bright Purple", Fg: col(t.BrightPurple, "13"), Bg: bg},
-			ColorPair{Name: "Bright Cyan", Fg: col(t.BrightCyan, "14"), Bg: bg},
-			ColorPair{Name: "Bright White", Fg: col(t.BrightWhite, "15"), Bg: bg},
-		)
+		pairs = append(pairs, tintPairs(t, "", t.Bg)...)
 	}
 	if t.SelectionBg != nil {
-		bg := t.SelectionBg
-		pairs = append(
-			pairs,
-			ColorPair{Name: "Select Black", Fg: col(t.Black, "16"), Bg: bg},
-			ColorPair{Name: "Select Red", Fg: col(t.Red, "1"), Bg: bg},
-			ColorPair{Name: "Select Green", Fg: col(t.Green, "2"), Bg: bg},
-			ColorPair{Name: "Select Yellow", Fg: col(t.Yellow, "3"), Bg: bg},
-			ColorPair{Name: "Select Blue", Fg: col(t.Blue, "4"), Bg: bg},
-			ColorPair{Name: "Select Purple", Fg: col(t.Purple, "5"), Bg: bg},
-			ColorPair{Name: "Select Cyan", Fg: col(t.Cyan, "6"), Bg: bg},
-			ColorPair{Name: "Select White", Fg: col(t.White, "7"), Bg: bg},
-			ColorPair{Name: "Select Bright Black", Fg: col(t.BrightBlack, "240"), Bg: bg},
-			ColorPair{Name: "Select Bright Red", Fg: col(t.BrightRed, "9"), Bg: bg},
-			ColorPair{Name: "Select Bright Green", Fg: col(t.BrightGreen, "10"), Bg: bg},
-			ColorPair{Name: "Select Bright Yellow", Fg: col(t.BrightYellow, "11"), Bg: bg},
-			ColorPair{Name: "Select Bright Blue", Fg: col(t.BrightBlue, "12"), Bg: bg},
-			ColorPair{Name: "Select Bright Purple", Fg: col(t.BrightPurple, "13"), Bg: bg},
-			ColorPair{Name: "Select Bright Cyan", Fg: col(t.BrightCyan, "14"), Bg: bg},
-			ColorPair{Name: "Select Bright White", Fg: col(t.BrightWhite, "15"), Bg: bg},
-		)
+		pairs = append(pairs, tintPairs(t, "Select ", t.SelectionBg)...)
 	}
 
 	if adjustForAccess {

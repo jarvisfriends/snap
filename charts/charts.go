@@ -3,6 +3,7 @@ package charts
 import (
 	"fmt"
 	"image/color"
+	"maps"
 	"math"
 	"sort"
 	"strings"
@@ -22,10 +23,10 @@ const (
 	// SparklineUserBlocks uses ▁▂▃▄▅▆▇█ — 8-level gradient fill blocks. Default.
 	SparklineUserBlocks SparklineStyle = 0
 	// SparklineBrailleUp uses directional braille glyphs where rising = good (speed metrics).
-	// Glyphs are coloured green when rising, red when falling, dim when stable.
+	// Glyphs are colored green when rising, red when falling, dim when stable.
 	SparklineBrailleUp SparklineStyle = 1
 	// SparklineBrailleDown uses directional braille glyphs where rising = bad (latency metrics).
-	// Glyphs are coloured red when rising, green when falling, dim when stable.
+	// Glyphs are colored red when rising, green when falling, dim when stable.
 	SparklineBrailleDown SparklineStyle = 2
 	// SparklineStdBlocks uses (space)▂▃▄▅▆▇█ — standard blocks with an explicit space for zero.
 	SparklineStdBlocks SparklineStyle = 3
@@ -77,7 +78,7 @@ func IsBrailleStyle(s SparklineStyle) bool {
 //
 // For braille styles with non-nil opts.Colors, each glyph is individually
 // styled with ANSI color sequences based on the value direction — callers
-// must use padRight rather than colorLine to avoid double-colouring.
+// must use padRight rather than colorLine to avoid double-coloring.
 // Block styles always return plain text.
 func Sparkline(history []float64, width int, opts SparklineOpts) string {
 	if len(history) == 0 || width <= 0 {
@@ -134,7 +135,7 @@ func renderBlocks(samples []float64, rng, lo float64, glyphs []rune) string {
 }
 
 // renderBraille renders a directional braille sparkline. Each glyph set has
-// 12 runes organised as 4 magnitude levels × 3 direction slots:
+// 12 runes organized as 4 magnitude levels × 3 direction slots:
 //
 //	glyphIdx = magnitudeLevel*3 + directionSlot
 //	directionSlot: 0 = rising, 1 = stable, 2 = falling
@@ -345,8 +346,14 @@ func BraillePieChart(slices []PieSlice, radius int) string {
 		for cx := range charW {
 			dotValues := [8]int{-1, -1, -1, -1, -1, -1, -1, -1}
 			dotMap := [8][2]int{
-				{0, 0}, {0, 1}, {0, 2}, {1, 0},
-				{1, 1}, {1, 2}, {0, 3}, {1, 3},
+				{0, 0},
+				{0, 1},
+				{0, 2},
+				{1, 0},
+				{1, 1},
+				{1, 2},
+				{0, 3},
+				{1, 3},
 			}
 
 			counts := make([]int, len(slices))
@@ -393,10 +400,12 @@ func BraillePieChart(slices []PieSlice, radius int) string {
 
 			domSlice := -1
 			maxCount := -1
-			for idx, c := range counts {
-				if c > maxCount {
-					maxCount = c
+			var domColor color.Color
+			for idx := range slices {
+				if counts[idx] > maxCount {
+					maxCount = counts[idx]
 					domSlice = idx
+					domColor = slices[idx].Color
 				}
 			}
 
@@ -410,7 +419,7 @@ func BraillePieChart(slices []PieSlice, radius int) string {
 
 			style := lipgloss.NewStyle()
 			if domSlice != -1 {
-				style = style.Foreground(slices[domSlice].Color)
+				style = style.Foreground(domColor)
 			}
 
 			sb.WriteString(style.Render(string(rune(runeVal))))
@@ -515,12 +524,8 @@ func BrailleSankeyChart(flows []SankeyFlow, charW, charH int) string {
 
 	srcCurrentY := make(map[string]float64)
 	tgtCurrentY := make(map[string]float64)
-	for k, v := range sourceY {
-		srcCurrentY[k] = v
-	}
-	for k, v := range targetY {
-		tgtCurrentY[k] = v
-	}
+	maps.Copy(srcCurrentY, sourceY)
+	maps.Copy(tgtCurrentY, targetY)
 
 	for i, f := range flows {
 		thickness := f.Value * scale
@@ -542,8 +547,14 @@ func BrailleSankeyChart(flows []SankeyFlow, charW, charH int) string {
 		for cx := range charW {
 			dotValues := [8]bool{false, false, false, false, false, false, false, false}
 			dotMap := [8][2]int{
-				{0, 0}, {0, 1}, {0, 2}, {1, 0},
-				{1, 1}, {1, 2}, {0, 3}, {1, 3},
+				{0, 0},
+				{0, 1},
+				{0, 2},
+				{1, 0},
+				{1, 1},
+				{1, 2},
+				{0, 3},
+				{1, 3},
 			}
 
 			counts := make([]int, len(flows))
@@ -586,20 +597,22 @@ func BrailleSankeyChart(flows []SankeyFlow, charW, charH int) string {
 			// Proportional Color Blending
 			var r, g, b float64
 			var totalCount int
-			for idx, c := range counts {
-				if c > 0 {
-					cr, cg, cb, _ := flows[idx].Color.RGBA()
-					r += float64(cr) * float64(c)
-					g += float64(cg) * float64(c)
-					b += float64(cb) * float64(c)
-					totalCount += c
+			for idx := range flows {
+				c := counts[idx]
+				if c <= 0 {
+					continue
 				}
+				cr, cg, cb, _ := flows[idx].Color.RGBA()
+				r += float64(cr) * float64(c)
+				g += float64(cg) * float64(c)
+				b += float64(cb) * float64(c)
+				totalCount += c
 			}
 
 			if totalCount > 0 {
-				r = r / float64(totalCount)
-				g = g / float64(totalCount)
-				b = b / float64(totalCount)
+				r /= float64(totalCount)
+				g /= float64(totalCount)
+				b /= float64(totalCount)
 				// color.Color RGBA returns 0-65535, we convert back to 0-255
 				hexColor := fmt.Sprintf("#%02x%02x%02x", int(r/257.0), int(g/257.0), int(b/257.0))
 				style = style.Foreground(lipgloss.Color(hexColor))
