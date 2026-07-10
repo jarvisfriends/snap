@@ -213,7 +213,7 @@ func (m *MultiFileEditor) startPicking(index int) tea.Cmd {
 
 	m.pickerForm = huh.NewForm(huh.NewGroup(fp)).
 		WithTheme(m.huhTheme()).
-		WithKeyMap(filePickerKeyMap()).
+		WithKeyMap(FilePickerKeyMap()).
 		WithWidth(overlayContentWidth(m.Width))
 	if m.Height > 0 {
 		// The form height must be set explicitly: huh freezes each group's

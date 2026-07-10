@@ -2,9 +2,9 @@
 # Tasks to update
 
 ## Overall
-- [ ] When making the tapes a different size, they still seem to be treated as a limited height in our display... Whats going on? Lets fix
-- [ ] Change render_tapes.sh to a brief go file in its own folder, Run each tape generation in its own goroutine so they complete faster when provided more resources instead of sequential. use the worker paradigm since we plan on the number of these getting large and don't want the host to get unusable. number of goroutines == num cores/threads is fine
-- [ ] as of v0.11.0 of tape, it now supports ScrollDown ScrollUp for mouse input, lets remember to show off the mouse input to show how the mouse and keyboard are both supported
+- [x] ~~Height issue~~ Fixed 2026-07-10: demo roots render inline by default, pinning content to the prompt line — they now set AltScreen. (The empty gifs had a second cause: the vhs container has no Go toolchain, so in-tape `go build` failed; rendertapes now cross-compiles demo binaries on the host.)
+- [x] Done 2026-07-10: `tools/rendertapes` (own module) renders all tapes through the official vhs container via the Docker/Podman Go client, worker pool = NumCPU.
+- [x] Done 2026-07-10: both tapes showcase ScrollUp/ScrollDown alongside keyboard input.
 
 ## Date Picker
 
