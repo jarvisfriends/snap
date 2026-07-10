@@ -35,3 +35,18 @@ func TestDemoFlowSelectsAndQuits(t *testing.T) {
 		t.Fatal("enter did not produce a command (expected tea.Quit)")
 	}
 }
+
+// TestDemoEnablesMouse: the demo's root view must request mouse reporting —
+// without it the terminal never sends mouse events and OnMouse is dead code.
+func TestDemoEnablesMouse(t *testing.T) {
+	t.Parallel()
+
+	a := demoApp{dp: datepicker.New(time.Now())}
+	v := a.View()
+	if v.MouseMode != tea.MouseModeCellMotion {
+		t.Fatalf("demo root view MouseMode = %v; want cell motion", v.MouseMode)
+	}
+	if v.OnMouse == nil {
+		t.Fatal("demo root view lost the component's OnMouse handler")
+	}
+}

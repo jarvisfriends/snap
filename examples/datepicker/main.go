@@ -31,8 +31,14 @@ func (a demoApp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return a, cmd
 }
 
-
-func (a demoApp) View() tea.View { return a.dp.View() }
+// View enables mouse reporting on the root view — in Bubble Tea v2 the
+// terminal only sends mouse events when the root view asks for them, so
+// without this the component's OnMouse never fires.
+func (a demoApp) View() tea.View {
+	v := a.dp.View()
+	v.MouseMode = tea.MouseModeCellMotion
+	return v
+}
 
 func main() {
 	app := demoApp{dp: datepicker.New(time.Now())}
