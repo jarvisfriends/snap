@@ -27,7 +27,7 @@ the runtime debugger for any Charm-based app.
 | `notifications/` | Notification manager: severity, TTL, actions, persistence | `notifications` | **moved 2026-07-10** (wholesale wave) |
 | `page/` | Shared page base (sizing + colors) for full-page components | `page` | **moved 2026-07-10** (wholesale wave) |
 | `styles/` | The shared style contract: semantic AppStyle palette, derived lipgloss styles, bubbletint mapping, presets, YAML themes | `theme` | **moved 2026-07-10** (wholesale wave) — tui-base's theme package is now aliases over this |
-| `charts/` | Sparklines, bars, pie/sankey, braille line charts + Canvas | dash `creator` | **moved 2026-07-10** (wholesale wave) |
+| `charts/` | Sparklines, bars, pie/sankey, braille line charts + Canvas; each also wrapped as a tea model with ID-routed data messages and stretch-to-fill sizing (see examples/charts) | dash `creator` | **moved 2026-07-10** (wholesale wave); models added 2026-07-10 |
 | `scrollbar/` | Vertical scrollbar column + offset clamping | tribble console `ui/scrollbar.go` | **ported 2026-07-10** (repo sweep) |
 | `menu/` | Right-click context menu (mouse + keyboard, terminal-clamped) | tribble console `ui/context_menu.go` | **ported 2026-07-10** (repo sweep) |
 | `osc/` | Taskbar/tab progress via OSC 9;4 (WT, ConEmu, iTerm2) | aSettings `pages/ui/osc.go` | **ported 2026-07-10** (repo sweep) — extended with error/paused/determinate states |

@@ -48,14 +48,26 @@
 
 ## Charts
 
-- [ ] Convert each chart to a compatible model (so init, update, view)
-- [ ] ID or some other way to determine which of multiple of the same chart types incoming data is for, even if we require the parent to do this, make sure we have an example thats the perfect way to do it in case they just c/p it each time.
-- [ ] set height and width maximums that the charts are allowed to use and report the actual height and width being used
-  - [ ] Providing used space allows our UI to be a bit more flexible on where things are placed especially when we are adjusting the terminal sizes (we can roll charts down that don't fit on lines this way)
-- [ ] Expand out/stretch any of our single column or single row values to fill the area provided (where possible, favor staying within bounds over having to scroll outside the bounds)
-  - [ ] This includes the Pie, Sankey, Sparkline, and hbar snaps
-- [ ] Handle resize messages now that we are a true model
-- [ ] Allow dynamic number of values to be provided when it makes since, for example, Pie chart might be only 2 values or it might be provided 8, do the adjustments internal. If the slices wouldn't be visible, then combine them together with others until they can be visible and somehow supply a key/legend back to the user so they can handle that case if they need to (can be just a function call or something similar)
+All done 2026-07-10 — the pure render functions stay (and stay tested); the
+new `*Model` types wrap them per chart file:
+
+- [x] Models: `SparklineModel`, `HBarModel`, `PieModel`, `SankeyModel`,
+  `LineChartModel` (Init/Update/View), each in its chart's `_model.go`.
+- [x] ID routing: every data message carries the target chart's ID
+  (`SparklineDataMsg`/`SparklinePointMsg`, `HBarDataMsg`, `PieDataMsg`,
+  `SankeyDataMsg`, `LineDataMsg`); charts ignore other IDs, so hosts just
+  forward everything. **examples/charts is the canonical copy-paste
+  wiring** — two sparklines + pie + sankey + hbar, one producer stream.
+- [x] Sizing: the shared `Frame` gives every model
+  `MaxWidth`/`MaxHeight`/`SetSize` caps and `Used()` reporting, so layouts
+  can pack charts and roll the ones that don't fit.
+- [x] Stretch-to-fill: sparkline/hbar fill their width, sankey/linechart
+  fill both axes, pie fits its radius to the box (height/2 vs width/4).
+- [x] Resize: every model consumes `tea.WindowSizeMsg`; multi-chart hosts
+  re-split via `SetSize` (shown in the example).
+- [x] Dynamic pie values: slices under `MinSliceFrac` (default 2%) fold
+  into a dim "Other" slice; `Combined()` returns what was folded so the
+  host renders a legend (the example does).
 
 ## Scrollbar
 This still looks old school, and not in a good retro way... Can we figure out some better characters to use, or show it on the screen differently... I am not sure what would make it look better, you will have to be the expert on this one after you research a bit on some cool looking scroll bars
