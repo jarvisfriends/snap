@@ -95,6 +95,15 @@ glide), Line (thin default), Classic (retro blocks).
 Sortable, filterable data table: header clicks sort, `/` filters, Enter or
 double-click opens a row, wheel scrolls the selection.
 
+### Pills
+
+![pills demo](examples/pills/demo.gif)
+
+`styles.Pill` badges and color-divided `styles.SegmentedPill` runs in the six
+selectable `PillShape`s — Round, Arrow, Slant, Flame (Nerd Font), Block and
+Plain (pure Unicode) — plus the same shapes driving a nav strip and
+`styles.Breadcrumbs`.
+
 ## Design rules
 
 - **Theme-free with style hooks.** Components take injected styles (the

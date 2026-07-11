@@ -8,9 +8,13 @@
 - [x] Done 2026-07-10: README gained a Gallery section — every demo gif (datepicker, timepicker, charts, pickers, menu, scrollbar, table) with a brief description; gifs regenerate via `go -C tools/rendertapes run .`.
 - [x] Mostly done 2026-07-10: new demos + tapes for pickers, menu, scrollbar,
   table, and the charts model example (7 tapes render clean end to end).
-  Remaining: navigation, status, and notifications need a host-shaped app
+  ~~Remaining: navigation, status, and notifications need a host-shaped app
   (router + pages) to demo meaningfully — their tape should live in the
-  tui-base reference app instead of a synthetic snap example.
+  tui-base reference app instead of a synthetic snap example.~~ Done
+  2026-07-10 in tui-base: `examples/multipage/demo.tape` (navigation) and
+  `cmd/tui-base/notifications.tape` (toasts + status bar), rendered by
+  tui-base's own `tools/rendertapes` port; gifs pending a Docker-equipped
+  machine.
 - [x] Done 2026-07-10: rendertapes walks the repo for every `*.tape` at any depth (skipping .git/tools), so `charts/sparkline.tape` etc. render too.
 - [x] Answered 2026-07-10: they are the **same wire protocol** — Bubble Tea
   v2's renderer emits OSC 9;4 for `tea.View.ProgressBar` (states None/
@@ -150,13 +154,29 @@ Swept: `w`, `anvil`, `verify_setup`, `weaver_base`, `brick-breaker`,
 - [ ] **Generic list-picker overlay** — tribble `ui/overlay_picker.go`
   (numbered items, descriptions, opaque UserData). Overlaps huh selects and
   snap pickers; decide whether it becomes `snap/listpicker` or a huh recipe.
-- [ ] **Notification progress** — w `ui/shared/notification.go` carries a
-  `Percent` field for progress-bar notifications; snap/notifications has no
-  progress concept. Add Percent + a bar renderer (charts.HBar) to the
-  notification model and history panel.
-- [ ] **Badge/pill styles** — aSettings `pages/ui/badges.go` BadgeStyle +
-  categorical palette. Generic pill helper belongs in `styles`; the
-  Catppuccin categorical palette stays app-side.
+- [x] Done 2026-07-10: **Notification progress** — `Notification.Percent
+  *float64` (0–100, the charts.HBar scale; nil = not a progress
+  notification), carried by `AddMsg`/`AddOptions`, updated in place via
+  `ProgressMsg` (by ID, or Key when ID is zero) / `SetProgress` /
+  `SetProgressKey` (clamped; re-shows a toast-hidden notification so live
+  progress stays visible; stored value is copied so callers can't mutate
+  through the pointer). The history panel renders an inline `charts.HBar`
+  + percent after the row content. Remaining for the next tag flip:
+  tui-base's toast overlay should draw the bar too, and its router must
+  route `notifications.ProgressMsg` alongside the other notification
+  messages (router.go's Handle forwarding list).
+- [x] Done 2026-07-10: **Badge/pill styles** — `styles/pill.go`. Six
+  user-selectable `PillShape`s (string-preset pattern like `StylePreset`):
+  Round half-circles (default), Arrow, Slant, Flame — Powerline-extras
+  glyphs, `NeedsNerdFont()` — plus pure-Unicode Block and padded Plain.
+  `Pill` renders one badge, `SegmentedPill` divides one pill by color
+  (solid divider = prev bg over next bg, thin variant when bgs match),
+  `Breadcrumbs` joins items on the thin glyph; nil Fg auto-picks
+  black/white by bg luminance. `examples/pills` demos every shape as
+  badges, segmented status runs, nav items, and breadcrumbs. The
+  Catppuccin categorical palette stays app-side (demo hardcodes its own).
+  NOTE: examples/pills/demo.gif is not rendered yet — this machine has no
+  Docker/Podman; run `go -C tools/rendertapes run .` where one exists.
 - [ ] **Box layout helpers** — w `ui/shared/layout.go` (ContentOrigin,
   InnerSize, RenderInBox). Check overlap with page/geom before porting.
 - [ ] **Input parse helpers** — w `ui/shared/input_validation.go`

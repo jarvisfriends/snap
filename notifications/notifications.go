@@ -85,6 +85,12 @@ type Notification struct {
 	Pending         bool      `json:"pending,omitempty"`
 	RetainInHistory bool      `json:"retain_in_history,omitempty"`
 	ToastHidden     bool      `json:"toast_hidden,omitempty"`
+	// Percent, when non-nil, marks this as a progress notification (0–100,
+	// the charts.HBar scale) — hosts render a bar in the toast and history
+	// panel. Update it in place with SetProgress/ProgressMsg; typically the
+	// notification carries a Key and TTL=0, and the completion replaces it
+	// via the same Key.
+	Percent *float64 `json:"percent,omitempty"`
 }
 
 // AddOptions extends Add with metadata used by pending/action-item notifications.
@@ -92,6 +98,9 @@ type AddOptions struct {
 	Key             string
 	Pending         bool
 	RetainInHistory bool
+	// Percent, when non-nil, creates the notification as a progress
+	// notification (0–100).
+	Percent *float64
 }
 
 // AddMsg requests a new notification. TTL=0 means no auto-dismiss.
@@ -102,6 +111,18 @@ type AddMsg struct {
 	TTL             time.Duration
 	Pending         bool
 	RetainInHistory bool
+	// Percent, when non-nil, creates the notification as a progress
+	// notification (0–100). Update it with ProgressMsg.
+	Percent *float64
+}
+
+// ProgressMsg updates a progress notification's Percent (0–100) in place.
+// Address it by ID, or by Key when ID is zero. Updating a toast-hidden
+// notification re-shows its toast so ongoing progress stays visible.
+type ProgressMsg struct {
+	ID      int64
+	Key     string
+	Percent float64
 }
 
 // DismissMsg dismisses a specific notification by ID.
@@ -238,6 +259,7 @@ func (m *Manager) AddWithOptions(
 		CreatedAt:       time.Now(),
 		Pending:         opts.Pending,
 		RetainInHistory: opts.RetainInHistory,
+		Percent:         clampPercent(opts.Percent),
 	}
 	m.items = append(m.items, n)
 	m.sortUnsafe()
@@ -251,6 +273,48 @@ func (m *Manager) AddWithOptions(
 		time.Sleep(ttl)
 		return ExpireMsg{ID: id}
 	}
+}
+
+// SetProgress updates a progress notification's Percent (0–100, clamped) by
+// ID. A toast-hidden notification is re-shown so ongoing progress stays
+// visible. Setting progress on a notification created without Percent turns
+// it into a progress notification.
+func (m *Manager) SetProgress(id int64, pct float64) {
+	m.setProgress(func(n *Notification) bool { return n.ID == id }, pct)
+}
+
+// SetProgressKey updates progress like SetProgress, addressing the
+// notification by its stable key.
+func (m *Manager) SetProgressKey(key string, pct float64) {
+	if key == "" {
+		return
+	}
+	m.setProgress(func(n *Notification) bool { return n.Key == key }, pct)
+}
+
+func (m *Manager) setProgress(match func(*Notification) bool, pct float64) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for i := range m.items {
+		if !match(&m.items[i]) {
+			continue
+		}
+		pct = min(max(pct, 0), 100)
+		m.items[i].Percent = &pct
+		m.items[i].ToastHidden = false
+		m.persistUnsafe()
+		return
+	}
+}
+
+// clampPercent bounds a non-nil percent to the 0–100 HBar scale, copying the
+// value so callers can't mutate stored notifications through the pointer.
+func clampPercent(p *float64) *float64 {
+	if p == nil {
+		return nil
+	}
+	v := min(max(*p, 0), 100)
+	return &v
 }
 
 // Dismiss marks a notification as dismissed by ID.
@@ -384,8 +448,15 @@ func (m *Manager) Handle(msg tea.Msg) tea.Cmd {
 			Key:             msg.Key,
 			Pending:         msg.Pending,
 			RetainInHistory: msg.RetainInHistory,
+			Percent:         msg.Percent,
 		})
 		return cmd
+	case ProgressMsg:
+		if msg.ID != 0 {
+			m.SetProgress(msg.ID, msg.Percent)
+		} else {
+			m.SetProgressKey(msg.Key, msg.Percent)
+		}
 	case DismissMsg:
 		m.Dismiss(msg.ID)
 	case DismissKeyMsg:
