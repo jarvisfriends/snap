@@ -50,7 +50,7 @@ func DefaultTimeFieldKeyMap() TimeFieldKeyMap {
 	}
 }
 
-// TimeFieldModel is the redesigned time picker (tui-base ROADMAP SP-8/Q-24):
+// TimeFieldModel is the redesigned time picker:
 // two columns — hours and minutes — separated by a highlighted colon. Clicking
 // a column (or pressing space) opens a scrollable dropdown of its valid
 // values; a click or Enter commits the highlighted value. Digits typed into
@@ -58,7 +58,7 @@ func DefaultTimeFieldKeyMap() TimeFieldKeyMap {
 // into range) whenever the column loses focus.
 //
 // Mouse events must arrive with coordinates relative to the component's
-// top-left cell (the standard tui-base overlay convention); the hit zones are
+// top-left cell (the standard overlay convention); the hit zones are
 // recorded during View.
 type TimeFieldModel struct {
 	// ShowSeconds adds a third seconds column. Set it before the first View.

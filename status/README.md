@@ -1,3 +1,4 @@
 # status
 
-Placeholder — component arrives with tui-base ROADMAP item X-4.
+Status bar with interactive regions, an info modal, and the notification
+toast/history surfaces. See the package documentation for the full API.

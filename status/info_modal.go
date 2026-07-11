@@ -365,7 +365,7 @@ func (m *InfoModal) View() (content tea.View) {
 	}
 	version := m.appVersion
 	if version == "" {
-		// Hosts inject their build version (tui-base does via SetAppVersion);
+		// Hosts inject their build version via SetAppVersion;
 		// standalone consumers see the development placeholder.
 		version = "(dev)"
 	}

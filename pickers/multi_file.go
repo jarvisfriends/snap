@@ -43,7 +43,7 @@ type MultiFileEditor struct {
 	// Styles are the injected style hooks (theme-free; see DefaultStyles).
 	Styles Styles
 	// HuhTheme styles the embedded huh file-picker form. Nil uses huh's
-	// base theme; tui-base injects its live theme's huh mapping.
+	// base theme; hosts inject their live theme's huh mapping.
 	HuhTheme func() huh.Theme
 	// CollapsePath is forwarded to row DirPickers (see DirPicker.CollapsePath).
 	CollapsePath func(string) string
@@ -429,7 +429,7 @@ func (m *MultiFileEditor) huhTheme() huh.Theme {
 
 // pickerFormHeight sizes the embedded file-picker form: most of the host
 // area, floored so the picker stays usable in tiny terminals. Mirrors
-// tui-base's overlay.FormHeight so the hosted look stays identical there.
+// the host-overlay sizing convention so the embedded look stays identical.
 func pickerFormHeight(termH int) int {
 	return max(5, termH-6)
 }

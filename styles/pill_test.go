@@ -25,6 +25,10 @@ func TestPillCapGlyphsPerShape(t *testing.T) {
 		{PillSlant, "", ""},
 		{PillFlame, "", ""},
 		{PillBlock, "▐", "▌"},
+		{PillCircle, "◖", "◗"},
+		{PillTriangle, "◀", "▶"},
+		{PillDiagonal, "◢", "◤"},
+		{PillFade, "░▒", "▒░"},
 	}
 	for _, tc := range cases {
 		got := ansi.Strip(Pill("hi", nil, testRed, PillStyles{Shape: tc.shape}))
@@ -177,7 +181,9 @@ func TestPillNerdFontFlag(t *testing.T) {
 			t.Errorf("%q should need a Nerd Font", s)
 		}
 	}
-	for _, s := range []PillShape{PillBlock, PillPlain} {
+	for _, s := range []PillShape{
+		PillBlock, PillPlain, PillCircle, PillTriangle, PillDiagonal, PillFade,
+	} {
 		if s.NeedsNerdFont() {
 			t.Errorf("%q should not need a Nerd Font", s)
 		}

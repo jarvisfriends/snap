@@ -9,9 +9,10 @@ import (
 
 // PillShape selects the geometry of pill caps and dividers. Shapes are
 // user-selectable (settings pickers, YAML config) the same way StylePreset
-// is: string-valued, normalized, with display names. The Nerd Font shapes
-// use Powerline-extras glyphs (private use area) and need a patched font;
-// PillBlock and PillPlain are pure Unicode/ASCII fallbacks.
+// is: string-valued, normalized, with display names. Four shapes use
+// Powerline-extras glyphs (private use area) and need a patched Nerd Font;
+// the rest — Circle, Triangle, Diagonal, Fade, Block, Plain — are pure
+// Unicode and render everywhere. NeedsNerdFont reports which is which.
 type PillShape string
 
 const (
@@ -27,6 +28,19 @@ const (
 	PillBlock PillShape = "block"
 	// PillPlain: no caps, one cell of padding inside the pill body.
 	PillPlain PillShape = "plain"
+	// PillCircle: geometric half-circle caps (◖ ◗) — the Round look without
+	// a Nerd Font. Most fonts leave a hairline of cell background around the
+	// glyph, so the caps read slightly detached compared to PillRound.
+	PillCircle PillShape = "circle"
+	// PillTriangle: solid pointer caps (◀ ▶) — the Arrow look without a
+	// Nerd Font.
+	PillTriangle PillShape = "triangle"
+	// PillDiagonal: corner-triangle caps (◢ ◤) forming a parallelogram —
+	// the Slant look without a Nerd Font.
+	PillDiagonal PillShape = "diagonal"
+	// PillFade: shade-block caps (░▒ … ▒░) that dissolve the pill into the
+	// background — two cells per cap, pure Unicode.
+	PillFade PillShape = "fade"
 )
 
 // DefaultPillShape is used when no shape has been chosen or an unknown value
@@ -51,16 +65,21 @@ type pillGlyphs struct {
 // left/right/divider/thin: Round E0B6/E0B4/E0B4/E0B5, Arrow E0B2/E0B0/E0B0/
 // E0B1, Slant E0BA/E0BC/E0BC/E0BD, Flame E0C2/E0C0/E0C0/E0C1.
 var pillGlyphSets = map[PillShape]pillGlyphs{
-	PillRound: {left: "", right: "", divider: "", thin: "", nerdFont: true, display: "Round"},
-	PillArrow: {left: "", right: "", divider: "", thin: "", nerdFont: true, display: "Arrow"},
-	PillSlant: {left: "", right: "", divider: "", thin: "", nerdFont: true, display: "Slant"},
-	PillFlame: {left: "", right: "", divider: "", thin: "", nerdFont: true, display: "Flame"},
-	PillBlock: {left: "▐", right: "▌", divider: "▌", thin: "│", display: "Block"},
-	PillPlain: {thin: "│", display: "Plain"},
+	PillRound:    {left: "", right: "", divider: "", thin: "", nerdFont: true, display: "Round"},
+	PillArrow:    {left: "", right: "", divider: "", thin: "", nerdFont: true, display: "Arrow"},
+	PillSlant:    {left: "", right: "", divider: "", thin: "", nerdFont: true, display: "Slant"},
+	PillFlame:    {left: "", right: "", divider: "", thin: "", nerdFont: true, display: "Flame"},
+	PillBlock:    {left: "▐", right: "▌", divider: "▌", thin: "│", display: "Block"},
+	PillPlain:    {thin: "│", display: "Plain"},
+	PillCircle:   {left: "◖", right: "◗", divider: "◗", thin: "│", display: "Circle"},
+	PillTriangle: {left: "◀", right: "▶", divider: "▶", thin: "›", display: "Triangle"},
+	PillDiagonal: {left: "◢", right: "◤", divider: "◤", thin: "╱", display: "Diagonal"},
+	PillFade:     {left: "░▒", right: "▒░", divider: "▒", thin: "░", display: "Fade"},
 }
 
 var orderedPillShapes = []PillShape{
-	PillRound, PillArrow, PillSlant, PillFlame, PillBlock, PillPlain,
+	PillRound, PillArrow, PillSlant, PillFlame,
+	PillCircle, PillTriangle, PillDiagonal, PillFade, PillBlock, PillPlain,
 }
 
 // PillShapes returns all shapes in presentation order, for settings pickers.

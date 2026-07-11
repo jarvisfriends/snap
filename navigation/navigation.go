@@ -136,8 +136,7 @@ type NavKeyMap struct {
 func DefaultNavKeyMap() NavKeyMap {
 	return NavKeyMap{
 		// Arrow-centric primary bindings (shown in help) with vim j/k/h/l as
-		// secondary keys so both paradigms work out of the box. See ROADMAP KB-1
-		// for the planned runtime arrow↔vim swap setting.
+		// secondary keys so both paradigms work out of the box.
 		PreviousPage: key.NewBinding(
 			key.WithKeys("up", "left", "shift+tab"),
 			key.WithHelp("↑/←", "prev page"),

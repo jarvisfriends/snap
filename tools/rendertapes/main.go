@@ -1,7 +1,6 @@
 // Command rendertapes renders every component demo tape to a gif by running
-// the official VHS container (per the snap ROADMAP): rendering inside Docker
-// produces consistent output across hosts, and Windows-native vhs hangs (see
-// tui-base ROADMAP SP-15).
+// the official VHS container: rendering inside Docker produces consistent
+// output across hosts, and sidesteps a Windows-native vhs/ttyd hang.
 //
 // Tapes run in parallel on a worker pool sized to the CPU count, so large
 // tape sets finish fast without making the host unusable. The Docker Go

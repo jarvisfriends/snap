@@ -2,39 +2,47 @@
 
 ![snap — ready-to-snap Bubble Tea components](assets/banner.svg)
 
-**Jarvis Friends Snap** — ready-to-use, production-minded Bubble Tea v2
-components ("snaps") extracted from
-[tui-base](https://github.com/jarvisfriends/tui-base): navigation, tables,
-pickers, and calendar items with first-class keyboard **and** mouse support.
+**Jarvis Friends Snap** — ready-to-use, production-minded
+[Bubble Tea v2](https://github.com/charmbracelet/bubbletea) components
+("snaps"): navigation, tables, pickers, calendars, charts, and status
+surfaces with first-class keyboard **and** mouse support.
 
-Snap is the single source of truth for these components: tui-base imports them
-back rather than redefining them (tui-base ROADMAP Q-20, answered 2026-07-09).
-The sibling [inspector](https://github.com/jarvisfriends/inspector) repo holds
-the runtime debugger for any Charm-based app.
+Every snap is theme-free with injected style hooks, so it drops into any
+Charm-stack app and adopts that app's look. Where a snap has multiple
+implementations (navigation styles, scrollbar presets, pill shapes), it
+exposes the choice through a small interface or preset list an app can
+surface to its users at runtime.
+[tui-base](https://github.com/jarvisfriends/tui-base) — an application
+framework built on these components — is one such consumer; the sibling
+[inspector](https://github.com/jarvisfriends/inspector) is another.
 
-## Layout
+## Components
 
-| Folder | Component | Source (tui-base) | Status |
-|---|---|---|---|
-| `keys/` | Common key-binding map shared by snaps and apps | `keys` | **moved 2026-07-09** |
-| `geom/` | Rect/point geometry helpers for hit-testing and layout | `geom` | **moved 2026-07-09** |
-| `datepicker/` | Calendar date picker (formerly `bubble-datepicker`) | `datepicker` | **moved 2026-07-09** |
-| `timepicker/` | Time picker | `timepicker` | **moved 2026-07-09** — UX redesign tracked in tui-base ROADMAP SP-8 |
-| `dependencies/` | Build-info / dependency reader for about views | `common/dependencies.go` | **moved 2026-07-09** |
-| `table/` | Data table with selection + scrolling | `table` | **moved 2026-07-10** (wholesale wave) |
-| `navigation/` | Tabs, Sidebar, and minimal-top navigators (one package; per-style folders tracked in tui-base SP-5) | `navigation` | **moved 2026-07-10** (wholesale wave) |
-| `pickers/` | Drive-aware DirPicker + MultiFileEditor (multi-path rows, per-row pickers) | `pages/settings` | **moved 2026-07-09** — style hooks + huh-theme/collapse-path injection |
-| `logging/` | UI-bound logger with subscriber fan-out | `logging` | placeholder — shape depends on the zap decision (tui-base SP-10) |
-| `status/` | Status bar with segments, info modal, notification surfaces | `status` | **moved 2026-07-10** (wholesale wave) |
-| `notifications/` | Notification manager: severity, TTL, actions, persistence | `notifications` | **moved 2026-07-10** (wholesale wave) |
-| `page/` | Shared page base (sizing + colors) for full-page components | `page` | **moved 2026-07-10** (wholesale wave) |
-| `styles/` | The shared style contract: semantic AppStyle palette, derived lipgloss styles, bubbletint mapping, presets, YAML themes | `theme` | **moved 2026-07-10** (wholesale wave) — tui-base's theme package is now aliases over this |
-| `charts/` | Sparklines, bars, pie/sankey, braille line charts + Canvas; each also wrapped as a tea model with ID-routed data messages and stretch-to-fill sizing (see examples/charts) | dash `creator` | **moved 2026-07-10** (wholesale wave); models added 2026-07-10 |
-| `scrollbar/` | Vertical scrollbar column + offset clamping + click/drag-to-scroll mapping (`OffsetAt`) | tribble console `ui/scrollbar.go` | **ported 2026-07-10** (repo sweep) |
-| `menu/` | Right-click context menu (mouse + keyboard, terminal-clamped) | tribble console `ui/context_menu.go` | **ported 2026-07-10** (repo sweep) |
-| `osc/` | Taskbar/tab progress via OSC 9;4 (WT, ConEmu, iTerm2) | aSettings `pages/ui/osc.go` | **ported 2026-07-10** (repo sweep) — extended with error/paused/determinate states |
-| `forms/` | Input parsing helpers for text fields (required, duration, ISO date, list splitting) with field-naming errors | w `ui/shared/input_validation.go` | **ported 2026-07-10** (repo sweep) |
-| `layout/` | Lipgloss-frame arithmetic: content origin, inner size, render-in-box | w `ui/shared/layout.go` | **ported 2026-07-10** (repo sweep) |
+| Folder | What it is |
+|---|---|
+| `charts/` | Sparklines, horizontal bars, pie/sankey, and braille line charts — each also wrapped as a tea model with ID-routed data messages and stretch-to-fill sizing — plus a braille pixel canvas and a whole-cell `CellCanvas` with color `Gradient`s |
+| `datepicker/` | Calendar date picker: click-to-confirm days, header month/year focus, keyboard/wheel paging |
+| `dependencies/` | Build-info / dependency reader for about views |
+| `forms/` | Input parsing helpers for text fields (required, duration, ISO date, list splitting) with field-naming errors |
+| `gate/` | Feature-gate registry with env overrides, for settings-surfaced flags |
+| `geom/` | Rect/point geometry helpers for hit-testing and layout |
+| `keys/` | Common key-binding map shared by snaps and apps, rebindable at runtime |
+| `layout/` | Lipgloss-frame arithmetic: content origin, inner size, render-in-box |
+| `logging/` | Reserved — not yet implemented |
+| `menu/` | Right-click context menu (mouse + keyboard, terminal-clamped) |
+| `navigation/` | Tabs, Sidebar, and minimal-top navigators behind one navigator contract, swappable at runtime |
+| `notifications/` | Notification manager: severity, TTL, actions, progress, persistence |
+| `osc/` | Taskbar/tab progress via OSC 9;4 (Windows Terminal, ConEmu, iTerm2) |
+| `page/` | Shared page base (sizing + colors) for full-page components |
+| `pickers/` | Drive-aware directory picker and multi-path editor with per-row pickers |
+| `rendercheck/` | Test helpers: goldens, border/viewport integrity, layout-math and code-standard checks |
+| `scrollbar/` | Vertical scrollbar with three presets, offset clamping, and click/drag-to-scroll mapping (`OffsetAt`) |
+| `status/` | Status bar with interactive regions, info modal, notification toast/history surfaces |
+| `styles/` | The shared style contract: semantic `AppStyle` palette, derived lipgloss styles, presets, YAML themes, and the pill/breadcrumb helpers |
+| `table/` | Sortable, filterable data table (3-state header sort, live filter, row activation) |
+| `timepicker/` | `HH:MM(:SS)` time field with per-column dropdowns, type-ahead, and validation |
+| `uifx/` | Input plumbing: `MouseHandlers` dispatch, named hit `Zones`, effect tiers |
+| `winterm/` | Windows default-terminal detection/repair (registry delegation values) |
 
 The three navigation styles live side by side because they satisfy the same
 navigator contract; an app can swap between them at runtime.
@@ -105,34 +113,37 @@ scrolls the selection.
 
 ![pills demo](examples/pills/demo.gif)
 
-`styles.Pill` badges and color-divided `styles.SegmentedPill` runs in the six
-selectable `PillShape`s — Round, Arrow, Slant, Flame (Nerd Font), Block and
-Plain (pure Unicode) — plus the same shapes driving a nav strip and
-`styles.Breadcrumbs`.
+`styles.Pill` badges and color-divided `styles.SegmentedPill` runs in ten
+selectable `PillShape`s, plus the same shapes driving a nav strip and
+`styles.Breadcrumbs`. Six shapes — Circle, Triangle, Diagonal, Fade, Block,
+Plain — are pure Unicode and render everywhere (they're what the gif shows);
+Round, Arrow, Slant, and Flame use Powerline glyphs for terminals with a
+[Nerd Font](https://www.nerdfonts.com/).
 
 ## Design rules
 
 - **Theme-free with style hooks.** Components take injected styles (the
   datepicker/timepicker pattern) instead of importing an app theme, so any
-  Bubble Tea app can adopt them. tui-base maps its live theme onto the hooks.
+  Bubble Tea app can adopt them. Hosts map their live theme onto the hooks.
 - **Keyboard and mouse.** Every interactive element works keyboard-only,
   mouse-only, and mixed.
 - **Settings-ready interfaces.** Where multiple implementations exist (e.g.
   navigation), a snap exposes an interface so an app can offer the choice to
-  users at runtime (tui-base surfaces this in its settings page).
+  users at runtime.
 - Dependencies stay down to `charm.land/{bubbletea,bubbles,lipgloss}/v2` plus
   small helpers that move with the component.
 - Every component folder eventually gets a VHS `.tape` demo and its own README.
 
 ## Development
 
-`bash tools/local_verify.sh` is the gate (same as every other repo: gofmt,
-golangci-lint on windows+linux, shellcheck, markdownlint, go vet,
-`go test -race`).
+`bash tools/local_verify.sh` is the gate: gofmt, golangci-lint on
+windows+linux, shellcheck, markdownlint, go vet, `go test -race`, and a
+dependency review (module-level vulnerability scan plus OpenSSF Scorecards
+on direct dependencies).
 
-Cross-repo development against tui-base uses a `go.work` file (see tui-base's
-go.work recipe in `docs/migration-from-bubbletea.md`); tui-base's `go.mod` only
-ever references tagged snap releases.
+Consumers pin tagged releases; for cross-repo development against an
+application, use a `go.work` file locally and keep `replace` directives out
+of committed `go.mod` files.
 
 ## Input contract (mouse + keyboard)
 
@@ -156,8 +167,7 @@ Every visual snap splits input by concern:
 - **Parents translate and call the child's `OnMouse`.** Bubble Tea v2 only
   invokes the *root* view's `OnMouse` (absolute coordinates) and does **not**
   translate for children — a parent adjusts x/y itself and calls the child's
-  `View().OnMouse` (tui-base's overlay `ForwardMouse` is the reference
-  implementation). Never forward mouse into a child's `Update` — the runtime
+  `View().OnMouse`. Never forward mouse into a child's `Update` — the runtime
   hands the raw event to both the root `OnMouse` *and* `Update`, so two doors
   means every click processed twice.
 

@@ -3,10 +3,11 @@
 # (rendertapes cross-compiles the linux demo binary and runs this tape in the
 # official vhs container; gifs are build artifacts, not diffable sources)
 Set WindowBar Colorful
+Set WindowBarSize 60
 Output datepicker/demo.gif
 Set FontSize 36
 Set Width 1200
-Set Height 1000
+Set Height 760
 Set TypingSpeed 60ms
 Type "./examples/datepicker/demo-bin"
 Enter

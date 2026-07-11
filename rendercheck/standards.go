@@ -191,7 +191,7 @@ func checkLayoutCalculations(
 // method of a type that elsewhere draws a lipgloss border (an X.Border(...)
 // call somewhere in the type's method set, possibly in a different method
 // than the arithmetic). That combination is exactly the bug class found in
-// tui-base's own table/status/navigation packages: a component computes its
+// snap's own table/status/navigation packages: a component computes its
 // content size by subtracting a hand-counted border+padding literal instead
 // of calling the border style's own GetHorizontalFrameSize() /
 // GetVerticalFrameSize(), which silently mis-sizes content (or breaks hit

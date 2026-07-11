@@ -1,6 +1,5 @@
 // Package dependencies reads the running binary's build info (module path,
 // version, VCS state, and dependency list) for display in about/info views.
-// Extracted from tui-base's common package per the snap split.
 package dependencies
 
 import (

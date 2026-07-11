@@ -60,7 +60,11 @@ func (a *demoApp) onMouse(mm tea.MouseMsg) tea.Cmd {
 
 func (a *demoApp) shapeRow(shape styles.PillShape, selected bool) string {
 	st := styles.PillStyles{Shape: shape}
-	name := fmt.Sprintf("  %-6s", shape.DisplayName())
+	label := shape.DisplayName()
+	if shape.NeedsNerdFont() {
+		label += "*"
+	}
+	name := fmt.Sprintf("  %-9s", label)
 	if selected {
 		name = lipgloss.NewStyle().Bold(true).Foreground(cBlue).Render("▶ " + name[2:])
 	}
@@ -83,7 +87,7 @@ func (a *demoApp) View() tea.View {
 
 	rows := make([]string, 0, len(a.shapes)+6)
 	rows = append(rows,
-		dim.Render("←/→ or wheel select shape — q quits"),
+		dim.Render("←/→ or wheel select shape — * needs a Nerd Font — q quits"),
 		"")
 	for i, shape := range a.shapes {
 		rows = append(rows, a.shapeRow(shape, i == a.sel))
@@ -115,6 +119,15 @@ func (a *demoApp) View() tea.View {
 
 func main() {
 	app := &demoApp{shapes: styles.PillShapes()}
+	// Start on the first pure-Unicode shape so the demo (and its rendered
+	// gif, whose font has no Powerline glyphs) opens on caps that show
+	// everywhere; the Nerd Font shapes are still in the cycle.
+	for i, s := range app.shapes {
+		if !s.NeedsNerdFont() {
+			app.sel = i
+			break
+		}
+	}
 	if _, err := tea.NewProgram(app).Run(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)

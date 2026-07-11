@@ -190,7 +190,7 @@ func TestMultiFileEditorViewFitsWidth(t *testing.T) {
 }
 
 // assertFrameFits fails when content exceeds the given cell box (shared with
-// the tui-base integration tests, which keep their own copy).
+// host applications' integration tests, which keep their own copies).
 func assertFrameFits(t *testing.T, content string, width, height int) {
 	t.Helper()
 	lines := strings.Split(content, "\n")

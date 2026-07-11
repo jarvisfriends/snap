@@ -6,16 +6,15 @@
 // settings UI writes the DelegationConsole/DelegationTerminal registry values
 // under HKCU\Console\%%Startup, and this package does exactly the same. It
 // exists because that setting is known to be reset on some machines (breaking
-// the truecolor/mouse/styling features Charm v2 apps rely on), so tui-base apps
-// can surface it in their settings UI — see the "Default Terminal" item on the
-// built-in settings page — or repair it programmatically.
+// the truecolor/mouse/styling features Charm v2 apps rely on), so apps
+// can surface it in their settings UI or repair it programmatically.
 //
 // Detect and Set are Windows-only; on other platforms they return
 // [errors.ErrUnsupported]. Changes affect only console sessions started after
-// the write. The related runtime guard is
-// [github.com/jarvisfriends/tui-base/router.MaybeRelaunchInWindowsTerminal (tui-base)],
-// which moves an already-running app out of a legacy console without touching
-// machine state.
+// the write. For the complementary runtime guard — moving an already-running
+// app out of a legacy console without touching machine state — see
+// MaybeRelaunchInWindowsTerminal in tui-base's router, one app that builds
+// on this package.
 package winterm
 
 // Delegation identifies which host Windows hands new console sessions to.

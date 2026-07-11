@@ -1,4 +1,4 @@
-// Package table is a themed, interactive data table widget for tui-base apps.
+// Package table is a themed, interactive data table widget for Bubble Tea apps.
 //
 // It fills the gaps the charm tables leave open: charm.land/bubbles/table has no
 // sorting, filtering, or mouse, and charm.land/lipgloss/table is a pure renderer
@@ -8,7 +8,7 @@
 // library-maintained. Colors come from a styles.AppStyle passed to View, so the
 // table recolors live on theme changes.
 //
-// Mouse interaction is cooperative: tui-base routes mouse events to a page's
+// Mouse interaction is cooperative: the host routes mouse events to a page's
 // View().OnMouse with page-relative coordinates, and the page forwards clicks to
 // HandleClick / wheels to HandleWheel. Clicking a header sorts that column;
 // double-clicking a row (or pressing the Open key) emits an OpenDetailMsg the

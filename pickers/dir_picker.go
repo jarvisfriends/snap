@@ -97,7 +97,7 @@ type DirPicker struct {
 	Height  int
 
 	// Styles are the injected style hooks (theme-free; hosts map their
-	// palette on — tui-base does so from its live theme).
+	// palette on from their live theme).
 	Styles Styles
 	// CollapsePath, when set, shortens the displayed directory (e.g.
 	// substituting %USERPROFILE% or ~). Defaults to showing the full path.

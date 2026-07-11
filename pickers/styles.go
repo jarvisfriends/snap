@@ -1,5 +1,5 @@
-// Package pickers holds directory/file selection components extracted from
-// tui-base (ROADMAP SP-7): a drive-aware directory browser (DirPicker) and a
+// Package pickers holds directory/file selection components: a drive-aware
+// directory browser (DirPicker) and a
 // multi-path editor (MultiFileEditor) whose rows open per-row pickers. Both
 // are theme-free with injected style hooks, per snap's design rules.
 package pickers
@@ -7,7 +7,7 @@ package pickers
 import "charm.land/lipgloss/v2"
 
 // Styles are the style hooks shared by the pickers. Hosts map their palette
-// onto these; tui-base does so from its live theme.
+// onto these from their live theme.
 type Styles struct {
 	// Title styles the picker heading line.
 	Title lipgloss.Style

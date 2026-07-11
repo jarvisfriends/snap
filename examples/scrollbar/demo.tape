@@ -3,10 +3,11 @@
 # (rendertapes cross-compiles the linux demo binary and runs this tape in the
 # official vhs container; gifs are build artifacts, not diffable sources)
 Set WindowBar Colorful
+Set WindowBarSize 60
 Output examples/scrollbar/demo.gif
 Set FontSize 28
 Set Width 1400
-Set Height 1100
+Set Height 850
 Set TypingSpeed 60ms
 Type "./examples/scrollbar/demo-bin"
 Enter
