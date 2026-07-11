@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/jarvisfriends/snap/charts"
 	"github.com/jarvisfriends/snap/notifications"
 	"github.com/jarvisfriends/snap/styles"
 
@@ -200,6 +201,12 @@ func (m *UserNotificationOverlay) RenderHistoryOverlay(maxW, maxH int) string {
 		if n.Pending {
 			content += " [pending]"
 		}
+		if n.Percent != nil {
+			// Progress notifications carry an inline charts.HBar so the
+			// panel shows live progress next to the message.
+			content += fmt.Sprintf(" %s %3.0f%%",
+				charts.HBar(*n.Percent, historyProgressBarWidth), *n.Percent)
+		}
 		p := rowParts{
 			badge:    "[" + n.Severity.Badge() + "]",
 			content:  content,
@@ -316,6 +323,10 @@ const (
 	// historyEllipsisReserve leaves room to swap the row's last rune for the
 	// truncation ellipsis when content overflows contentMaxW.
 	historyEllipsisReserve = 1
+
+	// historyProgressBarWidth is the inline charts.HBar width rendered after
+	// a progress notification's content in the history panel.
+	historyProgressBarWidth = 10
 )
 
 type ClickRegion struct {

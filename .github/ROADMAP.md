@@ -154,10 +154,17 @@ Swept: `w`, `anvil`, `verify_setup`, `weaver_base`, `brick-breaker`,
 - [ ] **Generic list-picker overlay** — tribble `ui/overlay_picker.go`
   (numbered items, descriptions, opaque UserData). Overlaps huh selects and
   snap pickers; decide whether it becomes `snap/listpicker` or a huh recipe.
-- [ ] **Notification progress** — w `ui/shared/notification.go` carries a
-  `Percent` field for progress-bar notifications; snap/notifications has no
-  progress concept. Add Percent + a bar renderer (charts.HBar) to the
-  notification model and history panel.
+- [x] Done 2026-07-10: **Notification progress** — `Notification.Percent
+  *float64` (0–100, the charts.HBar scale; nil = not a progress
+  notification), carried by `AddMsg`/`AddOptions`, updated in place via
+  `ProgressMsg` (by ID, or Key when ID is zero) / `SetProgress` /
+  `SetProgressKey` (clamped; re-shows a toast-hidden notification so live
+  progress stays visible; stored value is copied so callers can't mutate
+  through the pointer). The history panel renders an inline `charts.HBar`
+  + percent after the row content. Remaining for the next tag flip:
+  tui-base's toast overlay should draw the bar too, and its router must
+  route `notifications.ProgressMsg` alongside the other notification
+  messages (router.go's Handle forwarding list).
 - [x] Done 2026-07-10: **Badge/pill styles** — `styles/pill.go`. Six
   user-selectable `PillShape`s (string-preset pattern like `StylePreset`):
   Round half-circles (default), Arrow, Slant, Flame — Powerline-extras
