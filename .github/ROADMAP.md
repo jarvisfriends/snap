@@ -161,10 +161,12 @@ Swept: `w`, `anvil`, `verify_setup`, `weaver_base`, `brick-breaker`,
   `SetProgressKey` (clamped; re-shows a toast-hidden notification so live
   progress stays visible; stored value is copied so callers can't mutate
   through the pointer). The history panel renders an inline `charts.HBar`
-  + percent after the row content. Remaining for the next tag flip:
+  + percent after the row content. ~~Remaining for the next tag flip:
   tui-base's toast overlay should draw the bar too, and its router must
   route `notifications.ProgressMsg` alongside the other notification
-  messages (router.go's Handle forwarding list).
+  messages (router.go's Handle forwarding list).~~ Both landed in
+  tui-base 2026-07-10 against v0.1.6 (severity-tinted HBar under the
+  toast message + ProgressMsg in the forwarding list).
 - [x] Done 2026-07-10: **Badge/pill styles** — `styles/pill.go`. Six
   user-selectable `PillShape`s (string-preset pattern like `StylePreset`):
   Round half-circles (default), Arrow, Slant, Flame — Powerline-extras
