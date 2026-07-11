@@ -38,18 +38,9 @@ func (a *demoApp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyPressMsg:
 		switch {
 		case a.menu.IsOpen():
-			switch msg.String() {
-			case "up":
-				a.menu.MoveUp()
-			case "down":
-				a.menu.MoveDown()
-			case "enter":
-				if it := a.menu.Selected(); it != nil {
-					a.status = "chose " + it.ID
-				}
-				a.menu.Close()
-			case "esc":
-				a.menu.Close()
+			// HandleKey mirrors HandleMouse: the open menu owns the keyboard.
+			if chosen, _ := a.menu.HandleKey(msg); chosen != nil {
+				a.status = "chose " + chosen.ID
 			}
 		case msg.String() == "m":
 			a.menu.Open(a.w/2, a.h/2, items(), "keyboard")

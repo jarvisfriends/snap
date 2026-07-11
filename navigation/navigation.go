@@ -74,6 +74,24 @@ func horizontalWheelDelta(mm tea.MouseMsg) int {
 	return 0
 }
 
+// verticalWheelDelta is horizontalWheelDelta's twin for vertically laid out
+// navigators (the sidebar): -1 for wheel up/previous, +1 for wheel
+// down/next, 0 for anything that is not a plain vertical scroll.
+func verticalWheelDelta(mm tea.MouseMsg) int {
+	ev, ok := mm.(tea.MouseWheelMsg)
+	if !ok {
+		return 0
+	}
+	switch ev.Mouse().Button {
+	case tea.MouseWheelUp:
+		return -1
+	case tea.MouseWheelDown:
+		return 1
+	default:
+		return 0
+	}
+}
+
 // NumberLabeled is implemented by navigators that can optionally show a leading
 // per-item number prefix (the minimal top nav). The router applies the user's
 // preference via this capability without asserting a concrete type.

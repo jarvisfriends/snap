@@ -125,6 +125,42 @@ Unit-test coverage snapshot (after this pass):
 | rendercheck | 56.2% | was 38.7%; AST standards checkers exercised by tui-base's suite |
 | winterm | 38.1% | registry I/O untestable without mutating HKCU; pure GUID helpers covered |
 
+## Keyboard/mouse parity pass (2026-07-10)
+
+Audited every interactive component for the "keyboard and mouse" design
+rule. Already at parity: datepicker, timepicker, table, dir/multi-file
+pickers, tabs, topnav (each handles keys + click + wheel). Gaps found and
+fixed:
+
+- **menu**: mouse was one `HandleMouse` call but keyboard forced every host
+  to hand-wire up/down/enter/esc from the movement primitives. Added
+  `menu.KeyMap` (rebindable, `DefaultKeyMap`: arrows/jk, Enter, Esc) and
+  `HandleKey` — the keyboard twin of `HandleMouse`, modal while open.
+  examples/menu now uses it.
+- **scrollbar**: was render-only — a scrollbar you couldn't click. Added
+  `OffsetAt` (pure, like the rest of the package): maps a click/drag row on
+  the bar to the offset that centers the thumb there; the inverse of
+  `Vertical`'s placement (round-trip pinned by test). examples/scrollbar
+  wires click + drag-to-scrub on all three bars.
+- **status.InfoModal**: keyboard-complete, but pointer support required
+  each host to hand-roll Bounds hit-testing, wheel routing, and
+  outside-click detection. Added `HandleMouse`: wheel scrolls, click
+  outside closes (returning the same CloseInfoModalMsg cmd as Dismiss),
+  everything else consumed while open. tui-base's router can drop its
+  hand-rolled version next tag flip (additive; nothing breaks meanwhile).
+- **navigation.Sidebar**: tabs/topnav wheel-cycle pages but the sidebar
+  ignored the wheel. Added `verticalWheelDelta` (twin of
+  `horizontalWheelDelta`) and wheel-steps-pages in the sidebar's
+  handleMouse, wrapping like the others.
+
+Tape/gallery pass in the same sitting: the datepicker tape now shows off
+month/year paging (`]`/`[`, `}`/`{`) — its headline feature was missing
+from the gif — and the table tape now demos the 3-state `s` sort cycle and
+live `/` filtering before opening a row. README gallery text updated to
+match; gifs pending a Docker-equipped machine (`go -C tools/rendertapes
+run .`). VHS has no mouse-click/drag commands, so scrollbar click/drag and
+InfoModal outside-click stay keyboard-demoed in tapes.
+
 ## Repo sweep for forgotten snaps (2026-07-10)
 
 Swept: `w`, `anvil`, `verify_setup`, `weaver_base`, `brick-breaker`,
@@ -151,9 +187,13 @@ Swept: `w`, `anvil`, `verify_setup`, `weaver_base`, `brick-breaker`,
   taking the best of both: verify_setup's no-admin-by-default design +
   anvil's wait-for-exit-code. Blocked on: needs elevated-Windows manual
   testing before it ships.
-- [ ] **Generic list-picker overlay** — tribble `ui/overlay_picker.go`
-  (numbered items, descriptions, opaque UserData). Overlaps huh selects and
-  snap pickers; decide whether it becomes `snap/listpicker` or a huh recipe.
+- [x] Decided 2026-07-10: **Generic list-picker overlay** — not ported.
+  tribble `ui/overlay_picker.go`'s three ingredients are all covered now:
+  overlay positioning + opaque UserData ≈ `menu` (Tag, and since the input
+  parity pass keyboard is one `HandleKey` call, same as mouse); form-style
+  selects with descriptions ≈ huh Select with `styles.Huh` theming.
+  Revisit only if an app actually needs numbered quick-jump items, as a
+  small `menu` extension rather than a new package.
 - [x] Done 2026-07-10: **Notification progress** — `Notification.Percent
   *float64` (0–100, the charts.HBar scale; nil = not a progress
   notification), carried by `AddMsg`/`AddOptions`, updated in place via
@@ -179,11 +219,16 @@ Swept: `w`, `anvil`, `verify_setup`, `weaver_base`, `brick-breaker`,
   Catppuccin categorical palette stays app-side (demo hardcodes its own).
   NOTE: examples/pills/demo.gif is not rendered yet — this machine has no
   Docker/Podman; run `go -C tools/rendertapes run .` where one exists.
-- [ ] **Box layout helpers** — w `ui/shared/layout.go` (ContentOrigin,
-  InnerSize, RenderInBox). Check overlap with page/geom before porting.
-- [ ] **Input parse helpers** — w `ui/shared/input_validation.go`
-  (required/duration/… parsers with friendly errors) — possible
-  `snap/forms` seed.
+- [x] Done 2026-07-10: **Box layout helpers** — checked overlap first: geom
+  is pure cell rectangles (no lipgloss) and page is colors/size only, so no
+  overlap. Ported as `layout/` (ContentOrigin, InnerSize, RenderInBox) —
+  the style-dependent half of hit-testing/sizing that components were
+  hand-summing (GetBorderLeftSize+GetPaddingLeft etc.).
+- [x] Done 2026-07-10: **Input parse helpers** — ported as `forms/`
+  (ParseRequired, ParseDuration, ParseISODate, SplitAndClean), trim-and-
+  validate parsers whose errors name the field. w keeps its copy until it
+  can depend on snap (added to the not-yet-removable table).
+  HUMAN: Yes! please bring this over
 - [x] Done 2026-07-10: **Cell canvas + gradients** — `charts.CellCanvas`
   (whole-cell rune+fg+bg surface: Set/SetFG/Clear/Rune, `String()` with
   batched truecolor escapes — colors re-emitted only on change, per-line
@@ -207,6 +252,8 @@ Swept: `w`, `anvil`, `verify_setup`, `weaver_base`, `brick-breaker`,
 | tribble `ui/panel_zone.go` | superseded by `uifx.Zones` | tribble is on the work Bitbucket network (same constraint as weaver_base); swap in uifx.Zones when it can depend on snap. |
 | aSettings `pages/ui/table_mouse.go` | superseded by `table/` (HandleClick) | aSettings hasn't adopted snap/table; remove when it does. |
 | w `ui/shared/notification.go` | `notifications/` (Percent ported 2026-07-10) | w isn't on snap; flip its notification model when it can depend on snap. |
+| w `ui/shared/input_validation.go` | `forms/` | w isn't on snap; flip when it can depend on snap. |
+| w `ui/shared/layout.go` | `layout/` | w isn't on snap; flip when it can depend on snap. |
 | brick-breaker `brick/render.go` gameRenderer | `charts/cellcanvas.go` | brick-breaker isn't on snap; flip its renderer to `charts.CellCanvas` + `charts.Gradient` when it adopts the dependency. |
 
 ### Not worth moving (checked, domain-specific)

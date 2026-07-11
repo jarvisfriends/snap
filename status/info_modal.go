@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/jarvisfriends/snap/dependencies"
+	"github.com/jarvisfriends/snap/geom"
 	"github.com/jarvisfriends/snap/keys"
 
 	"github.com/jarvisfriends/snap/styles"
@@ -122,6 +123,39 @@ func (m *InfoModal) GotoTop() { m.vp.GotoTop() }
 
 // GotoBottom scrolls to the bottom of the content.
 func (m *InfoModal) GotoBottom() { m.vp.GotoBottom() }
+
+// HandleMouse processes a screen-coordinate mouse event while the modal is
+// open — the pointer twin of the key handling in Update, so hosts forward
+// events here instead of hand-rolling Bounds hit-tests, wheel routing, and
+// outside-click detection: the wheel scrolls the content (anywhere — the
+// modal owns the screen), a click outside the box closes the modal and
+// returns the same CloseInfoModalMsg cmd Dismiss produces, and every other
+// event is consumed. handled=false means the modal is closed and the host
+// should process the event itself.
+func (m *InfoModal) HandleMouse(msg tea.MouseMsg) (cmd tea.Cmd, handled bool) {
+	if !m.visible {
+		return nil, false
+	}
+	switch ev := msg.(type) {
+	case tea.MouseWheelMsg:
+		switch ev.Mouse().Button {
+		case tea.MouseWheelUp:
+			m.ScrollUp()
+		case tea.MouseWheelDown:
+			m.ScrollDown()
+		}
+		return nil, true
+	case tea.MouseClickMsg:
+		me := ev.Mouse()
+		bx, by, bw, bh := m.Bounds()
+		if !(geom.Rect{X: bx, Y: by, W: bw, H: bh}).Contains(me.X, me.Y) {
+			m.Close()
+			return func() tea.Msg { return CloseInfoModalMsg{} }, true
+		}
+		return nil, true
+	}
+	return nil, true
+}
 
 // boxDims computes the box total width, total height, and its top-left corner
 // position on the terminal screen.

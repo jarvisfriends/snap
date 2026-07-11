@@ -441,6 +441,13 @@ func (m *Sidebar) renderSettingsItem(c *styles.AppStyle, innerW int) string {
 // handleMouse routes a mouse event to the correct sidebar zone.
 // height is the captured sidebar height at View() time.
 func (m *Sidebar) handleMouse(mm tea.MouseMsg, height int) tea.Cmd {
+	// The wheel steps through pages, matching the tabs/topnav wheel-cycling
+	// (theirs is horizontal; the sidebar's list is vertical).
+	if d := verticalWheelDelta(mm); d != 0 && len(m.Pages) > 0 {
+		m.ActiveIndex = (m.ActiveIndex + d + len(m.Pages)) % len(m.Pages)
+		m.syncListCursor()
+		return m.emitSelected()
+	}
 	rel, ok := mm.(tea.MouseReleaseMsg)
 	if !ok {
 		return nil

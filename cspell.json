@@ -23,10 +23,12 @@
 		"pgdown",
 		"pgup",
 		"prefs",
+		"rebindable",
 		"sirupsen",
 		"sparkline",
 		"sprintf",
 		"staticcheck",
-		"strconv"
+		"strconv",
+		"topnav"
 	]
 }

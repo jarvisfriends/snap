@@ -1,6 +1,7 @@
 // Command scrollbar demos snap/scrollbar's three presets side by side over
 // the same scrolling text: Smooth (sub-cell glide), Line (thin default), and
-// Classic (retro blocks). Wheel or arrows scroll; q quits.
+// Classic (retro blocks). Wheel or arrows scroll; clicking or dragging on
+// any bar jumps the view there (scrollbar.OffsetAt); q quits.
 package main
 
 import (
@@ -19,6 +20,9 @@ const totalLines = 120
 type demoApp struct {
 	offset int
 	w, h   int
+	// barCols are the screen columns of the three rendered bars, recorded by
+	// View so onMouse can hit-test clicks and drags against them.
+	barCols [3]int
 }
 
 func (a *demoApp) Init() tea.Cmd { return nil }
@@ -48,14 +52,28 @@ func (a *demoApp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (a *demoApp) onMouse(mm tea.MouseMsg) tea.Cmd {
-	if wheel, ok := mm.(tea.MouseWheelMsg); ok {
-		switch wheel.Button {
+	switch ev := mm.(type) {
+	case tea.MouseWheelMsg:
+		switch ev.Button {
 		case tea.MouseWheelUp:
 			a.offset--
 		case tea.MouseWheelDown:
 			a.offset++
 		}
 		a.offset = scrollbar.ClampOffset(a.offset, totalLines, a.visible())
+	case tea.MouseClickMsg, tea.MouseMotionMsg:
+		// Click a bar to jump; keep dragging (motion with the button held)
+		// to scrub. OffsetAt maps the bar row back to a scroll offset.
+		me := mm.Mouse()
+		if me.Button != tea.MouseLeft {
+			return nil
+		}
+		for _, col := range a.barCols {
+			if me.X == col {
+				a.offset = scrollbar.OffsetAt(me.Y-1, a.visible(), totalLines, a.visible())
+				break
+			}
+		}
 	}
 	return nil
 }
@@ -86,7 +104,11 @@ func (a *demoApp) View() tea.View {
 		bar(scrollbar.PresetLine), gap,
 		bar(scrollbar.PresetClassic),
 	)
-	header := dim.Render("wheel/↑↓/PgUp/PgDn scroll — bars: smooth · line · classic — q quits")
+	// Bars sit after the content block and a 2-col gap, 3 columns apart
+	// (1-col bar + 2-col gap); onMouse hit-tests against these columns.
+	contentW := lipgloss.Width(content)
+	a.barCols = [3]int{contentW + 2, contentW + 5, contentW + 8}
+	header := dim.Render("wheel/↑↓/PgUp/PgDn scroll · click/drag a bar — smooth · line · classic — q quits")
 	v := tea.NewView(lipgloss.JoinVertical(lipgloss.Left, header, body))
 	v.MouseMode = tea.MouseModeCellMotion
 	v.AltScreen = true
