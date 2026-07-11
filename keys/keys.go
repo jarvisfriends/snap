@@ -21,6 +21,7 @@ const (
 	bindingBottom         = "Bottom"
 	bindingDismiss        = "Dismiss"
 	bindingDismissAll     = "DismissAll"
+	bindingToggleHistory  = "ToggleHistory"
 	bindingDebug          = "Debug"
 	bindingPageDown       = "PageDown"
 	bindingPageUp         = "PageUp"
@@ -46,6 +47,7 @@ type AppKeyMap struct {
 	Bottom         key.Binding // Scroll to the bottom of a list or tab
 	Dismiss        key.Binding // Dismiss a modal or notification
 	DismissAll     key.Binding // Dismiss all notifications in the history panel
+	ToggleHistory  key.Binding // Toggle the notification history panel
 	Debug          key.Binding
 }
 
@@ -136,6 +138,10 @@ func DefaultKeyMap() *AppKeyMap {
 			key.WithKeys("d"),
 			key.WithHelp("d", "dismiss all notifications"),
 		),
+		ToggleHistory: key.NewBinding(
+			key.WithKeys("ctrl+n"),
+			key.WithHelp("ctrl+n", "notification history"),
+		),
 		Debug: key.NewBinding(
 			key.WithKeys("ctrl+d"),
 			key.WithHelp("ctrl+d", "quick debug"),
@@ -175,6 +181,7 @@ func (km *AppKeyMap) ApplyCustomizations(custom map[string]string) {
 	km.Bottom = apply(bindingBottom, km.Bottom)
 	km.Dismiss = apply(bindingDismiss, km.Dismiss)
 	km.DismissAll = apply(bindingDismissAll, km.DismissAll)
+	km.ToggleHistory = apply(bindingToggleHistory, km.ToggleHistory)
 	km.Debug = apply(bindingDebug, km.Debug)
 	km.PageDown = apply(bindingPageDown, km.PageDown)
 	km.PageUp = apply(bindingPageUp, km.PageUp)
@@ -208,6 +215,7 @@ func (km *AppKeyMap) BindingDefs() []BindingDef {
 		{bindingBottom, "Go to Bottom", strings.Join(km.Bottom.Keys(), ",")},
 		{bindingDismiss, "Dismiss Modal", strings.Join(km.Dismiss.Keys(), ",")},
 		{bindingDismissAll, "Dismiss All Notifications", strings.Join(km.DismissAll.Keys(), ",")},
+		{bindingToggleHistory, "Notification History", strings.Join(km.ToggleHistory.Keys(), ",")},
 		{bindingDebug, "Quick Debug", strings.Join(km.Debug.Keys(), ",")},
 		{bindingPageDown, "Page Down", strings.Join(km.PageDown.Keys(), ",")},
 		{bindingPageUp, "Page Up", strings.Join(km.PageUp.Keys(), ",")},
@@ -225,7 +233,7 @@ func (km *AppKeyMap) BindingDefs() []BindingDef {
 func (km *AppKeyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{km.Quit, km.NextPage, km.PreviousPage, km.OpenSettings, km.ToggleFullHelp},
-		{km.ToggleNav, km.ToggleStatus, km.Debug},
+		{km.ToggleNav, km.ToggleStatus, km.ToggleHistory, km.Debug},
 	}
 }
 
