@@ -184,10 +184,17 @@ Swept: `w`, `anvil`, `verify_setup`, `weaver_base`, `brick-breaker`,
 - [ ] **Input parse helpers** — w `ui/shared/input_validation.go`
   (required/duration/… parsers with friendly errors) — possible
   `snap/forms` seed.
-- [ ] **Cell canvas + gradients** — brick-breaker's `gameRenderer` is a
-  colored cell canvas (set/setFG per cell, color gradients); charts.Canvas
-  is braille-only. A shared cell canvas could back both, and `gradient()`
-  is useful for charts.
+- [x] Done 2026-07-10: **Cell canvas + gradients** — `charts.CellCanvas`
+  (whole-cell rune+fg+bg surface: Set/SetFG/Clear/Rune, `String()` with
+  batched truecolor escapes — colors re-emitted only on change, per-line
+  resets) + `charts.Gradient` (HSV blend between two `color.Color`s,
+  nil-safe). Ported from brick-breaker's `gameRenderer`; the game keeps
+  its drawing primitives and can flip to `charts.CellCanvas` when it
+  adopts snap (added to the "copied but not yet removable" table).
+  Re-backing the braille `Canvas` with CellCanvas was considered and
+  skipped: braille composes dot bitmasks per cell with transparent
+  background — a different cell model, and the shared surface would
+  complicate both.
 
 ### Copied to snap but not yet removable from the source
 
@@ -199,7 +206,8 @@ Swept: `w`, `anvil`, `verify_setup`, `weaver_base`, `brick-breaker`,
 | tui-base settings picker tests (makePickerTree/assertFrameFits copies) | `pickers/` tests | Intentional duplication: snap owns component-level tests, tui-base keeps integration coverage of the same flows. |
 | tribble `ui/panel_zone.go` | superseded by `uifx.Zones` | tribble is on the work Bitbucket network (same constraint as weaver_base); swap in uifx.Zones when it can depend on snap. |
 | aSettings `pages/ui/table_mouse.go` | superseded by `table/` (HandleClick) | aSettings hasn't adopted snap/table; remove when it does. |
-| w `ui/shared/notification.go` | `notifications/` (partial) | w isn't on snap; also carries the Percent feature snap doesn't have yet (see candidate above). |
+| w `ui/shared/notification.go` | `notifications/` (Percent ported 2026-07-10) | w isn't on snap; flip its notification model when it can depend on snap. |
+| brick-breaker `brick/render.go` gameRenderer | `charts/cellcanvas.go` | brick-breaker isn't on snap; flip its renderer to `charts.CellCanvas` + `charts.Gradient` when it adopts the dependency. |
 
 ### Not worth moving (checked, domain-specific)
 
