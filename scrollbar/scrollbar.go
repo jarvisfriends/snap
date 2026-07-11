@@ -151,3 +151,26 @@ func verticalSmooth(total, visible, offset, barHeight int, st Styles) string {
 func ClampOffset(offset, total, visible int) int {
 	return geom.Clamp(offset, 0, max(0, total-visible))
 }
+
+// OffsetAt maps a pointer row on the scrollbar to the scroll offset that
+// puts the thumb's center there — the standard click-the-track /
+// drag-the-thumb behavior, and the inverse of Vertical's thumb placement.
+// y is the row within the bar (0-based: subtract the bar's top screen row
+// from the event's Y). Feed it both clicks and drag motion while the button
+// is held; the result is already clamped.
+func OffsetAt(y, barHeight, total, visible int) int {
+	if total <= visible || barHeight <= 0 || visible <= 0 {
+		return 0
+	}
+	thumbSize := max(1, barHeight*visible/total)
+	track := barHeight - thumbSize
+	if track <= 0 {
+		// The thumb fills the bar (content barely overflows): every row maps
+		// to the same degenerate position.
+		return 0
+	}
+	maxScroll := total - visible
+	pos := geom.Clamp(y-thumbSize/2, 0, track)
+	// Round to nearest so mid-track clicks don't all bias toward the top.
+	return geom.Clamp((pos*maxScroll+track/2)/track, 0, maxScroll)
+}

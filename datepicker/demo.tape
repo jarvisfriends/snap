@@ -18,6 +18,20 @@ Right
 Sleep 500ms
 Down
 Sleep 1s
+# page months and years without week-walking: ]/[ months, }/{ years
+# (PgDn/PgUp and Shift+PgDn/PgUp do the same)
+Type "]"
+Sleep 800ms
+Type "]"
+Sleep 800ms
+Type "}"
+Sleep 1s
+Type "{"
+Sleep 800ms
+Type "["
+Sleep 800ms
+Type "["
+Sleep 1s
 # mouse: the wheel pages weeks (vhs >= 0.11)
 ScrollDown 1
 Sleep 800ms

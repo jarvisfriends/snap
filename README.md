@@ -28,9 +28,11 @@ the runtime debugger for any Charm-based app.
 | `page/` | Shared page base (sizing + colors) for full-page components | `page` | **moved 2026-07-10** (wholesale wave) |
 | `styles/` | The shared style contract: semantic AppStyle palette, derived lipgloss styles, bubbletint mapping, presets, YAML themes | `theme` | **moved 2026-07-10** (wholesale wave) — tui-base's theme package is now aliases over this |
 | `charts/` | Sparklines, bars, pie/sankey, braille line charts + Canvas; each also wrapped as a tea model with ID-routed data messages and stretch-to-fill sizing (see examples/charts) | dash `creator` | **moved 2026-07-10** (wholesale wave); models added 2026-07-10 |
-| `scrollbar/` | Vertical scrollbar column + offset clamping | tribble console `ui/scrollbar.go` | **ported 2026-07-10** (repo sweep) |
+| `scrollbar/` | Vertical scrollbar column + offset clamping + click/drag-to-scroll mapping (`OffsetAt`) | tribble console `ui/scrollbar.go` | **ported 2026-07-10** (repo sweep) |
 | `menu/` | Right-click context menu (mouse + keyboard, terminal-clamped) | tribble console `ui/context_menu.go` | **ported 2026-07-10** (repo sweep) |
 | `osc/` | Taskbar/tab progress via OSC 9;4 (WT, ConEmu, iTerm2) | aSettings `pages/ui/osc.go` | **ported 2026-07-10** (repo sweep) — extended with error/paused/determinate states |
+| `forms/` | Input parsing helpers for text fields (required, duration, ISO date, list splitting) with field-naming errors | w `ui/shared/input_validation.go` | **ported 2026-07-10** (repo sweep) |
+| `layout/` | Lipgloss-frame arithmetic: content origin, inner size, render-in-box | w `ui/shared/layout.go` | **ported 2026-07-10** (repo sweep) |
 
 The three navigation styles live side by side because they satisfy the same
 navigator contract; an app can swap between them at runtime.
@@ -86,14 +88,16 @@ edges clamp to the terminal.
 ![scrollbar demo](examples/scrollbar/demo.gif)
 
 The three presets over one scrolling pane — Smooth (sub-cell eighth-block
-glide), Line (thin default), Classic (retro blocks).
+glide), Line (thin default), Classic (retro blocks). Clicking or dragging on
+a bar jumps the view there (`scrollbar.OffsetAt`).
 
 ### Table
 
 ![table demo](examples/table/demo.gif)
 
-Sortable, filterable data table: header clicks sort, `/` filters, Enter or
-double-click opens a row, wheel scrolls the selection.
+Sortable, filterable data table: header clicks (or `s`) cycle the 3-state
+column sort, `/` filters live, Enter or double-click opens a row, wheel
+scrolls the selection.
 
 ### Pills
 

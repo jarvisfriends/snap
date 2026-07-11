@@ -138,3 +138,67 @@ func TestSmoothPresetSubCellGlide(t *testing.T) {
 		t.Fatal("nearby offsets rendered identically; sub-cell glide lost")
 	}
 }
+
+func TestOffsetAtEndpointsAndCenter(t *testing.T) {
+	t.Parallel()
+
+	const total, visible, barH = 120, 20, 20
+	maxScroll := total - visible
+	if got := OffsetAt(0, barH, total, visible); got != 0 {
+		t.Errorf("OffsetAt(top) = %d, want 0", got)
+	}
+	if got := OffsetAt(barH-1, barH, total, visible); got != maxScroll {
+		t.Errorf("OffsetAt(bottom) = %d, want %d", got, maxScroll)
+	}
+	// Rows below/above the bar clamp instead of overshooting.
+	if got := OffsetAt(-5, barH, total, visible); got != 0 {
+		t.Errorf("OffsetAt(above) = %d, want 0", got)
+	}
+	if got := OffsetAt(barH+5, barH, total, visible); got != maxScroll {
+		t.Errorf("OffsetAt(below) = %d, want %d", got, maxScroll)
+	}
+	mid := OffsetAt(barH/2, barH, total, visible)
+	if mid < maxScroll/3 || mid > 2*maxScroll/3 {
+		t.Errorf("OffsetAt(middle) = %d, want near %d", mid, maxScroll/2)
+	}
+}
+
+func TestOffsetAtMonotonicAndInverseOfVertical(t *testing.T) {
+	t.Parallel()
+
+	const total, visible, barH = 200, 25, 30
+	prev := -1
+	for y := range barH {
+		got := OffsetAt(y, barH, total, visible)
+		if got < prev {
+			t.Fatalf("OffsetAt not monotonic: y=%d gives %d after %d", y, got, prev)
+		}
+		prev = got
+		// The offset OffsetAt picks must draw the thumb covering (or
+		// adjacent to) the clicked row — click-track then render agree.
+		rows := column(total, visible, got, barH)
+		near := false
+		for dy := -1; dy <= 1; dy++ {
+			if y+dy >= 0 && y+dy < barH && rows[y+dy] == "#" {
+				near = true
+			}
+		}
+		if !near {
+			t.Fatalf("OffsetAt(%d) = %d renders thumb away from click: %v", y, got, rows)
+		}
+	}
+}
+
+func TestOffsetAtDegenerate(t *testing.T) {
+	t.Parallel()
+
+	if got := OffsetAt(3, 10, 10, 10); got != 0 { // content fits
+		t.Errorf("OffsetAt(fits) = %d, want 0", got)
+	}
+	if got := OffsetAt(0, 0, 100, 10); got != 0 { // no bar
+		t.Errorf("OffsetAt(no bar) = %d, want 0", got)
+	}
+	if got := OffsetAt(0, 1, 101, 100); got != 0 { // thumb fills the bar
+		t.Errorf("OffsetAt(thumb fills) = %d, want 0", got)
+	}
+}

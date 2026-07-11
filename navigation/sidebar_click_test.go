@@ -72,3 +72,37 @@ func TestSidebarClickSelectsEveryMainItem(t *testing.T) {
 		}
 	}
 }
+
+// TestSidebarWheelCyclesPages: the wheel over the sidebar steps the active
+// page, matching the tabs/topnav wheel-cycling in the vertical direction.
+func TestSidebarWheelCyclesPages(t *testing.T) {
+	t.Parallel()
+	m := New()
+	_, _ = m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+
+	n := len(m.Pages)
+	if n < 2 {
+		t.Skipf("need at least 2 pages to cycle; have %d", n)
+	}
+
+	// Wheel down advances (wrapping), wheel up goes back.
+	cmd := m.View().OnMouse(tea.MouseWheelMsg{X: 1, Y: 2, Button: tea.MouseWheelDown})
+	sel, ok := selectedFrom(cmd)
+	if !ok || sel.PageIndex != 1 {
+		t.Fatalf("wheel down: got (%v, %v), want SelectedMsg{PageIndex: 1}", sel, ok)
+	}
+	if m.ActiveIndex != 1 {
+		t.Fatalf("wheel down ActiveIndex = %d, want 1", m.ActiveIndex)
+	}
+
+	cmd = m.View().OnMouse(tea.MouseWheelMsg{X: 1, Y: 2, Button: tea.MouseWheelUp})
+	if sel, ok = selectedFrom(cmd); !ok || sel.PageIndex != 0 {
+		t.Fatalf("wheel up: got (%v, %v), want SelectedMsg{PageIndex: 0}", sel, ok)
+	}
+
+	// Wheel up from the first page wraps to the last.
+	cmd = m.View().OnMouse(tea.MouseWheelMsg{X: 1, Y: 2, Button: tea.MouseWheelUp})
+	if sel, ok = selectedFrom(cmd); !ok || sel.PageIndex != n-1 {
+		t.Fatalf("wheel wrap: got (%v, %v), want SelectedMsg{PageIndex: %d}", sel, ok, n-1)
+	}
+}

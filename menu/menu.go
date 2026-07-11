@@ -10,6 +10,7 @@ package menu
 import (
 	"strings"
 
+	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 
@@ -45,10 +46,32 @@ func DefaultStyles() Styles {
 	}
 }
 
+// KeyMap is the menu's key bindings while it is open. Use DefaultKeyMap for
+// the conventional set; hosts rebind per field.
+type KeyMap struct {
+	Up      key.Binding
+	Down    key.Binding
+	Choose  key.Binding // choose the item under the cursor (menu closes)
+	Dismiss key.Binding // close without choosing
+}
+
+// DefaultKeyMap returns the standard bindings: arrows/jk move, Enter
+// chooses, Esc dismisses.
+func DefaultKeyMap() KeyMap {
+	return KeyMap{
+		Up:      key.NewBinding(key.WithKeys("up", "k"), key.WithHelp("↑/k", "up")),
+		Down:    key.NewBinding(key.WithKeys("down", "j"), key.WithHelp("↓/j", "down")),
+		Choose:  key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "choose")),
+		Dismiss: key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "dismiss")),
+	}
+}
+
 // Menu is the pop-up state, designed to be embedded in a host model. The
-// zero value is a closed menu with default styles applied on first use.
+// zero value is a closed menu with default styles and keys applied on first
+// use.
 type Menu struct {
 	Styles Styles
+	Keys   KeyMap
 
 	visible bool
 	items   []Item
@@ -111,6 +134,42 @@ func (m *Menu) MoveDown() {
 			return
 		}
 	}
+}
+
+// keys returns the effective key bindings (defaults for the zero value).
+func (m *Menu) keys() KeyMap {
+	if len(m.Keys.Up.Keys()) == 0 && len(m.Keys.Down.Keys()) == 0 {
+		return DefaultKeyMap()
+	}
+	return m.Keys
+}
+
+// HandleKey processes a key press while the menu is open — the keyboard twin
+// of HandleMouse: Up/Down move the cursor, Choose picks the item under the
+// cursor (menu closes), Dismiss closes without choosing. It returns the
+// chosen item (nil when nothing was chosen) and whether the event was
+// consumed; while open the menu is modal, so every key is consumed and an
+// unconsumed key means the menu was already closed.
+func (m *Menu) HandleKey(msg tea.KeyPressMsg) (chosen *Item, handled bool) {
+	if !m.visible {
+		return nil, false
+	}
+	km := m.keys()
+	switch {
+	case key.Matches(msg, km.Up):
+		m.MoveUp()
+	case key.Matches(msg, km.Down):
+		m.MoveDown()
+	case key.Matches(msg, km.Choose):
+		if sel := m.Selected(); sel != nil {
+			it := *sel
+			chosen = &it
+		}
+		m.Close()
+	case key.Matches(msg, km.Dismiss):
+		m.Close()
+	}
+	return chosen, true
 }
 
 // styles returns the effective styles (defaults for the zero value).
