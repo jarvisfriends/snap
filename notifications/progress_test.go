@@ -6,8 +6,6 @@ import (
 	"github.com/jarvisfriends/snap/notifications"
 )
 
-func pctPtr(v float64) *float64 { return &v }
-
 // TestProgressAddAndUpdate: a notification created with Percent carries it,
 // SetProgress updates it in place (clamped to 0–100), and the stored value is
 // a copy the caller's pointer can't reach.
@@ -43,7 +41,7 @@ func TestProgressAddAndUpdate(t *testing.T) {
 func TestProgressReshowsHiddenToast(t *testing.T) {
 	m := notifications.NewManager()
 	n, _ := m.AddWithOptions("job", notifications.SeverityInfo, 0,
-		notifications.AddOptions{Percent: pctPtr(10), RetainInHistory: true})
+		notifications.AddOptions{Percent: new(float64(10)), RetainInHistory: true})
 	m.Handle(notifications.ExpireMsg{ID: n.ID})
 	if len(m.Visible()) != 0 {
 		t.Fatal("expected toast hidden after expiry")
@@ -62,7 +60,7 @@ func TestProgressMsgRouting(t *testing.T) {
 		Key:      "dl",
 		Content:  "downloading",
 		Severity: notifications.SeverityInfo,
-		Percent:  pctPtr(5),
+		Percent:  new(float64(5)),
 	})
 	got := m.Active()
 	if len(got) != 1 || got[0].Percent == nil || *got[0].Percent != 5 {
@@ -85,7 +83,7 @@ func TestProgressPersistsAcrossSaveLoad(t *testing.T) {
 	dir := t.TempDir()
 	m := notifications.NewManager()
 	m.AddWithOptions("syncing", notifications.SeverityInfo, 0,
-		notifications.AddOptions{Key: "sync", Percent: pctPtr(66), RetainInHistory: true})
+		notifications.AddOptions{Key: "sync", Percent: new(float64(66)), RetainInHistory: true})
 	if err := m.Save(dir); err != nil {
 		t.Fatalf("save: %v", err)
 	}
