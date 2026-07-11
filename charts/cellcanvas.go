@@ -130,7 +130,7 @@ func (c *CellCanvas) String() string {
 }
 
 // rgb8 extracts 8-bit RGB components; nil renders as black.
-func rgb8(c color.Color) (uint8, uint8, uint8) {
+func rgb8(c color.Color) (red, green, blue uint8) {
 	if c == nil {
 		return 0, 0, 0
 	}

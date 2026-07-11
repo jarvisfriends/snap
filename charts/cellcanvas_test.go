@@ -1,7 +1,6 @@
 package charts
 
 import (
-	"image/color"
 	"strings"
 	"testing"
 
@@ -102,5 +101,5 @@ func TestGradientEndsAndSteps(t *testing.T) {
 	if g := Gradient(nil, nil, 3); len(g) != 3 {
 		t.Fatalf("nil colors should still ramp (as black), got %d", len(g))
 	}
-	var _ color.Color = Gradient(ccRed, ccBlue, 2)[0]
+	_ = Gradient(ccRed, ccBlue, 2)[0]
 }
