@@ -1,7 +1,6 @@
 package timepicker
 
 import (
-	"fmt"
 	"strconv"
 	"strings"
 	"time"
@@ -50,7 +49,7 @@ func DefaultTimeFieldKeyMap() TimeFieldKeyMap {
 	}
 }
 
-// TimeFieldModel is the redesigned time picker (tui-base ROADMAP SP-8/Q-24):
+// TimeFieldModel is the redesigned time picker:
 // two columns — hours and minutes — separated by a highlighted colon. Clicking
 // a column (or pressing space) opens a scrollable dropdown of its valid
 // values; a click or Enter commits the highlighted value. Digits typed into
@@ -58,11 +57,15 @@ func DefaultTimeFieldKeyMap() TimeFieldKeyMap {
 // into range) whenever the column loses focus.
 //
 // Mouse events must arrive with coordinates relative to the component's
-// top-left cell (the standard tui-base overlay convention); the hit zones are
+// top-left cell (the standard overlay convention); the hit zones are
 // recorded during View.
 type TimeFieldModel struct {
 	// ShowSeconds adds a third seconds column. Set it before the first View.
 	ShowSeconds bool
+	// HideHelp suppresses the field's built-in key-hint line (shown while no
+	// dropdown is open). Hosts that surface the field's keys in their own
+	// help/status bar set this so the hints aren't shown twice.
+	HideHelp bool
 
 	// base carries the date (and location) the clock values are applied to,
 	// so Time() round-trips the full timestamp handed to NewTimeField or
@@ -437,9 +440,10 @@ func (m *TimeFieldModel) handleWheel(me tea.Mouse) tea.Cmd {
 // the focused column.
 func (m *TimeFieldModel) displayValue(s Side) string {
 	if s == m.Focused && m.typed != "" {
-		return fmt.Sprintf("%2s", m.typed)
+		// Right-align the 1-2 typed digits in the two-cell column.
+		return lipgloss.PlaceHorizontal(2, lipgloss.Right, m.typed)
 	}
-	return fmt.Sprintf("%02d", m.value(s))
+	return pad2(m.value(s))
 }
 
 // onMouse is the View.OnMouse entry point: mouse events dispatch straight to
@@ -497,7 +501,7 @@ func (m *TimeFieldModel) View() tea.View {
 		drop, rowLayers := m.renderDropdown(cellH, openX)
 		parts = append(parts, drop)
 		layers = append(layers, rowLayers...)
-	} else {
+	} else if !m.HideHelp {
 		parts = append(parts, m.HelpStyle.Render("type/↑↓ set • space/click list • enter save"))
 	}
 	m.zones = uifx.NewZones(layers...)
@@ -526,7 +530,7 @@ func (m *TimeFieldModel) renderDropdown(cellH, indent int) (string, []*lipgloss.
 		case m.Effects.Hover() && v == m.hoverRow:
 			st = m.RowStyle.Underline(true)
 		}
-		rows = append(rows, st.Render(fmt.Sprintf("%02d", v)))
+		rows = append(rows, st.Render(pad2(v)))
 	}
 	list := m.ListStyle.Render(lipgloss.JoinVertical(lipgloss.Left, rows...))
 
@@ -535,7 +539,7 @@ func (m *TimeFieldModel) renderDropdown(cellH, indent int) (string, []*lipgloss.
 	rowLayers := make([]*lipgloss.Layer, 0, len(rows))
 	for i, r := range rows {
 		rowLayers = append(rowLayers,
-			lipgloss.NewLayer(r).ID(fmt.Sprintf("%s%d", zoneRow, i)).
+			lipgloss.NewLayer(r).ID(zoneRow+strconv.Itoa(i)).
 				X(indent+1).Y(cellH+1+i))
 	}
 	if indent > 0 {

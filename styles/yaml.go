@@ -12,7 +12,7 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// yamlTint is the on-disk schema for a user-authored theme (T-4, Q-15: the
+// yamlTint is the on-disk schema for a user-authored theme (the
 // full 16-slot terminal tint). Colors are hex strings ("#rgb" or "#rrggbb").
 // id, fg, bg, and all sixteen ANSI slots are required; selection_bg and
 // cursor are optional; dark is derived from bg luminosity when omitted.
@@ -144,7 +144,7 @@ func (y yamlTint) toTint() (*tint.Tint, error) {
 	return out, nil
 }
 
-// LoadYAMLTints parses every *.yaml/*.yml file in dir as a user theme (T-4).
+// LoadYAMLTints parses every *.yaml/*.yml file in dir as a user theme.
 // A missing directory is not an error (no custom themes). Files that fail to
 // parse are reported in errs; valid ones still load, so one bad file never
 // hides the rest.

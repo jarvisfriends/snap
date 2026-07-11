@@ -8,8 +8,6 @@
 package menu
 
 import (
-	"strings"
-
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
@@ -55,12 +53,13 @@ type KeyMap struct {
 	Dismiss key.Binding // close without choosing
 }
 
-// DefaultKeyMap returns the standard bindings: arrows/jk move, Enter
-// chooses, Esc dismisses.
+// DefaultKeyMap returns the standard bindings: arrows move, Enter chooses,
+// Esc dismisses. Per the snap key convention there are no vim fallbacks —
+// hosts that want j/k rebind the Keys field.
 func DefaultKeyMap() KeyMap {
 	return KeyMap{
-		Up:      key.NewBinding(key.WithKeys("up", "k"), key.WithHelp("↑/k", "up")),
-		Down:    key.NewBinding(key.WithKeys("down", "j"), key.WithHelp("↓/j", "down")),
+		Up:      key.NewBinding(key.WithKeys("up"), key.WithHelp("↑", "up")),
+		Down:    key.NewBinding(key.WithKeys("down"), key.WithHelp("↓", "down")),
 		Choose:  key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "choose")),
 		Dismiss: key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "dismiss")),
 	}
@@ -264,25 +263,19 @@ func (m *Menu) itemAt(x, y, termW, termH int) int {
 // Render produces the styled menu box.
 func (m *Menu) Render() string {
 	st := m.styles()
-	var b strings.Builder
+	rows := make([]string, len(m.items))
 	for i, it := range m.items {
 		label := st.Text.Render(it.Label)
 		if it.Disabled {
 			label = st.Dim.Render(it.Label)
 		}
-		if i > 0 {
-			b.WriteString("\n")
-		}
+		gutter := "  "
 		if i == m.cursor && !it.Disabled {
-			b.WriteString(st.Cursor.Render(st.CursorGlyph))
-			b.WriteString(" ")
-			b.WriteString(label)
-		} else {
-			b.WriteString("  ")
-			b.WriteString(label)
+			gutter = st.Cursor.Render(st.CursorGlyph) + " "
 		}
+		rows[i] = gutter + label
 	}
-	return st.Box.Width(m.innerWidth()).Render(b.String())
+	return st.Box.Width(m.innerWidth()).Render(lipgloss.JoinVertical(lipgloss.Left, rows...))
 }
 
 // Composite draws the open menu over base (a full termW x termH frame) at

@@ -7,8 +7,6 @@
 package scrollbar
 
 import (
-	"strings"
-
 	"charm.land/lipgloss/v2"
 
 	"github.com/jarvisfriends/snap/geom"
@@ -101,7 +99,7 @@ func Vertical(total, visible, offset, barHeight int, st Styles) string {
 			rows[i] = track
 		}
 	}
-	return strings.Join(rows, "\n")
+	return lipgloss.JoinVertical(lipgloss.Left, rows...)
 }
 
 // lowerBlocks[k] is the "lower k eighths" block (index 0 unused).
@@ -143,7 +141,7 @@ func verticalSmooth(total, visible, offset, barHeight int, st Styles) string {
 			rows[i] = st.Thumb.Reverse(true).Render(lowerBlocks[8-k])
 		}
 	}
-	return strings.Join(rows, "\n")
+	return lipgloss.JoinVertical(lipgloss.Left, rows...)
 }
 
 // ClampOffset bounds a scroll offset into the valid range for the content:

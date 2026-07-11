@@ -1,3 +1,4 @@
 # logging
 
-Placeholder — component arrives with tui-base ROADMAP item X-3.
+Reserved for a UI-bound logger with subscriber fan-out (files on disk plus
+live streaming into in-app views). Not yet implemented.

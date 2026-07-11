@@ -1,27 +1,36 @@
 package navigation
 
 import (
-	"fmt"
+	"image/color"
+	"strconv"
 	"unicode/utf8"
 
 	"charm.land/bubbles/v2/key"
 	"github.com/jarvisfriends/snap/page"
+	"github.com/jarvisfriends/snap/styles"
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 )
 
-// MinimalTopNav is a compact top-docked navigator styled like the inspector's
-// tab line: a single horizontal row of labels, the active one highlighted, with
-// no borders. A leading per-tab number ("1:", "2:", …) is optional and defaults
-// to hidden. The number keys 1–9 select a tab directly only when the user has
-// enabled "Number Key Select" in Settings (off by default); the router maps the
-// digits for top-docked navs independently of whether the prefix is shown.
+// MinimalTopNav is a compact top-docked navigator rendered as one segmented
+// pill: each tab is a color segment (theme palette colors, cycled when there
+// are more tabs than colors) separated by the pill shape's slanted divider,
+// with the active tab marked. A leading per-tab number ("1:", "2:", …) is
+// optional and defaults to hidden. The number keys 1–9 select a tab directly
+// only when the user has enabled "Number Key Select" in Settings (off by
+// default); the router maps the digits for top-docked navs independently of
+// whether the prefix is shown.
 type MinimalTopNav struct {
 	Pages       []Page
 	ActiveIndex int
 	ShowNumbers bool
 	KeyMap      NavKeyMap
+
+	// PillShape selects the segment geometry. The default, PillDiagonal, is
+	// the pure-Unicode slant that renders in any font; hosts with a Nerd
+	// Font can set styles.PillSlant for the seamless Powerline version.
+	PillShape styles.PillShape
 
 	width  int
 	height int
@@ -42,6 +51,7 @@ func NewMinimalTopNav() *MinimalTopNav {
 		ActiveIndex: 0,
 		ShowNumbers: false,
 		KeyMap:      DefaultNavKeyMap(),
+		PillShape:   styles.PillDiagonal,
 	}
 }
 
@@ -83,33 +93,68 @@ func (m *MinimalTopNav) selectCmd() tea.Cmd {
 
 func (m *MinimalTopNav) label(i int, title string) string {
 	if m.ShowNumbers {
-		return fmt.Sprintf("%d:%s", i+1, title)
+		return strconv.Itoa(i+1) + ":" + title
 	}
 	return title
 }
 
+// tabPalette returns the theme colors tabs cycle through (index mod length),
+// so any number of tabs stays colored without configuration.
+func (m *MinimalTopNav) tabPalette(c *styles.AppStyle) []color.Color {
+	return []color.Color{c.Accent, c.Success, c.Warning, c.Error, c.SelectionBg, c.Muted}
+}
+
+// pillStyles is the segmented-pill configuration for the current theme: the
+// host page's background behind the caps so the slants sit on the page color.
+func (m *MinimalTopNav) pillStyles(c *styles.AppStyle) styles.PillStyles {
+	shape := m.PillShape
+	if shape == "" {
+		shape = styles.PillDiagonal
+	}
+	return styles.PillStyles{Shape: shape, Base: c.Bg}
+}
+
 func (m *MinimalTopNav) View() tea.View {
 	c := m.Colors()
+	st := m.pillStyles(c)
+	palette := m.tabPalette(c)
 
-	activeStyle := lipgloss.NewStyle().
-		Background(c.Accent).
-		Foreground(c.Bg).
-		Bold(true).
-		Padding(0, 1)
-	inactiveStyle := c.Styles.Item.Padding(0, 1)
+	segs := make([]styles.PillSegment, 0, len(m.Pages))
+	texts := make([]string, 0, len(m.Pages))
+	for i, p := range m.Pages {
+		text := " " + m.label(i, p.Title) + " "
+		if i == m.ActiveIndex {
+			text = "▶" + text
+		}
+		texts = append(texts, text)
+		segs = append(segs, styles.PillSegment{Text: text, Bg: palette[i%len(palette)]})
+	}
+	row := styles.SegmentedPill(segs, st)
 
-	parts := make([]string, 0, len(m.Pages))
+	// Click ranges: measure the shape's cap and divider footprints once by
+	// rendering trivial pills, then walk the segment texts — cell math that
+	// holds for every shape (Fade's caps are two cells, the rest one). The
+	// caps and dividers are folded into the adjacent tab's range so every
+	// cell of the row is clickable: the left cap belongs to the first tab,
+	// each divider to the tab before it, the right cap to the last.
+	capsW := lipgloss.Width(styles.SegmentedPill(
+		[]styles.PillSegment{{Bg: palette[0]}}, st))
+	divW := lipgloss.Width(styles.SegmentedPill(
+		[]styles.PillSegment{{Bg: palette[0]}, {Bg: palette[1%len(palette)]}}, st)) - capsW
+	capL := capsW / 2
 	m.starts = make([]int, len(m.Pages))
 	m.ends = make([]int, len(m.Pages))
 	x := 0
-	for i, p := range m.Pages {
-		style := inactiveStyle
-		if i == m.ActiveIndex {
-			style = activeStyle
+	for i, text := range texts {
+		w := lipgloss.Width(text)
+		if i == 0 {
+			w += capL
 		}
-		rendered := style.Render(m.label(i, p.Title))
-		parts = append(parts, rendered)
-		w := lipgloss.Width(rendered)
+		if i == len(texts)-1 {
+			w += capsW - capL // right cap
+		} else {
+			w += divW
+		}
 		m.starts[i] = x
 		if w > 0 {
 			m.ends[i] = x + w - 1
@@ -118,8 +163,6 @@ func (m *MinimalTopNav) View() tea.View {
 		}
 		x += w
 	}
-
-	row := lipgloss.JoinHorizontal(lipgloss.Left, parts...)
 
 	v := tea.NewView(row)
 	v.BackgroundColor = c.Styles.TextOnBg.GetBackground()

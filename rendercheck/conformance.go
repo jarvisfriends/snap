@@ -1,6 +1,6 @@
 package rendercheck
 
-// conformance.go — model-agnostic conformance checks any tui-base-derived app can
+// conformance.go — model-agnostic conformance checks any Bubble Tea app can
 // run against its router (or a single page) in unit tests. They drive the model
 // purely through messages (WindowSizeMsg, theme messages, key/selection messages)
 // and assert framework invariants that are easy to break in custom pages:
@@ -74,7 +74,7 @@ func CheckFitsViewport(t *testing.T, m tea.Model, states ...tea.Msg) {
 	}
 }
 
-// StatusProvider is implemented by models (the tui-base router) that can report
+// StatusProvider is implemented by models (typically an app router) that can report
 // their status bar's current text and visibility, so CheckStatusBarVisible can
 // assert the status bar is present in every rendered frame.
 type StatusProvider interface {

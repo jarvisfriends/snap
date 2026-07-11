@@ -23,8 +23,11 @@ func TestPillCapGlyphsPerShape(t *testing.T) {
 		{PillRound, "", ""},
 		{PillArrow, "", ""},
 		{PillSlant, "", ""},
-		{PillFlame, "", ""},
 		{PillBlock, "▐", "▌"},
+		{PillBracket, "[", "]"},
+		{PillChevron, "❮", "❯"},
+		{PillDiagonal, "◢", "◤"},
+		{PillFade, "░▒", "▒░"},
 	}
 	for _, tc := range cases {
 		got := ansi.Strip(Pill("hi", nil, testRed, PillStyles{Shape: tc.shape}))
@@ -172,12 +175,14 @@ func TestPillShapeNormalization(t *testing.T) {
 // TestPillNerdFontFlag: powerline shapes need a patched font, the Unicode
 // fallbacks do not.
 func TestPillNerdFontFlag(t *testing.T) {
-	for _, s := range []PillShape{PillRound, PillArrow, PillSlant, PillFlame} {
+	for _, s := range []PillShape{PillRound, PillArrow, PillSlant} {
 		if !s.NeedsNerdFont() {
 			t.Errorf("%q should need a Nerd Font", s)
 		}
 	}
-	for _, s := range []PillShape{PillBlock, PillPlain} {
+	for _, s := range []PillShape{
+		PillBlock, PillPlain, PillBracket, PillChevron, PillDiagonal, PillFade,
+	} {
 		if s.NeedsNerdFont() {
 			t.Errorf("%q should not need a Nerd Font", s)
 		}

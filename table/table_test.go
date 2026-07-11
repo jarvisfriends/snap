@@ -3,10 +3,8 @@ package table
 import (
 	"strings"
 	"testing"
-	"unicode/utf8"
 
 	tea "charm.land/bubbletea/v2"
-	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 
 	"github.com/jarvisfriends/snap/styles"
@@ -22,6 +20,10 @@ func sampleRows() []Row {
 		{Key: "b", Cells: []Cell{Text("Banana"), Num("1", 1)}},
 		{Key: "c", Cells: []Cell{Text("Cherry"), Num("2", 2)}},
 	}
+}
+
+func keyText(s string) tea.KeyPressMsg {
+	return tea.KeyPressMsg{Code: rune(s[0]), Text: s}
 }
 
 // TestNumericSortDesc verifies numeric cells sort by magnitude (not lexically)
@@ -61,17 +63,52 @@ func TestSortByColCycle(t *testing.T) {
 	}
 }
 
-// TestFilter checks the filter selects only rows whose filterable columns match.
-func TestFilter(t *testing.T) {
+// TestFilterThroughKeys drives the `/` filter through the real input path:
+// `/` focuses the filter input, typed text narrows the rows live, Enter blurs
+// the input keeping the filter applied, and esc (blurred) clears it.
+func TestFilterThroughKeys(t *testing.T) {
 	m := New(sampleCols())
 	m.SetRows(sampleRows())
-	m.filter = "an" // matches "Banana"
-	m.rebuildFilter()
-	if len(m.filtered) != 1 {
-		t.Fatalf("filter 'an' should match 1 row, got %d", len(m.filtered))
+
+	m.Update(keyText("/"))
+	if !m.Filtering() {
+		t.Fatal("'/' should focus the filter input")
 	}
-	if r, _ := m.SelectedRow(); r.Key != "b" {
-		t.Fatalf("filtered selection should be Banana, got %q", r.Key)
+	m.Update(keyText("a"))
+	m.Update(keyText("n"))
+	if got := m.bt.GetCurrentFilter(); got != "an" {
+		t.Fatalf("filter text = %q, want %q", got, "an")
+	}
+	if got := m.bt.TotalRows(); got != 1 {
+		t.Fatalf("filter 'an' should match 1 row, got %d", got)
+	}
+	if r, ok := m.SelectedRow(); !ok || r.Key != "b" {
+		t.Fatalf("filtered selection should be Banana, got %q ok=%v", r.Key, ok)
+	}
+
+	m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	if m.Filtering() {
+		t.Fatal("Enter should blur the filter input")
+	}
+	if got := m.bt.TotalRows(); got != 1 {
+		t.Fatalf("filter should stay applied after blur, got %d rows", got)
+	}
+
+	m.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
+	if got := m.bt.TotalRows(); got != 3 {
+		t.Fatalf("esc should clear the filter, got %d rows", got)
+	}
+}
+
+// TestFilterOnlyMatchesFilterColumns: column N is not filterable, so its cell
+// text never matches (filtering "2" matches nothing even though Cherry's N=2).
+func TestFilterOnlyMatchesFilterColumns(t *testing.T) {
+	m := New(sampleCols())
+	m.SetRows(sampleRows())
+	m.Update(keyText("/"))
+	m.Update(keyText("2"))
+	if got := m.bt.TotalRows(); got != 0 {
+		t.Fatalf("filter should only match Filter:true columns, got %d rows", got)
 	}
 }
 
@@ -101,7 +138,7 @@ func TestKeyboardSortKey(t *testing.T) {
 	if m.sortActive {
 		t.Fatal("table should start unsorted")
 	}
-	if cmd := m.Update(tea.KeyPressMsg{Text: "s"}); cmd != nil {
+	if cmd := m.Update(keyText("s")); cmd != nil {
 		t.Errorf("sort key should not return a command, got %T", cmd)
 	}
 	if !m.sortActive || m.sortCol != 0 || !m.sortAsc {
@@ -112,7 +149,7 @@ func TestKeyboardSortKey(t *testing.T) {
 			m.sortAsc,
 		)
 	}
-	m.Update(tea.KeyPressMsg{Text: "s"})
+	m.Update(keyText("s"))
 	if !m.sortActive || m.sortAsc {
 		t.Fatalf(
 			"second 's' should flip to descending; got active=%v asc=%v",
@@ -127,7 +164,7 @@ func TestKeyboardSortKey(t *testing.T) {
 func TestKeyboardSortReordersRows(t *testing.T) {
 	m := New(sampleCols())
 	m.SetRows(sampleRows())
-	m.Update(tea.KeyPressMsg{Text: "s"}) // sort column 0 (Name) ascending
+	m.Update(keyText("s")) // sort column 0 (Name) ascending
 	if m.rows[0].Key != "a" || m.rows[2].Key != "c" {
 		t.Fatalf(
 			"ascending name sort wrong order: %s,%s,%s",
@@ -144,12 +181,12 @@ func TestMouseHeaderSort(t *testing.T) {
 	m := New(sampleCols())
 	m.SetRows(sampleRows())
 	m.SetSize(60, 20)
-	_ = m.View(styles.Active(), 1) // records headerY + column boundaries
+	_ = m.View(styles.Active(), 1) // records headerY + column widths
 
-	if len(m.colBoundaries) == 0 {
-		t.Fatal("no column boundaries recorded; cannot locate header columns")
+	if len(m.colWidths) != len(sampleCols()) {
+		t.Fatal("no column widths recorded; cannot locate header columns")
 	}
-	x := m.colBoundaries[0] + 1 // a point inside column 1
+	x := m.colWidths[0] + 1 // a point inside column 1
 
 	m.HandleClick(x, m.headerY)
 	if !m.sortActive || m.sortCol != 1 || !m.sortAsc {
@@ -174,6 +211,22 @@ func TestMouseHeaderSort(t *testing.T) {
 	}
 }
 
+// TestMouseClickSelects verifies a click on a data row moves the selection
+// there.
+func TestMouseClickSelects(t *testing.T) {
+	m := New(sampleCols(), WithSort(1, false))
+	m.SetRows(sampleRows())
+	m.SetSize(60, 20)
+	_ = m.View(styles.Active(), 0)
+
+	if cmd := m.HandleClick(3, m.dataStartY+1); cmd != nil {
+		t.Fatal("a single click should select, not open details")
+	}
+	if r, ok := m.SelectedRow(); !ok || r.Key != "c" {
+		t.Fatalf("click on second data row should select c, got %q ok=%v", r.Key, ok)
+	}
+}
+
 // TestMouseDoubleClickOpens checks a quick second click on a row opens details.
 func TestMouseDoubleClickOpens(t *testing.T) {
 	m := New(sampleCols(), WithSort(1, false))
@@ -194,212 +247,130 @@ func TestMouseDoubleClickOpens(t *testing.T) {
 	}
 }
 
-// TestViewRecordsGeometry renders the table and checks it records the geometry
-// HandleClick relies on (column boundaries + data row origin).
+// TestWheelMovesAndClamps: the wheel moves the selection one row per notch
+// and clamps at both ends instead of wrapping.
+func TestWheelMovesAndClamps(t *testing.T) {
+	m := New(sampleCols())
+	m.SetRows(sampleRows())
+
+	m.HandleWheel(false) // down 1 from row 0
+	if got := m.bt.GetHighlightedRowIndex(); got != 1 {
+		t.Fatalf("wheel down should move one row, got %d", got)
+	}
+	m.HandleWheel(false)
+	m.HandleWheel(false) // past the last row → clamped to index 2
+	if got := m.bt.GetHighlightedRowIndex(); got != 2 {
+		t.Fatalf("wheel down should clamp to last row, got %d", got)
+	}
+	for range 4 { // back past the first row → clamped to 0
+		m.HandleWheel(true)
+	}
+	if got := m.bt.GetHighlightedRowIndex(); got != 0 {
+		t.Fatalf("wheel up should clamp to first row, got %d", got)
+	}
+}
+
+// TestBorderlessCompactRender pins the compact layout HandleClick's geometry
+// relies on: the header is the first line, data rows follow immediately (no
+// border or separator lines), and the footer is the last line.
+func TestBorderlessCompactRender(t *testing.T) {
+	m := New(sampleCols())
+	m.SetRows(sampleRows())
+	m.SetSize(40, 20)
+
+	out := m.View(styles.Active(), 0)
+	lines := strings.Split(ansi.Strip(out), "\n")
+	if len(lines) != 1+len(sampleRows())+1 {
+		t.Fatalf("want header + %d rows + footer lines, got %d:\n%s",
+			len(sampleRows()), len(lines), ansi.Strip(out))
+	}
+	for _, glyph := range []string{"│", "─", "┌", "╭", "┼", "┬"} {
+		if strings.Contains(lines[0]+lines[1], glyph) {
+			t.Fatalf("borderless render should not contain %q:\n%s", glyph, ansi.Strip(out))
+		}
+	}
+	if !strings.Contains(lines[m.headerY], "Name") {
+		t.Errorf("headerY=%d does not land on the header row: %q", m.headerY, lines[m.headerY])
+	}
+	if !strings.Contains(lines[m.dataStartY], "Apple") {
+		t.Errorf("dataStartY=%d does not land on the first data row: %q", m.dataStartY, lines[m.dataStartY])
+	}
+}
+
+// TestViewRecordsGeometry: headerY/dataStartY are page-relative offsets from
+// the originY the host passes in.
 func TestViewRecordsGeometry(t *testing.T) {
 	m := New(sampleCols(), WithSort(1, false))
 	m.SetRows(sampleRows())
 	m.SetSize(60, 20)
 
-	out := m.View(styles.Active(), 1)
+	out := m.View(styles.Active(), 5)
 	if out == "" {
 		t.Fatal("View returned empty output")
 	}
-	if m.dataStartY != 4 { // originY(1) + top border + header + separator
-		t.Errorf("dataStartY = %d, want 4", m.dataStartY)
+	if m.headerY != 5 {
+		t.Errorf("headerY = %d, want 5 (originY)", m.headerY)
 	}
-	if len(m.colBoundaries) != len(sampleCols())-1 {
-		t.Errorf("expected %d column boundaries, got %d", len(sampleCols())-1, len(m.colBoundaries))
+	if m.dataStartY != 6 {
+		t.Errorf("dataStartY = %d, want 6 (originY + header line)", m.dataStartY)
 	}
 }
 
-// TestColumnBoundariesAreScreenColumns confirms colBoundaries are recorded in
-// the same coordinate space HandleClick receives from a real mouse: visual
-// screen columns on the ANSI-stripped line, not rune indices into the raw
-// (color-escaped) render. BorderStyle colors the top border, so the raw
-// string carries SGR escape sequences; without stripping them first, every
-// recorded boundary is offset by however many escape-sequence runes preceded
-// it, and clicks landing on real screen coordinates would silently resolve to
-// the wrong column (or none) the moment color output is enabled.
-func TestColumnBoundariesAreScreenColumns(t *testing.T) {
+// TestColumnWidthsAlignWithRender confirms the widths columnAtX hit-tests with
+// are the widths the render actually uses: the second column's title starts
+// exactly one padding cell past the first column's width.
+func TestColumnWidthsAlignWithRender(t *testing.T) {
+	m := New([]Column{{Title: "Alpha"}, {Title: "Beta"}})
+	m.SetRows([]Row{{Key: "x", Cells: []Cell{Text("one"), Text("two")}}})
+	m.SetSize(30, 10)
+
+	out := m.View(styles.Active(), 0)
+	header := ansi.Strip(strings.Split(out, "\n")[0])
+	wantX := m.colWidths[0] + 1 // second cell's 1-cell padding
+	if got := strings.Index(header, "Beta"); got != wantX {
+		t.Fatalf("Beta starts at x=%d, want %d (colWidths=%v): %q",
+			got, wantX, m.colWidths, header)
+	}
+	if m.columnAtX(wantX) != 1 {
+		t.Fatalf("columnAtX(%d) = %d, want 1", wantX, m.columnAtX(wantX))
+	}
+}
+
+// TestFitWidthsStretchAndSqueeze: widths stretch round-robin to fill the total
+// and squeeze the widest column first, never below the minimum.
+func TestFitWidthsStretchAndSqueeze(t *testing.T) {
+	if got := fitWidths([]int{5, 5}, 14); got[0]+got[1] != 14 {
+		t.Fatalf("stretch: %v does not fill 14", got)
+	}
+	got := fitWidths([]int{20, 6}, 16)
+	if got[0]+got[1] != 16 {
+		t.Fatalf("squeeze: %v does not fit 16", got)
+	}
+	if got[1] < minColWidth {
+		t.Fatalf("squeeze took the narrow column below min: %v", got)
+	}
+	// Unknown width (0) leaves natural widths untouched.
+	if got := fitWidths([]int{7, 9}, 0); got[0] != 7 || got[1] != 9 {
+		t.Fatalf("width 0 should keep natural widths, got %v", got)
+	}
+}
+
+// TestEmptyTableIsSafe: no rows renders header + footer only, and clicks and
+// selection queries are harmless no-ops.
+func TestEmptyTableIsSafe(t *testing.T) {
 	m := New(sampleCols())
-	m.SetRows(sampleRows())
-	m.SetSize(60, 20)
-	out := m.View(styles.Active(), 1)
-
-	top := ansi.Strip(strings.Split(out, "\n")[0])
-	topRunes := []rune(top)
-	junction, _ := utf8.DecodeRuneInString(tableBorder.MiddleTop)
-
-	if len(m.colBoundaries) == 0 {
-		t.Fatal("no column boundaries recorded")
+	m.SetSize(40, 10)
+	out := m.View(styles.Active(), 0)
+	if !strings.Contains(ansi.Strip(out), "0/0") {
+		t.Errorf("empty table footer should show 0/0: %q", ansi.Strip(out))
 	}
-	for _, x := range m.colBoundaries {
-		if x < 0 || x >= len(topRunes) {
-			t.Fatalf(
-				"boundary x=%d out of range for stripped top border (len %d): %q",
-				x,
-				len(topRunes),
-				top,
-			)
-		}
-		if topRunes[x] != junction {
-			t.Errorf(
-				"boundary x=%d lands on %q in the visual top border, want junction glyph %q: %q",
-				x,
-				topRunes[x],
-				junction,
-				top,
-			)
-		}
+	if _, ok := m.SelectedRow(); ok {
+		t.Error("empty table should have no selected row")
 	}
-}
-
-// TestColumnBoundariesTrackBorderStyle sweeps every standard lipgloss border
-// preset through tableBorder and re-verifies header-click sorting still
-// works for each one. Column-boundary detection scans the rendered top
-// border for tableBorder's own junction glyph; if that ever regresses back
-// to a hardcoded literal (e.g. "┬"), this fails the moment the border style
-// changes to one with a different junction glyph (Thick "┳", Double "╦"),
-// which is exactly the failure mode a future themed-border feature would
-// otherwise trigger silently — header clicks would stop sorting anything.
-func TestColumnBoundariesTrackBorderStyle(t *testing.T) {
-	original := tableBorder
-	t.Cleanup(func() { tableBorder = original })
-
-	borders := map[string]lipgloss.Border{
-		"normal":  lipgloss.NormalBorder(),
-		"rounded": lipgloss.RoundedBorder(),
-		"thick":   lipgloss.ThickBorder(),
-		"double":  lipgloss.DoubleBorder(),
-		"ascii":   lipgloss.ASCIIBorder(),
+	if cmd := m.HandleClick(2, m.dataStartY); cmd != nil {
+		t.Error("click below an empty table should be a no-op")
 	}
-
-	for name, b := range borders {
-		t.Run(name, func(t *testing.T) {
-			tableBorder = b
-
-			m := New(sampleCols())
-			m.SetRows(sampleRows())
-			m.SetSize(60, 20)
-			_ = m.View(styles.Active(), 1)
-
-			if len(m.colBoundaries) != len(sampleCols())-1 {
-				t.Fatalf(
-					"border=%s: expected %d column boundaries, got %d (junction glyph %q not found in rendered top border)",
-					name,
-					len(sampleCols())-1,
-					len(m.colBoundaries),
-					b.MiddleTop,
-				)
-			}
-
-			x := m.colBoundaries[0] + 1
-			m.HandleClick(x, m.headerY)
-			if !m.sortActive || m.sortCol != 1 || !m.sortAsc {
-				t.Fatalf(
-					"border=%s: header click should sort col 1 ascending; got active=%v col=%d asc=%v",
-					name,
-					m.sortActive,
-					m.sortCol,
-					m.sortAsc,
-				)
-			}
-		})
-	}
-}
-
-// TestBorderTogglesCollapseGeometryCorrectly sweeps tableBorderTop/
-// tableBorderBottom/tableBorderHeader — the knobs a themed-border feature
-// would flip to remove the table's border entirely — and checks that
-// SetSize's pageSize budget, View's headerY/dataStartY, and column-click
-// hit-testing all shrink to match rather than assuming a border row is
-// always drawn. Before this test the row math (SetSize's tableChromeRows,
-// View's headerY/dataStartY, and the top-border-row scan in columnAtX) was
-// a fixed constant that silently mis-sized the table (or broke column-click
-// sort entirely) the moment a theme disabled the border.
-func TestBorderTogglesCollapseGeometryCorrectly(t *testing.T) {
-	originalTop, originalBottom, originalHeader := tableBorderTop, tableBorderBottom, tableBorderHeader
-	t.Cleanup(func() {
-		tableBorderTop, tableBorderBottom, tableBorderHeader = originalTop, originalBottom, originalHeader
-	})
-
-	cases := []struct {
-		name                string
-		top, bottom, header bool
-		wantColBoundaries   bool // whether a visible junction row exists to click
-	}{
-		{"all borders on (default)", true, true, true, true},
-		{"top border off, separator remains", false, true, true, true},
-		{"header separator off, top border remains", true, true, false, true},
-		{"top and header both off", false, true, false, false},
-		{"fully borderless", false, false, false, false},
-	}
-
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			tableBorderTop, tableBorderBottom, tableBorderHeader = tc.top, tc.bottom, tc.header
-
-			m := New(sampleCols())
-			m.SetRows(sampleRows())
-			m.SetSize(60, 20)
-
-			wantPageSize := max(20-tableChromeRows(), 3)
-			if m.pageSize != wantPageSize {
-				t.Errorf(
-					"pageSize = %d, want %d (tableChromeRows=%d)",
-					m.pageSize,
-					wantPageSize,
-					tableChromeRows(),
-				)
-			}
-
-			// originY=0 so headerY/dataStartY (page-relative, per HandleClick's
-			// contract) index directly into the rendered lines below.
-			out := m.View(styles.Active(), 0)
-			lines := strings.Split(out, "\n")
-
-			if m.headerY < 0 || m.headerY >= len(lines) {
-				t.Fatalf("headerY=%d out of range (%d lines)", m.headerY, len(lines))
-			}
-			headerLine := ansi.Strip(lines[m.headerY])
-			if !strings.Contains(headerLine, sampleCols()[0].Title) {
-				t.Errorf("headerY=%d does not land on the header row: %q", m.headerY, headerLine)
-			}
-
-			if m.dataStartY < 0 || m.dataStartY >= len(lines) {
-				t.Fatalf("dataStartY=%d out of range (%d lines)", m.dataStartY, len(lines))
-			}
-			dataLine := ansi.Strip(lines[m.dataStartY])
-			if !strings.Contains(dataLine, "Apple") && !strings.Contains(dataLine, "Banana") &&
-				!strings.Contains(dataLine, "Cherry") {
-				t.Errorf("dataStartY=%d does not land on a data row: %q", m.dataStartY, dataLine)
-			}
-
-			hasBoundaries := len(m.colBoundaries) > 0
-			if hasBoundaries != tc.wantColBoundaries {
-				t.Errorf(
-					"colBoundaries present = %v, want %v (got %v)",
-					hasBoundaries,
-					tc.wantColBoundaries,
-					m.colBoundaries,
-				)
-			}
-
-			// Header click either sorts (when a junction row exists to
-			// locate columns) or is a harmless no-op — never a panic or a
-			// wrong-column sort.
-			if hasBoundaries {
-				x := m.colBoundaries[0] + 1
-				m.HandleClick(x, m.headerY)
-				if !m.sortActive || m.sortCol != 1 {
-					t.Errorf(
-						"header click should sort col 1; got active=%v col=%d",
-						m.sortActive,
-						m.sortCol,
-					)
-				}
-			}
-		})
+	if cmd := m.Update(tea.KeyPressMsg{Code: tea.KeyEnter}); cmd != nil {
+		t.Error("Enter on an empty table should be a no-op")
 	}
 }

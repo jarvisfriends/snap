@@ -69,10 +69,27 @@ func SetCurrentTint(id string) error {
 	}
 	tintMu.Lock()
 	defer tintMu.Unlock()
+	ensureRegistryUnsafe()
 	if ok := tint.SetTintID(id); !ok {
 		return fmt.Errorf("unknown tint ID: %s", id)
 	}
 	return nil
+}
+
+// registryReady tracks whether the bubbletint default registry exists.
+// Guarded by tintMu.
+var registryReady bool
+
+// ensureRegistryUnsafe initializes the bubbletint default registry once.
+// Callers must hold tintMu. Before this runs, tint.SetTintID/Current panic
+// on the nil registry — which is why standalone hosts (the examples, tests)
+// previously couldn't select a tint without a full app bootstrap.
+func ensureRegistryUnsafe() {
+	if registryReady {
+		return
+	}
+	tint.NewDefaultRegistry()
+	registryReady = true
 }
 
 // AppStyle holds the semantic color palette for the application, derived from

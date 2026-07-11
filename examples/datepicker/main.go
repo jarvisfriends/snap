@@ -1,30 +1,65 @@
-// Command datepicker demos snap/datepicker standalone (used by the VHS tape).
+// Command datepicker is a script-usable date prompt built on snap/datepicker:
+// pick a day and the ISO date is written to stdout (the TUI itself renders on
+// stderr), so a shell can capture it:
+//
+//	date=$(go run ./examples/datepicker)
+//
+// --no-help hides the status bar. Canceling (q/esc) prints nothing, exit 1.
 package main
 
 import (
-	"fmt"
-	"os"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/jarvisfriends/snap/datepicker"
+	"github.com/jarvisfriends/snap/examples/internal/exui"
 )
 
-type demoApp struct{ dp *datepicker.DatePickerModel }
+type demoApp struct {
+	dp     *datepicker.DatePickerModel
+	chrome *exui.Chrome
+	height int
+}
+
+func newDemo(start time.Time) demoApp {
+	return demoApp{
+		dp: datepicker.New(start),
+		chrome: exui.NewChrome(
+			exui.Bind("↑/↓/←/→", "move"),
+			exui.Bind("[/]", "month"),
+			exui.Bind("{/}", "year"),
+			exui.Bind("enter", "pick"),
+			exui.Bind("q", "quit"),
+		),
+	}
+}
 
 func (a demoApp) Init() tea.Cmd { return a.dp.Init() }
 
 func (a demoApp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	// Mouse events reach the component through the root view's OnMouse
-	// (Bubble Tea delivers the raw event to BOTH OnMouse and Update);
-	// forwarding them here too would double-process every click — the first
-	// click would highlight AND select.
-	if _, isMouse := msg.(tea.MouseMsg); isMouse {
+	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		a.height = msg.Height
+		a.chrome.SetWidth(msg.Width)
+		// Fall through to the component so it sizes itself to the window
+		// (minus the help bar) — otherwise its natural height can collide
+		// with the bar row on short terminals.
+		m, cmd := a.dp.Update(tea.WindowSizeMsg{
+			Width:  msg.Width,
+			Height: max(msg.Height-a.chrome.Height(), 1),
+		})
+		if dp, ok := m.(*datepicker.DatePickerModel); ok {
+			a.dp = dp
+		}
+		return a, cmd
+	case tea.MouseMsg:
+		// Mouse events reach the component through the root view's OnMouse
+		// (Bubble Tea delivers the raw event to BOTH OnMouse and Update);
+		// forwarding them here too would double-process every click.
 		return a, nil
-	}
-	if k, ok := msg.(tea.KeyPressMsg); ok {
-		if s := k.String(); s == "q" || s == "ctrl+c" {
+	case tea.KeyPressMsg:
+		if s := msg.String(); s == "q" || s == "esc" || s == "ctrl+c" {
 			return a, tea.Quit
 		}
 	}
@@ -38,29 +73,24 @@ func (a demoApp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return a, cmd
 }
 
-// View enables mouse reporting on the root view — in Bubble Tea v2 the
-// terminal only sends mouse events when the root view asks for them, so
-// without this the component's OnMouse never fires.
+// View enables mouse reporting on the root view and stacks the shared help
+// bar on the terminal's bottom line under the calendar.
 func (a demoApp) View() tea.View {
 	v := a.dp.View()
+	a.chrome.Apply(&v, a.height)
 	v.MouseMode = tea.MouseModeCellMotion
-	// AltScreen gives the demo the whole window: rendered inline (the
-	// default), the content is pinned to the prompt line and the tall VHS
-	// window stays empty — the "Height not showing up" symptom.
 	v.AltScreen = true
 	return v
 }
 
 func main() {
-	app := demoApp{dp: datepicker.New(time.Now())}
-	final, err := tea.NewProgram(app).Run()
+	exui.Init()
+	final, err := exui.Program(newDemo(time.Now())).Run()
 	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+		exui.Fatal(err)
 	}
-	// Print the confirmed date after the alt-screen restores, so the choice
-	// stays visible in the console (and the VHS tape captures a clean exit).
 	if a, ok := final.(demoApp); ok && a.dp.Selected {
-		fmt.Println("Selected:", a.dp.Time.Format("Monday, January 2, 2006"))
+		exui.Finish(true, a.dp.Time.Format("2006-01-02"))
 	}
+	exui.Finish(false)
 }

@@ -1,7 +1,6 @@
 package styles
 
 import (
-	"fmt"
 	"image/color"
 	"strings"
 
@@ -14,8 +13,14 @@ func ColorHex(c color.Color) string {
 	if c == nil {
 		return "#000000"
 	}
+	const digits = "0123456789abcdef"
 	r, g, b, _ := c.RGBA()
-	return fmt.Sprintf("#%02x%02x%02x", r>>8, g>>8, b>>8)
+	buf := [7]byte{'#'}
+	for i, v := range [3]uint32{r >> 8, g >> 8, b >> 8} {
+		buf[1+i*2] = digits[v>>4]
+		buf[2+i*2] = digits[v&0xf]
+	}
+	return string(buf[:])
 }
 
 // ReapplyBg re-applies the background color after every ANSI reset in s. Child

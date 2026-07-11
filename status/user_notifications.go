@@ -1,7 +1,6 @@
 package status
 
 import (
-	"fmt"
 	"strconv"
 	"strings"
 	"time"
@@ -134,7 +133,10 @@ func (m *UserNotificationOverlay) Render(width int, left, right string) (string,
 	}
 
 	indentN := max(int((1.0-f)*8.0), 0)
-	left = strings.Repeat(" ", indentN) + left
+	if indentN > 0 {
+		// Slide-in indent as lipgloss cell padding, not literal spaces.
+		left = lipgloss.NewStyle().PaddingLeft(indentN).Render(left)
+	}
 	colorMin, colorMax := 242, 250
 	color := colorMin + int(f*float64(colorMax-colorMin))
 
@@ -169,9 +171,9 @@ func (m *UserNotificationOverlay) RenderHistoryOverlay(maxW, maxH int) string {
 	// once and every style below derives from it.
 	onBg := func(s lipgloss.Style) lipgloss.Style { return s.Background(c.Bg) }
 
-	titleText := fmt.Sprintf("🔔 Notifications (%d active", activeCount)
+	titleText := "🔔 Notifications (" + strconv.Itoa(activeCount) + " active"
 	if pendingCount > 0 {
-		titleText += fmt.Sprintf(", %d pending", pendingCount)
+		titleText += ", " + strconv.Itoa(pendingCount) + " pending"
 	}
 	titleText += ")"
 	footerText := "↑/↓ navigate • Enter open/dismiss • d dismiss all • Esc close"
@@ -203,9 +205,11 @@ func (m *UserNotificationOverlay) RenderHistoryOverlay(maxW, maxH int) string {
 		}
 		if n.Percent != nil {
 			// Progress notifications carry an inline charts.HBar so the
-			// panel shows live progress next to the message.
-			content += fmt.Sprintf(" %s %3.0f%%",
-				charts.HBar(*n.Percent, historyProgressBarWidth), *n.Percent)
+			// panel shows live progress next to the message. The percent
+			// right-aligns in a fixed three-cell column via lipgloss.
+			pct := strconv.FormatFloat(*n.Percent, 'f', 0, 64)
+			content += " " + charts.HBar(*n.Percent, historyProgressBarWidth) +
+				" " + lipgloss.PlaceHorizontal(3, lipgloss.Right, pct) + "%"
 		}
 		p := rowParts{
 			badge:    "[" + n.Severity.Badge() + "]",
@@ -267,7 +271,8 @@ func (m *UserNotificationOverlay) RenderHistoryOverlay(maxW, maxH int) string {
 		rows = append(rows, emptyStyle.Render("  No notifications"))
 	}
 
-	inner := lipgloss.JoinVertical(lipgloss.Left, title, sep, strings.Join(rows, "\n"), sep, footer)
+	histRows := lipgloss.JoinVertical(lipgloss.Left, rows...)
+	inner := lipgloss.JoinVertical(lipgloss.Left, title, sep, histRows, sep, footer)
 	// c.Styles.OverlayBorder already carries the border config that innerW
 	// and maxRows above measured via GetHorizontalFrameSize()/
 	// GetVerticalFrameSize() — reused here so the two stay in sync. The accent
@@ -293,11 +298,11 @@ func (m *UserNotificationOverlay) colorForSeverity(s notifications.Severity) str
 func formatAge(d time.Duration) string {
 	switch {
 	case d < time.Minute:
-		return fmt.Sprintf("%ds ago", int(d.Seconds()))
+		return strconv.Itoa(int(d.Seconds())) + "s ago"
 	case d < time.Hour:
-		return fmt.Sprintf("%dm ago", int(d.Minutes()))
+		return strconv.Itoa(int(d.Minutes())) + "m ago"
 	default:
-		return fmt.Sprintf("%dh ago", int(d.Hours()))
+		return strconv.Itoa(int(d.Hours())) + "h ago"
 	}
 }
 
@@ -360,7 +365,7 @@ func RenderStyled(
 	settingsIcon := "⚙️"
 	notificationIcon := "🔔"
 	if pendingCount > 0 {
-		notificationIcon = fmt.Sprintf("🔔 %d", pendingCount)
+		notificationIcon = "🔔 " + strconv.Itoa(pendingCount)
 	}
 	if !notifEnabled {
 		notificationIcon = "🔕"
@@ -415,7 +420,7 @@ func RenderStyled(
 			rows = append(rows, baseStyle.Width(width).Render(line))
 		}
 		rows = append(rows, lastRow)
-		rendered = strings.Join(rows, "\n")
+		rendered = lipgloss.JoinVertical(lipgloss.Left, rows...)
 	}
 
 	gap := max(width-llw-rw-spw-npw-ipw, 0)

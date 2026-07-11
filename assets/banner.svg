@@ -1,0 +1,94 @@
+<svg viewBox="0 0 1200 420" xmlns="http://www.w3.org/2000/svg" font-family="Verdana, Geneva, sans-serif">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#FF6B8B"/>
+      <stop offset="1" stop-color="#FFA94D"/>
+    </linearGradient>
+    <linearGradient id="term" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#3D2A63"/>
+      <stop offset="1" stop-color="#2A1B47"/>
+    </linearGradient>
+    <g id="spark4">
+      <path d="M0,-12 L3,-3 L12,0 L3,3 L0,12 L-3,3 L-12,0 L-3,-3 Z" fill="#FFF3D6"/>
+    </g>
+    <!-- One cartoon hand mid-snap: the THUMB and MIDDLE finger pinch at the
+         burst, with the index finger raised between them (nearly vertical) —
+         the middle finger reaches across from the right, like a real snap.
+         Capsules rotate about their own centers. -->
+    <g id="hand">
+      <!-- wrist/cuff -->
+      <rect x="-22" y="72" width="68" height="46" rx="18" fill="#FFDFB8" stroke="#4A2B1A" stroke-width="6"/>
+      <!-- index finger: raised, nearly vertical, between thumb and middle -->
+      <rect x="-12" y="-104" width="28" height="112" rx="14" fill="#FFDFB8" stroke="#4A2B1A" stroke-width="6"
+            transform="rotate(-4 2 -48)"/>
+      <!-- middle finger: reaching across from the right, down onto the thumb -->
+      <rect x="-19" y="-61" width="26" height="66" rx="13" fill="#FFD2A1" stroke="#4A2B1A" stroke-width="6"
+            transform="rotate(-56 -6 -29)"/>
+      <!-- thumb: rising from the palm to meet it -->
+      <rect x="-26" y="-54" width="28" height="88" rx="14" fill="#FFDFB8" stroke="#4A2B1A" stroke-width="6"
+            transform="rotate(-28 -12 -10)"/>
+      <!-- palm -->
+      <ellipse cx="12" cy="42" rx="47" ry="43" fill="#FFDFB8" stroke="#4A2B1A" stroke-width="6"/>
+      <!-- ring + pinky folded over the palm edge -->
+      <rect x="20" y="12" width="44" height="26" rx="13" fill="#FFD2A1" stroke="#4A2B1A" stroke-width="5"/>
+      <rect x="24" y="38" width="40" height="24" rx="12" fill="#FFD2A1" stroke="#4A2B1A" stroke-width="5"/>
+      <!-- snap burst exactly at the thumb-middle contact -->
+      <g transform="translate(-42,-58)">
+        <path d="M0,-24 L5.5,-6.5 L24,0 L5.5,6.5 L0,24 L-5.5,6.5 L-24,0 L-5.5,-6.5 Z"
+              fill="#FFF06B" stroke="#4A2B1A" stroke-width="5"/>
+      </g>
+      <!-- ripple rings radiating from the snap -->
+      <circle cx="-42" cy="-58" r="38" fill="none" stroke="#FFF3D6" stroke-width="6" opacity="0.85"
+              stroke-dasharray="20 22" stroke-linecap="round"/>
+      <circle cx="-42" cy="-58" r="56" fill="none" stroke="#FFF3D6" stroke-width="4" opacity="0.5"
+              stroke-dasharray="16 30" stroke-linecap="round"/>
+    </g>
+  </defs>
+
+  <rect x="8" y="8" width="1184" height="404" rx="28" fill="url(#bg)"/>
+
+  <!-- scattered sparkles -->
+  <use href="#spark4" x="120" y="70" opacity="0.8"/>
+  <use href="#spark4" x="1080" y="330" opacity="0.8"/>
+  <use href="#spark4" x="990" y="80" opacity="0.55" transform="scale(0.9)"/>
+  <use href="#spark4" x="210" y="340" opacity="0.55"/>
+  <use href="#spark4" x="620" y="48" opacity="0.7" transform="scale(0.8)"/>
+
+  <!-- snapping hands -->
+  <g transform="translate(170,190) scale(1.15)"><use href="#hand"/></g>
+  <g transform="translate(1030,190) scale(-1.15,1.15)"><use href="#hand"/></g>
+
+  <!-- terminal window full of snaps -->
+  <g transform="translate(600,175)">
+    <rect x="-190" y="-120" width="380" height="240" rx="18" fill="url(#term)" stroke="#1C1130" stroke-width="6"/>
+    <!-- title bar dots -->
+    <circle cx="-165" cy="-97" r="8" fill="#FF6B8B"/>
+    <circle cx="-140" cy="-97" r="8" fill="#FFD93D"/>
+    <circle cx="-115" cy="-97" r="8" fill="#6BFFB8"/>
+    <!-- kawaii face on the window -->
+    <circle cx="-28" cy="-92" r="6" fill="#FFF3D6"/>
+    <circle cx="28" cy="-92" r="6" fill="#FFF3D6"/>
+    <path d="M-14,-84 Q0,-72 14,-84" fill="none" stroke="#FFF3D6" stroke-width="5" stroke-linecap="round"/>
+    <!-- pill component -->
+    <g transform="translate(-90,-40)">
+      <path d="M-52,-14 A14,14 0 0 0 -52,14 L20,14 A14,14 0 0 0 20,-14 Z" fill="#6BFFB8"/>
+      <path d="M-20,-14 L-8,-14 L-8,14 L-20,14 Z" fill="#35D0BA"/>
+    </g>
+    <!-- calendar component -->
+    <g transform="translate(90,-30)">
+      <rect x="-46" y="-32" width="92" height="72" rx="10" fill="#FFF3D6"/>
+      <rect x="-46" y="-32" width="92" height="20" rx="10" fill="#FF6B8B"/>
+      <g fill="#3D2A63">
+        <circle cx="-28" cy="4" r="5"/><circle cx="-8" cy="4" r="5"/><circle cx="12" cy="4" r="5"/><circle cx="32" cy="4" r="5"/>
+        <circle cx="-28" cy="24" r="5"/><circle cx="-8" cy="24" r="5"/><circle cx="12" cy="24" r="5" fill="#FF6B8B"/><circle cx="32" cy="24" r="5"/>
+      </g>
+    </g>
+    <!-- sparkline component -->
+    <polyline points="-160,80 -130,55 -100,70 -70,35 -40,52 -10,28 20,44 50,20 80,38 110,14 145,30"
+              fill="none" stroke="#FFD93D" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+
+  <!-- wordmark -->
+  <text x="600" y="372" text-anchor="middle" font-size="64" font-weight="bold" fill="#FFFFFF" letter-spacing="6">snap</text>
+  <text x="600" y="400" text-anchor="middle" font-size="19" fill="#5C2B18" opacity="0.85">ready-to-snap Bubble Tea components</text>
+</svg>
