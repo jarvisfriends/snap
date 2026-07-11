@@ -11,27 +11,36 @@
     <g id="spark4">
       <path d="M0,-12 L3,-3 L12,0 L3,3 L0,12 L-3,3 L-12,0 L-3,-3 Z" fill="#FFF3D6"/>
     </g>
-    <!-- One cartoon hand mid-snap: palm, folded fingers, raised middle finger
-         and thumb meeting at the snap point. -->
+    <!-- One cartoon hand mid-snap, emoji-style: thumb and middle finger
+         pinched together with the burst at the contact point, index raised,
+         ring+pinky folded. Capsules rotate about their own centers. -->
     <g id="hand">
       <!-- wrist/cuff -->
-      <rect x="-38" y="70" width="76" height="46" rx="18" fill="#FFDFB8" stroke="#4A2B1A" stroke-width="6"/>
+      <rect x="-24" y="70" width="68" height="46" rx="18" fill="#FFDFB8" stroke="#4A2B1A" stroke-width="6"/>
+      <!-- index finger: raised, leaning slightly out -->
+      <rect x="8" y="-92" width="28" height="104" rx="14" fill="#FFDFB8" stroke="#4A2B1A" stroke-width="6"
+            transform="rotate(10 22 -40)"/>
+      <!-- thumb: rising from the palm's left edge to the pinch point -->
+      <rect x="-35" y="-52" width="28" height="90" rx="14" fill="#FFDFB8" stroke="#4A2B1A" stroke-width="6"
+            transform="rotate(-16 -21 -7)"/>
+      <!-- middle finger: reaching down-left onto the thumb tip -->
+      <rect x="-26" y="-60" width="26" height="70" rx="13" fill="#FFD2A1" stroke="#4A2B1A" stroke-width="6"
+            transform="rotate(-46 -13 -25)"/>
       <!-- palm -->
-      <ellipse cx="0" cy="30" rx="58" ry="52" fill="#FFDFB8" stroke="#4A2B1A" stroke-width="6"/>
-      <!-- folded fingers -->
-      <rect x="8" y="-12" width="52" height="30" rx="15" fill="#FFD2A1" stroke="#4A2B1A" stroke-width="6"/>
-      <rect x="14" y="14" width="50" height="28" rx="14" fill="#FFD2A1" stroke="#4A2B1A" stroke-width="6"/>
-      <!-- middle finger flicking up -->
-      <rect x="-26" y="-78" width="30" height="76" rx="15" fill="#FFDFB8" stroke="#4A2B1A" stroke-width="6" transform="rotate(-8)"/>
-      <!-- thumb sweeping down after the snap -->
-      <rect x="-64" y="8" width="30" height="64" rx="15" fill="#FFDFB8" stroke="#4A2B1A" stroke-width="6" transform="rotate(28)"/>
-      <!-- snap burst at the fingertip -->
-      <g transform="translate(-34,-74)">
-        <path d="M0,-22 L5,-6 L22,0 L5,6 L0,22 L-5,6 L-22,0 L-5,-6 Z" fill="#FFF06B" stroke="#4A2B1A" stroke-width="5"/>
+      <ellipse cx="10" cy="40" rx="48" ry="44" fill="#FFDFB8" stroke="#4A2B1A" stroke-width="6"/>
+      <!-- ring + pinky folded over the palm edge -->
+      <rect x="18" y="8" width="44" height="26" rx="13" fill="#FFD2A1" stroke="#4A2B1A" stroke-width="5"/>
+      <rect x="22" y="34" width="40" height="24" rx="12" fill="#FFD2A1" stroke="#4A2B1A" stroke-width="5"/>
+      <!-- snap burst exactly at the pinch point -->
+      <g transform="translate(-38,-52)">
+        <path d="M0,-24 L5.5,-6.5 L24,0 L5.5,6.5 L0,24 L-5.5,6.5 L-24,0 L-5.5,-6.5 Z"
+              fill="#FFF06B" stroke="#4A2B1A" stroke-width="5"/>
       </g>
-      <!-- motion arcs -->
-      <path d="M-70,-60 A70,70 0 0 1 -18,-98" fill="none" stroke="#FFF3D6" stroke-width="7" stroke-linecap="round"/>
-      <path d="M-92,-38 A96,96 0 0 1 -30,-118" fill="none" stroke="#FFF3D6" stroke-width="5" stroke-linecap="round" opacity="0.7"/>
+      <!-- ripple rings radiating from the snap -->
+      <circle cx="-38" cy="-52" r="38" fill="none" stroke="#FFF3D6" stroke-width="6" opacity="0.85"
+              stroke-dasharray="20 22" stroke-linecap="round"/>
+      <circle cx="-38" cy="-52" r="56" fill="none" stroke="#FFF3D6" stroke-width="4" opacity="0.5"
+              stroke-dasharray="16 30" stroke-linecap="round"/>
     </g>
   </defs>
 
