@@ -151,6 +151,84 @@ if [[ -f go.mod && ${GO_FILE_COUNT} -gt 0 ]]; then
   run_gate FAIL "go test -race" go test -race ./...
 fi
 
+# ─── dependency review (CI parity: vulnerabilities + scorecards) ─────────────
+# CI's dependency-review action scans every go.mod (nested tool modules
+# included) for known vulnerabilities and OpenSSF Scorecards below the repo
+# threshold on changed deps. Mirror it locally: module-level govulncheck per
+# module (reachability-independent — vulnerable versions FAIL like CI), and a
+# scorecard sweep over every module's direct deps (WARN). Kept in sync with
+# tui-base tools/local_verify.sh.
+SCORECARD_THRESHOLD="${SCORECARD_THRESHOLD:-3.0}"
+
+# resolve_scorecard_repo maps a Go module path to the github.com/{owner}/{repo}
+# slug the scorecard API understands: native GitHub paths and golang.org/x/*
+# directly, other vanity hosts through their go-import meta tag (best effort).
+resolve_scorecard_repo() {
+  local mod="$1"
+  case "$mod" in
+    github.com/*)
+      echo "$mod" | cut -d/ -f1-3
+      ;;
+    golang.org/x/*)
+      echo "github.com/golang/$(echo "${mod#golang.org/x/}" | cut -d/ -f1)"
+      ;;
+    *)
+      # Best effort: failures just produce an empty slug -> "skip" below.
+      curl -fsS --max-time 10 "https://${mod}?go-get=1" 2>/dev/null \
+        | sed -n 's|.*go-import[^>]*https://\(github\.com/[^" ]*\).*|\1|p' \
+        | head -1 | sed 's|\.git$||' | cut -d/ -f1-3 || true
+      ;;
+  esac
+  return 0
+}
+
+vulncheck_module() {
+  # govulncheck loads the current-directory package even for module scans,
+  # so run from the module's first package dir (module roots without .go
+  # files — like snap's — error out otherwise).
+  local dir="$1" pkgdir
+  pkgdir=$( (cd "$dir" && go list -f '{{.Dir}}' ./... 2>/dev/null | head -1) || true)
+  [[ -z "$pkgdir" ]] && pkgdir="$dir"
+  (cd "$pkgdir" && govulncheck -scan module)
+}
+
+if command -v govulncheck >/dev/null 2>&1; then
+  while IFS= read -r modfile; do
+    moddir=$(dirname "$modfile")
+    run_gate FAIL "govulncheck -scan module (${moddir})" vulncheck_module "$moddir"
+
+    echo "==> OpenSSF Scorecards (${moddir} direct deps, threshold ${SCORECARD_THRESHOLD})"
+    while IFS= read -r dep; do
+      repo=$(resolve_scorecard_repo "$dep")
+      if [[ -z "$repo" ]]; then
+        echo "    skip  $dep (no GitHub mapping for scorecard)"
+        continue
+      fi
+      # The aggregate "score" field precedes the per-check scores in the
+      # response, so the first match is the overall scorecard.
+      score=$(curl -fsS --max-time 10 "https://api.securityscorecards.dev/projects/${repo}" \
+        2>/dev/null | grep -o '"score":-\?[0-9.]*' | head -1 | cut -d: -f2 || true)
+      if [[ -z "$score" ]]; then
+        echo "    skip  $dep (no scorecard data for $repo)"
+        continue
+      fi
+      if awk -v s="$score" -v t="$SCORECARD_THRESHOLD" 'BEGIN{exit !(s<t)}'; then
+        echo "    WARN  $dep scores $score (< $SCORECARD_THRESHOLD)"
+        WARNINGS+=("scorecard: ${moddir} ${dep} scores ${score} (< ${SCORECARD_THRESHOLD}) — CI dependency review flags this")
+      else
+        echo "    ok    $dep ($score)"
+      fi
+    done < <(cd "$moddir" && awk '
+      /^require \(/ {inreq=1; next}
+      inreq && /^\)/ {inreq=0; next}
+      inreq && !/\/\/ indirect/ && NF >= 2 {print $1}
+      /^require [^(]/ && !/\/\/ indirect/ {print $2}
+    ' go.mod)
+  done < <(git ls-files | grep -E '(^|/)go\.mod$')
+else
+  warn_missing "govulncheck" "go install golang.org/x/vuln/cmd/govulncheck@latest"
+fi
+
 # ─── Summary ─────────────────────────────────────────────────────────────────
 echo
 if [[ ${#WARNINGS[@]} -gt 0 ]]; then

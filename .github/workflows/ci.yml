@@ -184,3 +184,36 @@ jobs:
         uses: ludeeus/action-shellcheck@2.0.0
         with:
           scandir: './'
+
+  dependency-review:
+    name: Dependency Review (PR)
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@v7
+      - name: Dependency review
+        uses: actions/dependency-review-action@v5
+
+  govulncheck:
+    name: govulncheck
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: '1.26.x'
+      - name: Install govulncheck
+        run: go install golang.org/x/vuln/cmd/govulncheck@v1.5.0
+      - name: Run govulncheck (main module, call graph)
+        run: govulncheck ./...
+      - name: Run govulncheck (all modules, module level)
+        run: |
+          git ls-files | grep -E '(^|/)go\.mod$' | while read -r modfile; do
+            moddir=$(dirname "$modfile")
+            echo "==> $moddir"
+            (cd "$moddir" && govulncheck -scan module)
+          done
