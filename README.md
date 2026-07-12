@@ -1,5 +1,7 @@
 # Snap
 
+![snap — ready-to-snap Bubble Tea components](assets/banner.svg)
+
 **Jarvis Friends Snap** — ready-to-use, production-minded Bubble Tea v2
 components ("snaps") extracted from
 [tui-base](https://github.com/jarvisfriends/tui-base): navigation, tables,
