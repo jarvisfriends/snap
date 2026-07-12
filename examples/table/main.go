@@ -80,7 +80,7 @@ func (a *demoApp) onMouse(mm tea.MouseMsg) tea.Cmd {
 }
 
 func (a *demoApp) View() tea.View {
-	frame := a.status + "\n" + a.tbl.View(styles.Active(), 1)
+	frame := a.tbl.View(styles.Active(), 1) + "\n\n" + a.status
 	v := tea.NewView(frame)
 	v.MouseMode = uifx.LevelMedium.MouseMode()
 	v.AltScreen = true

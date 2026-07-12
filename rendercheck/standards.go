@@ -25,19 +25,7 @@ func CheckCodeStandards(t *testing.T, patterns ...string) {
 		Tests: false,
 	}
 
-	pkgs, err := packages.Load(cfg, patterns...)
-	if err != nil {
-		t.Fatalf("Failed to load packages: %v", err)
-	}
-
-	for _, pkg := range pkgs {
-		if len(pkg.Errors) > 0 {
-			for _, e := range pkg.Errors {
-				t.Logf("skipping package %s due to load error: %v", pkg.PkgPath, e)
-			}
-			continue
-		}
-
+	for _, pkg := range loadConformancePackages(t, cfg, patterns) {
 		uiPkg := isUIPackage(pkg)
 		if uiPkg {
 			checkFrameSizeGuesses(t, pkg)
@@ -184,6 +172,147 @@ func checkLayoutCalculations(
 	}
 	checkStringsCountNewline(t, pkg, path, call)
 	checkLenOnString(t, pkg, path, ancestors, call)
+	checkSprintfBytePadding(t, pkg, path, call)
+	checkJoinNewline(t, pkg, path, call)
+	checkRepeatSpaceConcat(t, pkg, path, ancestors, call)
+}
+
+// pkgStrings is the strings package's identifier name, used (like
+// builtinLen) to spot strings.* calls by AST inspection.
+const pkgStrings = "strings"
+
+// sprintfPadVerbRE matches a printf verb that pads a string-ish argument to a
+// fixed WIDTH IN BYTES (a width flag on %s/%q/%v, e.g. "%-9s", "%10s",
+// "%8.8v"). Byte padding only equals terminal-cell padding for plain ASCII,
+// so any such verb in rendered output silently misaligns the first time the
+// content carries a multi-byte, wide, or zero-width rune. Numeric verbs
+// (%02d, %3.0f, %02x) are content-independent and stay allowed.
+var sprintfPadVerbRE = regexp.MustCompile(`%[-+ #0]*\d+(\.\d+)?[sqv]`)
+
+// formatHasBytePadding reports whether a printf format string literal (still
+// quoted, as it appears in source) contains a width-flagged string verb.
+func formatHasBytePadding(quotedFormat string) bool {
+	return sprintfPadVerbRE.MatchString(quotedFormat)
+}
+
+// checkSprintfBytePadding flags fmt.Sprintf/Fprintf/Appendf calls in UI
+// packages whose format string pads a string verb by bytes. The lipgloss
+// equivalents pad by cells: lipgloss.PlaceHorizontal(w, pos, s) or
+// lipgloss.NewStyle().Width(w).Render(s).
+func checkSprintfBytePadding(t *testing.T, pkg *packages.Package, path string, call *ast.CallExpr) {
+	t.Helper()
+	sel, ok := call.Fun.(*ast.SelectorExpr)
+	if !ok {
+		return
+	}
+	id, ok := sel.X.(*ast.Ident)
+	if !ok || id.Name != "fmt" {
+		return
+	}
+	var formatArg int
+	switch sel.Sel.Name {
+	case "Sprintf":
+		formatArg = 0
+	case "Fprintf", "Appendf":
+		formatArg = 1
+	default:
+		return
+	}
+	if formatArg >= len(call.Args) {
+		return
+	}
+	lit, ok := call.Args[formatArg].(*ast.BasicLit)
+	if !ok || lit.Kind != token.STRING || !formatHasBytePadding(lit.Value) {
+		return
+	}
+	pos := pkg.Fset.Position(call.Pos())
+	t.Errorf(
+		"%s:%d: fmt.%s pads a string verb by bytes (%s) — use lipgloss.PlaceHorizontal or Style.Width for cell-width padding",
+		path, pos.Line, sel.Sel.Name, lit.Value,
+	)
+}
+
+// checkJoinNewline flags strings.Join with a newline separator in UI
+// packages: stacking rendered lines is lipgloss.JoinVertical's job (it also
+// normalizes block widths), and hand-joined newlines are how misaligned
+// frames sneak in.
+func checkJoinNewline(t *testing.T, pkg *packages.Package, path string, call *ast.CallExpr) {
+	t.Helper()
+	sel, ok := call.Fun.(*ast.SelectorExpr)
+	if !ok {
+		return
+	}
+	id, ok := sel.X.(*ast.Ident)
+	if !ok || id.Name != pkgStrings || sel.Sel.Name != "Join" || len(call.Args) != 2 {
+		return
+	}
+	lit, ok := call.Args[1].(*ast.BasicLit)
+	if !ok || lit.Kind != token.STRING || !containsEscapedNewline(lit.Value) {
+		return
+	}
+	pos := pkg.Fset.Position(call.Pos())
+	t.Errorf(
+		"%s:%d: Use lipgloss.JoinVertical(lipgloss.Left, rows...) instead of strings.Join(rows, %s)",
+		path, pos.Line, lit.Value,
+	)
+}
+
+// containsEscapedNewline reports whether a string literal's source text (still
+// quoted/escaped) contains a newline, in either escape or raw-string form.
+func containsEscapedNewline(quoted string) bool {
+	return strings.Contains(quoted, `\n`) || strings.Contains(quoted, "\n")
+}
+
+// checkRepeatSpaceConcat flags strings.Repeat(" ", n) whose result is
+// concatenated onto other content — a hand-built alignment gap. Repeating a
+// space to produce a standalone blank line/fill is fine (and not flagged);
+// gaps between blocks belong to lipgloss.PlaceHorizontal, Style.Width, or a
+// padded style, which pad by cells and can carry the background style.
+func checkRepeatSpaceConcat(
+	t *testing.T,
+	pkg *packages.Package,
+	path string,
+	ancestors []ast.Node,
+	call *ast.CallExpr,
+) {
+	t.Helper()
+	sel, ok := call.Fun.(*ast.SelectorExpr)
+	if !ok {
+		return
+	}
+	id, ok := sel.X.(*ast.Ident)
+	if !ok || id.Name != pkgStrings || sel.Sel.Name != "Repeat" || len(call.Args) != 2 {
+		return
+	}
+	lit, ok := call.Args[0].(*ast.BasicLit)
+	if !ok || lit.Kind != token.STRING || lit.Value != `" "` {
+		return
+	}
+	if !concatenatedWithContent(ancestors) {
+		return
+	}
+	pos := pkg.Fset.Position(call.Pos())
+	t.Errorf(
+		"%s:%d: strings.Repeat(\" \", …) concatenated as an alignment gap — use lipgloss.PlaceHorizontal / Style.Width instead of space runs",
+		path, pos.Line,
+	)
+}
+
+// concatenatedWithContent reports whether the node under inspection sits
+// inside a string concatenation (an enclosing binary +), walking out through
+// parentheses only.
+func concatenatedWithContent(ancestors []ast.Node) bool {
+	for _, a := range slices.Backward(ancestors) {
+		switch p := a.(type) {
+		case *ast.ParenExpr:
+			continue
+		case *ast.BinaryExpr:
+			return p.Op == token.ADD
+		default:
+			return false
+		}
+	}
+	return false
 }
 
 // checkFrameSizeGuesses flags hardcoded integer arithmetic against a
@@ -374,7 +503,7 @@ func checkStringsCountNewline(
 		return
 	}
 	id, ok := sel.X.(*ast.Ident)
-	if !ok || id.Name != "strings" || sel.Sel.Name != "Count" {
+	if !ok || id.Name != pkgStrings || sel.Sel.Name != "Count" {
 		return
 	}
 	if len(call.Args) == 2 {
@@ -577,19 +706,7 @@ func CheckDescriptiveStructNames(t *testing.T, patterns ...string) {
 		Tests: false,
 	}
 
-	pkgs, err := packages.Load(cfg, patterns...)
-	if err != nil {
-		t.Fatalf("Failed to load packages: %v", err)
-	}
-
-	for _, pkg := range pkgs {
-		if len(pkg.Errors) > 0 {
-			for _, e := range pkg.Errors {
-				t.Logf("skipping package %s due to load error: %v", pkg.PkgPath, e)
-			}
-			continue
-		}
-
+	for _, pkg := range loadConformancePackages(t, cfg, patterns) {
 		for _, file := range pkg.Syntax {
 			filename := pkg.Fset.Position(file.Pos()).Filename
 			ast.Inspect(file, func(n ast.Node) bool {
