@@ -1,7 +1,6 @@
 package charts
 
 import (
-	"fmt"
 	"image/color"
 	"maps"
 	"sort"
@@ -191,9 +190,7 @@ func BrailleSankeyChart(flows []SankeyFlow, charW, charH int) string {
 				r /= float64(totalCount)
 				g /= float64(totalCount)
 				b /= float64(totalCount)
-				// color.Color RGBA returns 0-65535, we convert back to 0-255
-				hexColor := fmt.Sprintf("#%02x%02x%02x", int(r/257.0), int(g/257.0), int(b/257.0))
-				style = style.Foreground(lipgloss.Color(hexColor))
+				style = style.Foreground(lipgloss.Color(hexRGB(r, g, b)))
 			}
 
 			sb.WriteString(style.Render(string(rune(runeVal))))

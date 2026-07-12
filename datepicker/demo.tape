@@ -7,7 +7,7 @@ Set WindowBarSize 60
 Output datepicker/demo.gif
 Set FontSize 36
 Set Width 1200
-Set Height 760
+Set Height 860
 Set TypingSpeed 60ms
 Type "./examples/datepicker/demo-bin"
 Enter

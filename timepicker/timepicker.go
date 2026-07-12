@@ -1,7 +1,7 @@
 package timepicker
 
 import (
-	"fmt"
+	"strconv"
 	"time"
 
 	"charm.land/bubbles/v2/key"
@@ -10,6 +10,15 @@ import (
 
 	"github.com/jarvisfriends/snap/uifx"
 )
+
+// pad2 renders v as two digits ("07") — the pickers' fixed two-cell value
+// columns — without printf byte padding.
+func pad2(v int) string {
+	if v >= 0 && v < 10 {
+		return "0" + strconv.Itoa(v)
+	}
+	return strconv.Itoa(v)
+}
 
 type Field int
 
@@ -222,9 +231,9 @@ func (m *TimePickerModel) View() tea.View {
 	minutes := int64(m.Duration.Minutes()) % 60
 	seconds := int64(m.Duration.Seconds()) % 60
 
-	hStr := fmt.Sprintf("%02dh", hours)
-	mStr := fmt.Sprintf("%02dm", minutes)
-	sStr := fmt.Sprintf("%02ds", seconds)
+	hStr := pad2(int(hours)) + "h"
+	mStr := pad2(int(minutes)) + "m"
+	sStr := pad2(int(seconds)) + "s"
 
 	styleFor := func(f Field) lipgloss.Style {
 		if m.Focused == f {
@@ -260,7 +269,7 @@ func (m *TimePickerModel) View() tea.View {
 	layers := make([]*lipgloss.Layer, 0, len(cells))
 	for i, c := range cells {
 		layers = append(layers,
-			lipgloss.NewLayer(c).ID(fmt.Sprintf("%s%d", zoneRow, i)).X(x).Y(titleH))
+			lipgloss.NewLayer(c).ID(zoneRow+strconv.Itoa(i)).X(x).Y(titleH))
 		x += lipgloss.Width(c)
 	}
 	m.zones = uifx.NewZones(layers...)

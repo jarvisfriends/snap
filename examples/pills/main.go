@@ -6,7 +6,6 @@ package main
 import (
 	"fmt"
 	"os"
-	"strings"
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
@@ -58,37 +57,40 @@ func (a *demoApp) onMouse(mm tea.MouseMsg) tea.Cmd {
 	return nil
 }
 
+// nameColW is the name column's cell width: the two-cell cursor gutter plus
+// the widest shape name and its Nerd Font marker. Style.Width pads by
+// terminal cells, so the badges align for any label content.
+const nameColW = 11
+
 func (a *demoApp) shapeRow(shape styles.PillShape, selected bool) string {
 	st := styles.PillStyles{Shape: shape}
 	label := shape.DisplayName()
 	if shape.NeedsNerdFont() {
 		label += "*"
 	}
-	name := fmt.Sprintf("  %-9s", label)
+	nameStyle := lipgloss.NewStyle().Width(nameColW)
+	name := nameStyle.Render("  " + label)
 	if selected {
-		name = lipgloss.NewStyle().Bold(true).Foreground(cBlue).Render("▶ " + name[2:])
+		name = nameStyle.Bold(true).Foreground(cBlue).Render("▶ " + label)
 	}
-	badges := strings.Join([]string{
+	badges := lipgloss.JoinHorizontal(lipgloss.Left,
 		styles.Pill("Go", nil, cBlue, st),
 		styles.Pill("v0.1.5", nil, cMauve, st),
 		styles.Pill("passing", nil, cGreen, st),
-	}, " ")
+	)
 	segmented := styles.SegmentedPill([]styles.PillSegment{
 		{Text: " master ", Bg: cBlue},
 		{Text: " +2 ", Bg: cGreen},
 		{Text: " ~1 ", Bg: cPeach},
 		{Text: " !3 ", Bg: cRed},
 	}, st)
-	return name + "  " + badges + "   " + segmented
+	return lipgloss.JoinHorizontal(lipgloss.Left, name, badges, segmented)
 }
 
 func (a *demoApp) View() tea.View {
 	dim := lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
 
 	rows := make([]string, 0, len(a.shapes)+6)
-	rows = append(rows,
-		dim.Render("←/→ or wheel select shape — * needs a Nerd Font — q quits"),
-		"")
 	for i, shape := range a.shapes {
 		rows = append(rows, a.shapeRow(shape, i == a.sel))
 	}
@@ -104,13 +106,19 @@ func (a *demoApp) View() tea.View {
 		nav = append(nav, styles.Pill(label, nil, fill, st))
 	}
 	crumbs := styles.Breadcrumbs([]string{"home", "projects", "snap"}, dim, st)
+	navRow := lipgloss.JoinHorizontal(lipgloss.Top,
+		lipgloss.NewStyle().PaddingLeft(2).Render(lipgloss.JoinHorizontal(lipgloss.Top, nav...)),
+		lipgloss.NewStyle().PaddingLeft(4).Render(crumbs),
+	)
 	rows = append(rows,
 		"",
-		dim.Render(fmt.Sprintf("nav + breadcrumbs (%s):", sel.DisplayName())),
-		"  "+strings.Join(nav, " ")+"    "+crumbs,
+		dim.Render("nav + breadcrumbs ("+sel.DisplayName()+"):"),
+		navRow,
+		"",
+		dim.Render("←/→ or wheel select shape — * needs a Nerd Font — q quits"),
 	)
 
-	v := tea.NewView(strings.Join(rows, "\n"))
+	v := tea.NewView(lipgloss.JoinVertical(lipgloss.Left, rows...))
 	v.MouseMode = tea.MouseModeCellMotion
 	v.AltScreen = true
 	v.OnMouse = a.onMouse

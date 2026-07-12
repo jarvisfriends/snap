@@ -54,10 +54,16 @@ func RenderStatusBarStyled(width int, left, right string, colorIndex int) string
 	lw := lipgloss.Width(left)
 	rw := lipgloss.Width(right)
 
-	// Ensure at least one space between the two sides.
+	// Right-align the right segment across the remaining cells (at least one
+	// so the sides never touch); PlaceHorizontal's styled whitespace keeps
+	// the bar's background unbroken — no hand-built space filler.
 	gap := max(width-lw-rw, 1)
-	filler := strings.Repeat(" ", gap)
-	return s.Render(left + filler + right)
+	return s.Render(left) + lipgloss.PlaceHorizontal(
+		gap+rw,
+		lipgloss.Right,
+		s.Render(right),
+		lipgloss.WithWhitespaceStyle(s),
+	)
 }
 
 // CommonKeyMap provides a small set of common key bindings used across views.

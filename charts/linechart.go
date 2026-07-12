@@ -1,7 +1,6 @@
 package charts
 
 import (
-	"fmt"
 	"image/color"
 	"math"
 	"strings"
@@ -168,6 +167,19 @@ func blendSeriesColors(series []LineSeries, counts []int) color.Color {
 	r /= float64(total)
 	g /= float64(total)
 	b /= float64(total)
-	// RGBA components are 0–65535; scale back to 0–255 for the hex form.
-	return lipgloss.Color(fmt.Sprintf("#%02x%02x%02x", int(r/257.0), int(g/257.0), int(b/257.0)))
+	return lipgloss.Color(hexRGB(r, g, b))
+}
+
+// hexRGB formats blended 0–65535 RGBA components as a "#rrggbb" string
+// (scaled back to 0–255). Shared by the line chart's and sankey's cell
+// color blending.
+func hexRGB(r, g, b float64) string {
+	const digits = "0123456789abcdef"
+	buf := [7]byte{'#'}
+	for i, v := range [3]int{int(r / 257.0), int(g / 257.0), int(b / 257.0)} {
+		v = min(max(v, 0), 255)
+		buf[1+i*2] = digits[v>>4]
+		buf[2+i*2] = digits[v&0xf]
+	}
+	return string(buf[:])
 }

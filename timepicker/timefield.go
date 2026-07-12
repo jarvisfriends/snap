@@ -1,7 +1,6 @@
 package timepicker
 
 import (
-	"fmt"
 	"strconv"
 	"strings"
 	"time"
@@ -437,9 +436,10 @@ func (m *TimeFieldModel) handleWheel(me tea.Mouse) tea.Cmd {
 // the focused column.
 func (m *TimeFieldModel) displayValue(s Side) string {
 	if s == m.Focused && m.typed != "" {
-		return fmt.Sprintf("%2s", m.typed)
+		// Right-align the 1-2 typed digits in the two-cell column.
+		return lipgloss.PlaceHorizontal(2, lipgloss.Right, m.typed)
 	}
-	return fmt.Sprintf("%02d", m.value(s))
+	return pad2(m.value(s))
 }
 
 // onMouse is the View.OnMouse entry point: mouse events dispatch straight to
@@ -526,7 +526,7 @@ func (m *TimeFieldModel) renderDropdown(cellH, indent int) (string, []*lipgloss.
 		case m.Effects.Hover() && v == m.hoverRow:
 			st = m.RowStyle.Underline(true)
 		}
-		rows = append(rows, st.Render(fmt.Sprintf("%02d", v)))
+		rows = append(rows, st.Render(pad2(v)))
 	}
 	list := m.ListStyle.Render(lipgloss.JoinVertical(lipgloss.Left, rows...))
 
@@ -535,7 +535,7 @@ func (m *TimeFieldModel) renderDropdown(cellH, indent int) (string, []*lipgloss.
 	rowLayers := make([]*lipgloss.Layer, 0, len(rows))
 	for i, r := range rows {
 		rowLayers = append(rowLayers,
-			lipgloss.NewLayer(r).ID(fmt.Sprintf("%s%d", zoneRow, i)).
+			lipgloss.NewLayer(r).ID(zoneRow+strconv.Itoa(i)).
 				X(indent+1).Y(cellH+1+i))
 	}
 	if indent > 0 {

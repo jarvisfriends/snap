@@ -3,7 +3,6 @@
 package datepicker
 
 import (
-	"fmt"
 	"strconv"
 	"strings"
 	"time"
@@ -14,6 +13,15 @@ import (
 
 	"github.com/jarvisfriends/snap/uifx"
 )
+
+// pad2 renders v as two digits ("07") — the calendar's fixed two-cell day
+// column — without printf byte padding.
+func pad2(v int) string {
+	if v >= 0 && v < 10 {
+		return "0" + strconv.Itoa(v)
+	}
+	return strconv.Itoa(v)
+}
 
 // Focus is a value passed to `model.SetFocus` to indicate what component
 // controls should be available.
@@ -84,7 +92,7 @@ func DefaultStyles() Styles {
 	// TODO: refactor for adaptive colors
 	r := lipgloss.NewStyle()
 	return Styles{
-		Header:       r.Padding(1, 0, 0),
+		Header:       r.Padding(0, 0, 0),
 		Date:         r.Padding(0, 1, 1),
 		HeaderText:   r.Bold(true),
 		Text:         r.Foreground(lipgloss.Color("247")),
@@ -385,7 +393,7 @@ func (m *DatePickerModel) View() tea.View {
 		tYear = m.Styles.HeaderText.Render(tYear)
 	}
 
-	title := m.Styles.Header.Render(fmt.Sprintf("%s %s\n", tMonth, tYear))
+	title := m.Styles.Header.Render(tMonth + " " + tYear + "\n")
 
 	// get all the dates of the current month
 	firstDayOfTheMonth := time.Date(year, month, 1, 0, 0, 0, 0, time.UTC)
@@ -427,7 +435,7 @@ func (m *DatePickerModel) View() tea.View {
 		out := "  "
 		cellDate := time.Time{}
 		if day.Month() == month {
-			out = fmt.Sprintf("%02d", day.Day())
+			out = pad2(day.Day())
 			cellDate = day
 		}
 

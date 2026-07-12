@@ -1,7 +1,7 @@
 package navigation
 
 import (
-	"fmt"
+	"strconv"
 	"unicode/utf8"
 
 	"charm.land/bubbles/v2/key"
@@ -83,7 +83,7 @@ func (m *MinimalTopNav) selectCmd() tea.Cmd {
 
 func (m *MinimalTopNav) label(i int, title string) string {
 	if m.ShowNumbers {
-		return fmt.Sprintf("%d:%s", i+1, title)
+		return strconv.Itoa(i+1) + ":" + title
 	}
 	return title
 }

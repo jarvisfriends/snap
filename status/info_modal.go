@@ -1,7 +1,7 @@
 package status
 
 import (
-	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/jarvisfriends/snap/dependencies"
@@ -267,16 +267,15 @@ func (m *InfoModal) buildInfoLines(
 	if info.VCS.Modified != nil && *info.VCS.Modified {
 		modified = " (modified)"
 	}
-	lines = append(lines, dimStyle.Render(fmt.Sprintf(
-		"  Go: %-10s  OS: %s/%s  CPUs: %d",
-		info.GoVersion, info.Runtime.GOOS, info.Runtime.GOARCH, info.Runtime.CPUs,
-	)))
-	// "Executable", st.Launch.Executable,
-	// "Args", fmt.Sprintf("%v", st.Launch.Args),
-	// "Work Dir", st.Launch.WorkDir,
-	// "User@Host", fmt.Sprintf("%s@%s", st.Launch.Username, st.Launch.Hostname),
+	// Go version padded to a fixed cell width (not printf byte padding) so
+	// the OS column lines up across renders.
+	lines = append(lines, dimStyle.Render(
+		"  Go: "+lipgloss.PlaceHorizontal(10, lipgloss.Left, info.GoVersion)+
+			"  OS: "+info.Runtime.GOOS+"/"+info.Runtime.GOARCH+
+			"  CPUs: "+strconv.Itoa(info.Runtime.CPUs),
+	))
 	if rev != "" {
-		lines = append(lines, dimStyle.Render(fmt.Sprintf("  Rev: %s%s%s", rev, builtAt, modified)))
+		lines = append(lines, dimStyle.Render("  Rev: "+rev+builtAt+modified))
 	}
 	// Package column padded by display cells (A-5): fmt's %-50s pads by
 	// bytes, which misaligns the Version column for any non-ASCII path.
@@ -288,7 +287,7 @@ func (m *InfoModal) buildInfoLines(
 		accentStyle.Render(
 			"  Dependencies",
 		)+dimStyle.Render(
-			fmt.Sprintf("  (total: %d)", len(info.Dependencies)),
+			"  (total: "+strconv.Itoa(len(info.Dependencies))+")",
 		),
 		mutedStyle.Render("  "+pkgCell.Render("Package")+"  Version"),
 	)
@@ -377,7 +376,7 @@ func (m *InfoModal) View() (content tea.View) {
 	// Scroll percentage badge shown when the content overflows.
 	scrollBadge := ""
 	if m.vp.TotalLineCount() > m.vp.VisibleLineCount() {
-		scrollBadge = fmt.Sprintf("  %d%%", int(m.vp.ScrollPercent()*100))
+		scrollBadge = "  " + strconv.Itoa(int(m.vp.ScrollPercent()*100)) + "%"
 	}
 	footerText := "↑/↓ • PgUp/PgDn • Esc or click outside to close" + scrollBadge
 	footerLine := lipgloss.PlaceHorizontal(vpW, lipgloss.Center, mutedStyle.Render(footerText))

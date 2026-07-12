@@ -7,7 +7,7 @@ Set WindowBarSize 60
 Output examples/charts/demo.gif
 Set FontSize 28
 Set Width 1400
-Set Height 800
+Set Height 700
 Set TypingSpeed 60ms
 Type "./examples/charts/demo-bin"
 Enter

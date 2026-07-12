@@ -4,7 +4,6 @@ package dependencies
 
 import (
 	"cmp"
-	"fmt"
 	"runtime"
 	"runtime/debug"
 	"slices"
@@ -60,11 +59,7 @@ func Dependencies() []Dependency {
 		}
 
 		if dep.Replace != nil {
-			d.Replace = fmt.Sprintf(
-				"%s@%s",
-				dep.Replace.Path,
-				dep.Replace.Version,
-			)
+			d.Replace = dep.Replace.Path + "@" + dep.Replace.Version
 		}
 
 		out = append(out, d)

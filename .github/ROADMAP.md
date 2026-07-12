@@ -161,6 +161,39 @@ match; gifs pending a Docker-equipped machine (`go -C tools/rendertapes
 run .`). VHS has no mouse-click/drag commands, so scrollbar click/drag and
 InfoModal outside-click stay keyboard-demoed in tapes.
 
+## Byte-vs-cell string hygiene sweep (2026-07-11)
+
+Removed every byte-based string operation from render paths, repo-wide
+(started from examples/pills' `%-9s` + `name[2:]`):
+
+- **No `fmt.Sprintf` outside rendercheck's failure messages.** Byte-padded
+  verbs became lipgloss cell padding (`PlaceHorizontal`/`Style.Width`);
+  value formatting became `strconv` + concatenation; `%02d` became local
+  `pad2` helpers (datepicker, timepicker); the triplicated `#%02x%02x%02x`
+  hex builders became fmt-free helpers (`charts.hexRGB`, `styles.ColorHex`).
+- **`strings.Join(rows, "\n")` → `lipgloss.JoinVertical`** everywhere
+  (menu.Render's builder loop, scrollbar ×2, status bar rows, notification
+  history, menu/scrollbar examples).
+- **Space-run gaps → lipgloss.** status-bar and table footers now
+  right-align via `PlaceHorizontal` (styled whitespace, so backgrounds run
+  unbroken); the overlay slide-in indent is `PaddingLeft`; example gaps are
+  `Width(n)` blank blocks.
+- Kept, deliberately: `strings.Split(x, "\n")` for *parsing* rendered
+  output (table border scan, rendercheck helpers — no lipgloss equivalent);
+  non-newline `strings.Join` on data (key lists, "; " paths, " • "
+  segments); `strings.Repeat` of non-space glyphs ("─" rules, "·" fill) and
+  standalone blank fills (sparkline) — all cell-safe.
+
+Enforcement (rendercheck, UI packages = imports lipgloss/bubbletea):
+`checkSprintfBytePadding` (width-flagged %s/%q/%v), `checkJoinNewline`,
+and `checkRepeatSpaceConcat` (space runs concatenated as gaps) joined the
+existing len()-as-width and strings.Count checks — and snap now runs
+`CheckCodeStandards` on its own whole module
+(`rendercheck.TestSnapMeetsOwnCodeStandards`), which immediately caught the
+menu KeyMap's vim fallbacks (removed; hosts rebind). tui-base picks the new
+checks up automatically at the next tag flip; its tree may need the same
+sweep before it goes green.
+
 ## Repo sweep for forgotten snaps (2026-07-10)
 
 Swept: `w`, `anvil`, `verify_setup`, `weaver_base`, `brick-breaker`,

@@ -7,7 +7,7 @@ package main
 import (
 	"fmt"
 	"os"
-	"strings"
+	"strconv"
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
@@ -82,22 +82,27 @@ func (a *demoApp) View() tea.View {
 	visible := a.visible()
 	dim := lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
 
+	// Line numbers right-align in a fixed cell-width column via lipgloss —
+	// no printf byte padding.
+	numStyle := lipgloss.NewStyle().Width(4).Align(lipgloss.Right)
 	lines := make([]string, 0, visible)
 	for i := a.offset; i < min(a.offset+visible, totalLines); i++ {
 		marker := "  "
 		if i%10 == 0 {
 			marker = "──"
 		}
-		lines = append(lines, fmt.Sprintf(" %3d %s scrolling content", i+1, dim.Render(marker)))
+		lines = append(lines, lipgloss.JoinHorizontal(lipgloss.Top,
+			numStyle.Render(strconv.Itoa(i+1)), " ", dim.Render(marker), " scrolling content"))
 	}
-	content := strings.Join(lines, "\n")
+	content := lipgloss.JoinVertical(lipgloss.Left, lines...)
 
 	bar := func(p scrollbar.Preset) string {
 		st := scrollbar.DefaultStyles()
 		st.Preset = p
 		return scrollbar.Vertical(totalLines, visible, a.offset, visible, st)
 	}
-	gap := strings.Repeat(" ", 2)
+	// A two-cell blank block between columns — a lipgloss gap, not spaces.
+	gap := lipgloss.NewStyle().Width(2).Render("")
 	body := lipgloss.JoinHorizontal(lipgloss.Top,
 		content, gap,
 		bar(scrollbar.PresetSmooth), gap,
@@ -108,8 +113,8 @@ func (a *demoApp) View() tea.View {
 	// (1-col bar + 2-col gap); onMouse hit-tests against these columns.
 	contentW := lipgloss.Width(content)
 	a.barCols = [3]int{contentW + 2, contentW + 5, contentW + 8}
-	header := dim.Render("wheel/↑↓/PgUp/PgDn scroll · click/drag a bar — smooth · line · classic — q quits")
-	v := tea.NewView(lipgloss.JoinVertical(lipgloss.Left, header, body))
+	footer := dim.Render("wheel/↑↓/PgUp/PgDn scroll · click/drag a bar — smooth · line · classic — q quits")
+	v := tea.NewView(lipgloss.JoinVertical(lipgloss.Left, body, footer))
 	v.MouseMode = tea.MouseModeCellMotion
 	v.AltScreen = true
 	v.OnMouse = a.onMouse

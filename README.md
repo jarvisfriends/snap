@@ -141,6 +141,14 @@ windows+linux, shellcheck, markdownlint, go vet, `go test -race`, and a
 dependency review (module-level vulnerability scan plus OpenSSF Scorecards
 on direct dependencies).
 
+The test suite also runs `rendercheck.CheckCodeStandards` over the whole
+module: display text is measured and padded in terminal cells, never bytes.
+Concretely — no `len()` on display strings (use `lipgloss.Width`), no
+printf width-padding of string verbs like `%-9s` (use
+`lipgloss.PlaceHorizontal` / `Style.Width`), no `strings.Join(rows, "\n")`
+(use `lipgloss.JoinVertical`), and no space-run gaps concatenated for
+alignment (use `PlaceHorizontal` or a `Width`/padded style).
+
 Consumers pin tagged releases; for cross-repo development against an
 application, use a `go.work` file locally and keep `replace` directives out
 of committed `go.mod` files.

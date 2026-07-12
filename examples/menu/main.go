@@ -6,6 +6,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
@@ -64,7 +65,7 @@ func (a *demoApp) onMouse(mm tea.MouseMsg) tea.Cmd {
 	}
 	if click, ok := mm.(tea.MouseClickMsg); ok && click.Button == tea.MouseRight {
 		me := click.Mouse()
-		a.menu.Open(me.X, me.Y, items(), fmt.Sprintf("cell %d,%d", me.X, me.Y))
+		a.menu.Open(me.X, me.Y, items(), "cell "+strconv.Itoa(me.X)+","+strconv.Itoa(me.Y))
 	}
 	return nil
 }
@@ -72,14 +73,12 @@ func (a *demoApp) onMouse(mm tea.MouseMsg) tea.Cmd {
 func (a *demoApp) View() tea.View {
 	dim := lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
 	line := dim.Render(strings.Repeat("·", max(a.w, 1)))
-	rows := make([]string, max(a.h-2, 1))
-	for i := range rows {
-		rows[i] = line
+	rows := make([]string, 0, max(a.h-1, 2))
+	for range max(a.h-2, 1) {
+		rows = append(rows, line)
 	}
-	base := lipgloss.JoinVertical(lipgloss.Left,
-		"right-click (or m) opens the menu — q quits   "+a.status,
-		strings.Join(rows, "\n"),
-	)
+	rows = append(rows, "right-click (or m) opens the menu — q quits   "+a.status)
+	base := lipgloss.JoinVertical(lipgloss.Left, rows...)
 	v := tea.NewView(a.menu.Composite(base, a.w, a.h))
 	v.MouseMode = tea.MouseModeCellMotion
 	v.AltScreen = true
