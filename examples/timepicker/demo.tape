@@ -6,6 +6,7 @@
 Set WindowBar Colorful
 Set WindowBarSize 60
 Output examples/timepicker/demo.gif
+Set FontFamily "JetBrainsMono Nerd Font"
 Set FontSize 36
 Set Width 1200
 Set Height 800

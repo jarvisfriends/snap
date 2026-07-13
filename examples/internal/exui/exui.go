@@ -19,6 +19,8 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strings"
+	"sync"
 
 	"charm.land/bubbles/v2/help"
 	"charm.land/bubbles/v2/key"
@@ -26,12 +28,33 @@ import (
 	"charm.land/lipgloss/v2"
 
 	"github.com/jarvisfriends/snap/status"
+	"github.com/jarvisfriends/snap/styles"
 )
 
 var noHelp = flag.Bool("no-help", false, "hide the status/help bar (script mode)")
 
 // Init parses the shared example flags. Call it first in main.
 func Init() { flag.Parse() }
+
+// themeTint is the palette every example renders with: Catppuccin Macchiato,
+// whose deep blue base keeps the demos off the terminal-default black and
+// gives every component the same injected colors.
+const themeTint = "catppuccin_macchiato"
+
+var themeOnce sync.Once
+
+// Theme returns the shared example palette. Every example passes it into the
+// components it mounts (they are theme-free with injected style hooks) and
+// paints its root view background from Theme().Bg, so the whole demo — page,
+// components, status bar — agrees on one background.
+func Theme() *styles.AppStyle {
+	themeOnce.Do(func() {
+		// Best-effort: SetCurrentTint initializes the tint registry; an
+		// unknown id falls back to styles' default palette.
+		_ = styles.SetCurrentTint(themeTint)
+	})
+	return styles.Active()
+}
 
 // Bindings adapts a flat binding list to the help.KeyMap the status bar
 // consumes: everything on one short-help line.
@@ -61,7 +84,9 @@ type Chrome struct {
 // NewChrome builds the bar for the given bindings (shown left-to-right).
 // Call after Init so --no-help has been parsed.
 func NewChrome(bindings ...key.Binding) *Chrome {
+	t := Theme() // select the shared tint before the bar snapshots styles
 	c := &Chrome{bar: status.New(), hidden: *noHelp}
+	c.bar.SetColors(t)
 	c.bar.SetPageBindings(Bindings(bindings))
 	return c
 }
@@ -95,14 +120,30 @@ func (c *Chrome) View() string {
 
 // Attach stacks the bar under the example's content: content fills the top,
 // the bar sits on the terminal's bottom line (matching how apps mount the
-// snap status bar), unless hidden.
+// snap status bar), unless hidden. Content taller than the window is clipped
+// so the bar can never be pushed off screen.
 func (c *Chrome) Attach(content string, termH int) string {
 	if c == nil || c.hidden {
 		return content
 	}
+	if avail := termH - 1; avail > 0 && lipgloss.Height(content) > avail {
+		lines := strings.Split(content, "\n")
+		content = lipgloss.JoinVertical(lipgloss.Left, lines[:avail]...)
+	}
 	gap := max(termH-lipgloss.Height(content)-1, 0)
 	block := lipgloss.NewStyle().Height(lipgloss.Height(content) + gap).Render(content)
 	return lipgloss.JoinVertical(lipgloss.Left, block, c.View())
+}
+
+// Apply is the one-call frame finisher every example uses: it stacks the
+// help bar under v's content and paints the shared theme's background and
+// foreground onto the root view, so no demo renders on terminal-default
+// black and every unstyled cell agrees with the injected component styles.
+func (c *Chrome) Apply(v *tea.View, termH int) {
+	v.SetContent(c.Attach(v.Content, termH))
+	t := Theme()
+	v.BackgroundColor = t.Bg
+	v.ForegroundColor = t.Fg
 }
 
 // Program builds the example's tea.Program rendering on stderr, keeping

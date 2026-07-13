@@ -76,13 +76,14 @@ func (a demoApp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		// Split the window: two sparkline rows up top, pie beside sankey
 		// below, one bar across the bottom. Each chart stretches to the
-		// space it is given.
+		// space it is given; the pie/sankey body takes every row the fixed
+		// lines (2 sparklines, 1 legend, 1 hbar, the help bar) don't.
 		a.height = msg.Height
 		a.chrome.SetWidth(msg.Width)
 		half := max(msg.Width/2, 10)
 		a.cpu.SetSize(msg.Width-8, 1)
 		a.mem.SetSize(msg.Width-8, 1)
-		bodyH := max(msg.Height-8, 6)
+		bodyH := max(msg.Height-4-a.chrome.Height(), 8)
 		a.pie.SetSize(half-2, bodyH)
 		a.sankey.SetSize(msg.Width-half-2, bodyH)
 		a.disk.SetSize(msg.Width-8, 1)
@@ -119,6 +120,9 @@ func (a demoApp) View() tea.View {
 	}
 
 	// Legend for pie slices folded into "Other" (rendered after pie.View()).
+	// The legend line is padded to the pie column's full width so its text
+	// coming and going never changes the column width — otherwise the sankey
+	// next to it visibly jumps sideways whenever thin slices fold or unfold.
 	pieFrame := a.pie.View().Content
 	legend := ""
 	if combined := a.pie.Combined(); len(combined) > 0 {
@@ -128,20 +132,23 @@ func (a demoApp) View() tea.View {
 		}
 		legend = "Other: " + strings.Join(labels, ", ")
 	}
+	pieW := max(lipgloss.Width(pieFrame), 1)
+	legendLine := lipgloss.NewStyle().Foreground(lipgloss.Color("240")).
+		Width(pieW).MaxWidth(pieW).Render(legend)
 
 	body := lipgloss.JoinHorizontal(lipgloss.Top,
-		lipgloss.JoinVertical(lipgloss.Left, pieFrame,
-			lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Render(legend)),
+		lipgloss.JoinVertical(lipgloss.Left, pieFrame, legendLine),
 		"  ",
 		a.sankey.View().Content,
 	)
 
-	v := tea.NewView(a.chrome.Attach(lipgloss.JoinVertical(lipgloss.Left,
+	v := tea.NewView(lipgloss.JoinVertical(lipgloss.Left,
 		row("cpu", a.cpu.View().Content),
 		row("mem", a.mem.View().Content),
 		body,
 		row("disk", a.disk.View().Content),
-	), a.height))
+	))
+	a.chrome.Apply(&v, a.height)
 	v.AltScreen = true
 	return v
 }

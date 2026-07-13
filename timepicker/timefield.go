@@ -62,6 +62,10 @@ func DefaultTimeFieldKeyMap() TimeFieldKeyMap {
 type TimeFieldModel struct {
 	// ShowSeconds adds a third seconds column. Set it before the first View.
 	ShowSeconds bool
+	// HideHelp suppresses the field's built-in key-hint line (shown while no
+	// dropdown is open). Hosts that surface the field's keys in their own
+	// help/status bar set this so the hints aren't shown twice.
+	HideHelp bool
 
 	// base carries the date (and location) the clock values are applied to,
 	// so Time() round-trips the full timestamp handed to NewTimeField or
@@ -497,7 +501,7 @@ func (m *TimeFieldModel) View() tea.View {
 		drop, rowLayers := m.renderDropdown(cellH, openX)
 		parts = append(parts, drop)
 		layers = append(layers, rowLayers...)
-	} else {
+	} else if !m.HideHelp {
 		parts = append(parts, m.HelpStyle.Render("type/↑↓ set • space/click list • enter save"))
 	}
 	m.zones = uifx.NewZones(layers...)

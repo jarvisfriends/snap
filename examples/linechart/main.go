@@ -92,8 +92,8 @@ func (a *demoApp) View() tea.View {
 	// the joined frame wider than the chart.
 	dim := lipgloss.NewStyle().Foreground(lipgloss.Color("240")).MaxWidth(max(a.w, 1))
 	header := dim.Render("braille line chart — 2x4 dots per cell, blended overlaps")
-	v := tea.NewView(a.chrome.Attach(
-		lipgloss.JoinVertical(lipgloss.Left, header, a.chart.View().Content), a.h))
+	v := tea.NewView(lipgloss.JoinVertical(lipgloss.Left, header, a.chart.View().Content))
+	a.chrome.Apply(&v, a.h)
 	v.AltScreen = true
 	return v
 }

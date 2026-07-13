@@ -129,6 +129,12 @@ var _ help.KeyMap = (*KeyMap)(nil)
 type TableModel struct {
 	KeyMap KeyMap
 
+	// HideFooterHint suppresses the footer's right-aligned key-hint text
+	// (the cursor/total, sort, and live-filter readouts stay). Hosts that
+	// surface the table's keys in their own help/status bar set this so the
+	// hints aren't shown twice.
+	HideFooterHint bool
+
 	// bt does the rendering, pagination, highlight, and filter input.
 	// Sorting stays here in the wrapper: bubble-table compares raw data
 	// values, so it cannot sort a Num cell by magnitude while displaying
@@ -572,7 +578,7 @@ func (m *TableModel) footer(c *styles.AppStyle, w int) string {
 		right = "/" + filter + "▏"
 	case filter != "":
 		right = "filter: " + filter + " (esc clears) "
-	default:
+	case !m.HideFooterHint:
 		right = "s/click header: sort · enter/double-click: details · / filter "
 	}
 

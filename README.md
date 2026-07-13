@@ -153,10 +153,12 @@ hosts forward events, no hit-testing.
 
 ![forms demo](examples/forms/demo.gif)
 
-`snap/forms`' parse-and-validate helpers driving a live form: field-naming
-errors appear as you type and flip to parsed values (`ParseRequired`,
-`ParseDuration`, `ParseISODate`), and `SplitAndClean` turns a messy
-comma-list into clean tags.
+`snap/forms` extending [huh](https://github.com/charmbracelet/huh), not
+replacing it: a plain `huh.Form` whose fields validate through
+`forms.HuhValidate(ParseRequired/ParseDuration/ParseISODate)` — the parser's
+field-naming errors appear inline under each field — and the same parsers
+produce the typed values on submit (`SplitAndClean` turns the messy tag list
+into clean tags).
 
 ### Pills
 

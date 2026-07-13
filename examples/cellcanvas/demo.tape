@@ -6,6 +6,7 @@
 Set WindowBar Colorful
 Set WindowBarSize 60
 Output examples/cellcanvas/demo.gif
+Set FontFamily "JetBrainsMono Nerd Font"
 Set FontSize 28
 Set Width 1400
 Set Height 850

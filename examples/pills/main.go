@@ -70,10 +70,22 @@ func (a *demoApp) onMouse(mm tea.MouseMsg) tea.Cmd {
 	return nil
 }
 
-// nameColW is the name column's cell width: the two-cell cursor gutter plus
-// the widest shape name and its Nerd Font marker. Style.Width pads by
-// terminal cells, so the badges align for any label content.
-const nameColW = 11
+// Column cell widths. Every cell is centered in its column so the gallery
+// reads as a table: name | Go | version | passing | segmented status pill.
+// Widths are sized to the widest shape's rendering (Fade's two-cell caps).
+// Style.Width/Align pad by terminal cells, so alignment survives any glyphs.
+const (
+	nameColW    = 12
+	goColW      = 10
+	versionColW = 12
+	passColW    = 13
+	segColW     = 28
+)
+
+// colCell centers content within a fixed-width column.
+func colCell(content string, w int) string {
+	return lipgloss.PlaceHorizontal(w, lipgloss.Center, content)
+}
 
 func (a *demoApp) shapeRow(shape styles.PillShape, selected bool) string {
 	st := styles.PillStyles{Shape: shape}
@@ -81,23 +93,23 @@ func (a *demoApp) shapeRow(shape styles.PillShape, selected bool) string {
 	if shape.NeedsNerdFont() {
 		label += "*"
 	}
-	nameStyle := lipgloss.NewStyle().Width(nameColW)
-	name := nameStyle.Render("  " + label)
+	name := label
 	if selected {
-		name = nameStyle.Bold(true).Foreground(cBlue).Render("▶ " + label)
+		name = lipgloss.NewStyle().Bold(true).Foreground(cBlue).Render("▶ " + label)
 	}
-	badges := lipgloss.JoinHorizontal(lipgloss.Left,
-		styles.Pill("Go", nil, cBlue, st),
-		styles.Pill("v0.1.5", nil, cMauve, st),
-		styles.Pill("passing", nil, cGreen, st),
-	)
 	segmented := styles.SegmentedPill([]styles.PillSegment{
 		{Text: " master ", Bg: cBlue},
 		{Text: " +2 ", Bg: cGreen},
 		{Text: " ~1 ", Bg: cPeach},
 		{Text: " !3 ", Bg: cRed},
 	}, st)
-	return lipgloss.JoinHorizontal(lipgloss.Left, name, badges, segmented)
+	return lipgloss.JoinHorizontal(lipgloss.Left,
+		colCell(name, nameColW),
+		colCell(styles.Pill("Go", nil, cBlue, st), goColW),
+		colCell(styles.Pill("v0.1.5", nil, cMauve, st), versionColW),
+		colCell(styles.Pill("passing", nil, cGreen, st), passColW),
+		colCell(segmented, segColW),
+	)
 }
 
 func (a *demoApp) View() tea.View {
@@ -129,7 +141,8 @@ func (a *demoApp) View() tea.View {
 		navRow,
 	)
 
-	v := tea.NewView(a.chrome.Attach(lipgloss.JoinVertical(lipgloss.Left, rows...), a.h))
+	v := tea.NewView(lipgloss.JoinVertical(lipgloss.Left, rows...))
+	a.chrome.Apply(&v, a.h)
 	v.MouseMode = tea.MouseModeCellMotion
 	v.AltScreen = true
 	v.OnMouse = a.onMouse

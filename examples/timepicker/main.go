@@ -25,6 +25,9 @@ type demoApp struct {
 func newDemo(start time.Time) demoApp {
 	tf := timepicker.NewTimeField(start)
 	tf.ShowSeconds = true
+	// The status bar below carries the key hints; the field's own help line
+	// would show the same thing twice.
+	tf.HideHelp = true
 	return demoApp{
 		tf: tf,
 		chrome: exui.NewChrome(
@@ -66,7 +69,7 @@ func (a demoApp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 // bar on the terminal's bottom line under the field.
 func (a demoApp) View() tea.View {
 	v := a.tf.View()
-	v.SetContent(a.chrome.Attach(v.Content, a.height))
+	a.chrome.Apply(&v, a.height)
 	v.MouseMode = tea.MouseModeCellMotion
 	v.AltScreen = true
 	return v

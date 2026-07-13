@@ -96,7 +96,8 @@ func (a *demoApp) View() tea.View {
 		rows = append(rows, line)
 	}
 	base := lipgloss.JoinVertical(lipgloss.Left, rows...)
-	v := tea.NewView(a.chrome.Attach(a.menu.Composite(base, a.w, paneH), a.h))
+	v := tea.NewView(a.menu.Composite(base, a.w, paneH))
+	a.chrome.Apply(&v, a.h)
 	v.MouseMode = tea.MouseModeCellMotion
 	v.AltScreen = true
 	v.OnMouse = a.onMouse

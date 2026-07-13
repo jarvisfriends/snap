@@ -95,7 +95,8 @@ func (a *demoApp) View() tea.View {
 		).Render()
 	}
 
-	v := tea.NewView(a.chrome.Attach(content, a.h))
+	v := tea.NewView(content)
+	a.chrome.Apply(&v, a.h)
 	v.AltScreen = true
 	v.MouseMode = tea.MouseModeCellMotion
 	v.OnMouse = a.onMouse

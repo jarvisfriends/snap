@@ -117,7 +117,8 @@ func (a *demoApp) View() tea.View {
 	contentW := lipgloss.Width(content)
 	a.barCols = [3]int{contentW + 2, contentW + 5, contentW + 8}
 	labels := dim.Render("bars: smooth · line · classic")
-	v := tea.NewView(a.chrome.Attach(lipgloss.JoinVertical(lipgloss.Left, body, labels), a.h))
+	v := tea.NewView(lipgloss.JoinVertical(lipgloss.Left, body, labels))
+	a.chrome.Apply(&v, a.h)
 	v.MouseMode = tea.MouseModeCellMotion
 	v.AltScreen = true
 	v.OnMouse = a.onMouse

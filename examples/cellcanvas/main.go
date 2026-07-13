@@ -95,7 +95,8 @@ func (a *demoApp) View() tea.View {
 	if a.canvas != nil {
 		body = a.canvas.String()
 	}
-	v := tea.NewView(a.chrome.Attach(lipgloss.JoinVertical(lipgloss.Left, header, body), a.termH))
+	v := tea.NewView(lipgloss.JoinVertical(lipgloss.Left, header, body))
+	a.chrome.Apply(&v, a.termH)
 	v.AltScreen = true
 	return v
 }

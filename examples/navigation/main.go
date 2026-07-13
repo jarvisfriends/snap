@@ -15,6 +15,7 @@ import (
 
 	"github.com/jarvisfriends/snap/examples/internal/exui"
 	"github.com/jarvisfriends/snap/navigation"
+	"github.com/jarvisfriends/snap/styles"
 )
 
 // demoPages is the page set every navigator style shows.
@@ -31,15 +32,20 @@ func demoPages() []navigation.Page {
 // navStyles builds the three navigators sharing one page set; the active
 // index carries over when the user swaps styles.
 func navStyles() []navigation.Navigator {
-	styles := []navigation.Navigator{
+	top := navigation.NewMinimalTopNav()
+	// The rendered gif's font is a Nerd Font, so the top nav can use the
+	// seamless Powerline slant; the default (PillDiagonal) renders the same
+	// pattern in plain Unicode everywhere else.
+	top.PillShape = styles.PillSlant
+	navs := []navigation.Navigator{
 		navigation.New(), // sidebar (docks left)
 		navigation.NewTabs(),
-		navigation.NewMinimalTopNav(),
+		top,
 	}
-	for _, n := range styles {
+	for _, n := range navs {
 		n.SetPages(demoPages())
 	}
-	return styles
+	return navs
 }
 
 var styleNames = []string{"Sidebar", "Tabs", "MinimalTopNav"}
@@ -141,7 +147,8 @@ func (a *demoApp) View() tea.View {
 			nv.Content, a.body(a.w, availH-nav.Height()))
 	}
 
-	v := tea.NewView(a.chrome.Attach(content, a.h))
+	v := tea.NewView(content)
+	a.chrome.Apply(&v, a.h)
 	v.AltScreen = true
 	v.MouseMode = tea.MouseModeCellMotion
 	// The navigator hit-tests its own rendered region; it sits at the frame

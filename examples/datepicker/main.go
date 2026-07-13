@@ -42,7 +42,17 @@ func (a demoApp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		a.height = msg.Height
 		a.chrome.SetWidth(msg.Width)
-		return a, nil
+		// Fall through to the component so it sizes itself to the window
+		// (minus the help bar) — otherwise its natural height can collide
+		// with the bar row on short terminals.
+		m, cmd := a.dp.Update(tea.WindowSizeMsg{
+			Width:  msg.Width,
+			Height: max(msg.Height-a.chrome.Height(), 1),
+		})
+		if dp, ok := m.(*datepicker.DatePickerModel); ok {
+			a.dp = dp
+		}
+		return a, cmd
 	case tea.MouseMsg:
 		// Mouse events reach the component through the root view's OnMouse
 		// (Bubble Tea delivers the raw event to BOTH OnMouse and Update);
@@ -67,7 +77,7 @@ func (a demoApp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 // bar on the terminal's bottom line under the calendar.
 func (a demoApp) View() tea.View {
 	v := a.dp.View()
-	v.SetContent(a.chrome.Attach(v.Content, a.height))
+	a.chrome.Apply(&v, a.height)
 	v.MouseMode = tea.MouseModeCellMotion
 	v.AltScreen = true
 	return v

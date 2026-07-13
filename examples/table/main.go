@@ -11,7 +11,6 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/jarvisfriends/snap/examples/internal/exui"
-	"github.com/jarvisfriends/snap/styles"
 	"github.com/jarvisfriends/snap/table"
 	"github.com/jarvisfriends/snap/uifx"
 )
@@ -30,6 +29,9 @@ func newDemo() *demoApp {
 		{Title: "P99 ms"},
 		{Title: "Errors"},
 	})
+	// The status bar below carries the key hints; the table footer's own
+	// hint text would show the same thing twice.
+	t.HideFooterHint = true
 	t.SetRows([]table.Row{
 		{Key: "api", Cells: []table.Cell{table.Text("api"), table.Text("us-east"), table.Num("41", 41), table.Num("3", 3)}},
 		{Key: "web", Cells: []table.Cell{table.Text("web"), table.Text("us-east"), table.Num("120", 120), table.Num("0", 0)}},
@@ -93,7 +95,8 @@ func (a *demoApp) onMouse(mm tea.MouseMsg) tea.Cmd {
 }
 
 func (a *demoApp) View() tea.View {
-	v := tea.NewView(a.chrome.Attach(a.tbl.View(styles.Active(), 0), a.h))
+	v := tea.NewView(a.tbl.View(exui.Theme(), 0))
+	a.chrome.Apply(&v, a.h)
 	v.MouseMode = uifx.LevelMedium.MouseMode()
 	v.AltScreen = true
 	v.OnMouse = a.onMouse

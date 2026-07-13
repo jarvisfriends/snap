@@ -26,8 +26,12 @@ type demoApp struct {
 }
 
 func newDemo(root string) demoApp {
+	dp := pickers.NewDirPicker(root)
+	// The status bar below carries the key hints; the picker's own help
+	// line would show the same thing twice.
+	dp.HideHelp = true
 	return demoApp{
-		dp: pickers.NewDirPicker(root),
+		dp: dp,
 		chrome: exui.NewChrome(
 			exui.Bind("↑/↓", "move"),
 			exui.Bind("←/→", "close/open"),
@@ -62,7 +66,7 @@ func (a demoApp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (a demoApp) View() tea.View {
 	v := a.dp.View()
-	v.SetContent(a.chrome.Attach(v.Content, a.height))
+	a.chrome.Apply(&v, a.height)
 	v.MouseMode = uifx.LevelMedium.MouseMode()
 	v.AltScreen = true
 	return v

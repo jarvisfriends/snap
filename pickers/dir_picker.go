@@ -108,6 +108,11 @@ type DirPicker struct {
 	// LevelMedium and above.
 	Effects uifx.Level
 
+	// HideHelp suppresses the picker's built-in key-hint line. Hosts that
+	// surface the picker's KeyMap in their own help/status bar set this so
+	// the hints aren't shown twice.
+	HideHelp bool
+
 	// Mouse hit-zone geometry recorded during View: the y of the first
 	// visible row and the list width. Row i on screen is entries[scrollTop+i].
 	rowsTopY  int
@@ -418,13 +423,15 @@ func (m *DirPicker) View() tea.View {
 		}
 	}
 
-	help := dimStyle.MarginTop(1).Render(fitLine(
-		"↑/↓: Navigate • Enter/→: Open • ←: Up • Space: Select • Ctrl+S: Select This Folder • Esc: Cancel",
-		maxW,
-	))
-
 	body := lipgloss.JoinVertical(lipgloss.Left, rows...)
-	content := lipgloss.JoinVertical(lipgloss.Left, title, current, body, help)
+	content := lipgloss.JoinVertical(lipgloss.Left, title, current, body)
+	if !m.HideHelp {
+		help := dimStyle.MarginTop(1).Render(fitLine(
+			"↑/↓: Navigate • Enter/→: Open • ←: Up • Space: Select • Ctrl+S: Select This Folder • Esc: Cancel",
+			maxW,
+		))
+		content = lipgloss.JoinVertical(lipgloss.Left, content, help)
+	}
 
 	// Record the row hit zones for the mouse handlers: rows start under the
 	// title and location lines.
