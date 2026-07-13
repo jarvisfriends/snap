@@ -6,8 +6,6 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
-
-	"github.com/jarvisfriends/snap/datepicker"
 )
 
 // TestDemoFlowSelectsAndQuits drives the demo app the way the VHS tape does:
@@ -25,7 +23,7 @@ func asDemo(t *testing.T, m tea.Model) demoApp {
 func TestDemoFlowSelectsAndQuits(t *testing.T) {
 	t.Parallel()
 
-	a := demoApp{dp: datepicker.New(time.Date(2026, 7, 9, 0, 0, 0, 0, time.UTC))}
+	a := newDemo(time.Date(2026, 7, 9, 0, 0, 0, 0, time.UTC))
 	view := a.View().Content
 	if !strings.Contains(view, "09") {
 		t.Fatalf("calendar missing the initial day:\n%s", view)
@@ -51,7 +49,7 @@ func TestDemoFlowSelectsAndQuits(t *testing.T) {
 func TestDemoEnablesMouse(t *testing.T) {
 	t.Parallel()
 
-	a := demoApp{dp: datepicker.New(time.Now())}
+	a := newDemo(time.Now())
 	v := a.View()
 	if v.MouseMode != tea.MouseModeCellMotion {
 		t.Fatalf("demo root view MouseMode = %v; want cell motion", v.MouseMode)
@@ -68,7 +66,7 @@ func TestDemoEnablesMouse(t *testing.T) {
 func TestDemoDoesNotDoubleProcessMouse(t *testing.T) {
 	t.Parallel()
 
-	a := demoApp{dp: datepicker.New(time.Date(2026, 7, 9, 0, 0, 0, 0, time.UTC))}
+	a := newDemo(time.Date(2026, 7, 9, 0, 0, 0, 0, time.UTC))
 	_ = a.View()
 	before := a.dp.Time
 	m, cmd := a.Update(tea.MouseClickMsg{X: 5, Y: 5, Button: tea.MouseLeft})

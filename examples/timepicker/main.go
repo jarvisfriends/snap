@@ -1,26 +1,55 @@
-// Command timefield demos snap/timepicker's TimeFieldModel (used by the VHS tape).
+// Command timepicker is a script-usable time prompt built on snap/timepicker:
+// confirm a time and HH:MM:SS is written to stdout (the TUI itself renders on
+// stderr), so a shell can capture it:
+//
+//	when=$(go run ./examples/timepicker)
+//
+// --no-help hides the status bar. Canceling (esc) prints nothing, exit 1.
 package main
 
 import (
-	"fmt"
-	"os"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/jarvisfriends/snap/examples/internal/exui"
 	"github.com/jarvisfriends/snap/timepicker"
 )
 
-type demoApp struct{ tf *timepicker.TimeFieldModel }
+type demoApp struct {
+	tf     *timepicker.TimeFieldModel
+	chrome *exui.Chrome
+	height int
+}
+
+func newDemo(start time.Time) demoApp {
+	tf := timepicker.NewTimeField(start)
+	tf.ShowSeconds = true
+	return demoApp{
+		tf: tf,
+		chrome: exui.NewChrome(
+			exui.Bind("←/→", "column"),
+			exui.Bind("↑/↓", "spin"),
+			exui.Bind("0-9", "type"),
+			exui.Bind("space", "dropdown"),
+			exui.Bind("enter", "confirm"),
+			exui.Bind("esc", "cancel"),
+		),
+	}
+}
 
 func (a demoApp) Init() tea.Cmd { return a.tf.Init() }
 
 func (a demoApp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	// Mouse events reach the component through the root view's OnMouse
-	// (Bubble Tea delivers the raw event to BOTH OnMouse and Update);
-	// forwarding them here too would double-process every click — the first
-	// click would highlight AND select.
-	if _, isMouse := msg.(tea.MouseMsg); isMouse {
+	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		a.height = msg.Height
+		a.chrome.SetWidth(msg.Width)
+		return a, nil
+	case tea.MouseMsg:
+		// Mouse events reach the component through the root view's OnMouse
+		// (Bubble Tea delivers the raw event to BOTH OnMouse and Update);
+		// forwarding them here too would double-process every click.
 		return a, nil
 	}
 	m, cmd := a.tf.Update(msg)
@@ -33,31 +62,24 @@ func (a demoApp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return a, cmd
 }
 
-// View enables mouse reporting on the root view — in Bubble Tea v2 the
-// terminal only sends mouse events when the root view asks for them, so
-// without this the component's OnMouse never fires.
+// View enables mouse reporting on the root view and stacks the shared help
+// bar on the terminal's bottom line under the field.
 func (a demoApp) View() tea.View {
 	v := a.tf.View()
+	v.SetContent(a.chrome.Attach(v.Content, a.height))
 	v.MouseMode = tea.MouseModeCellMotion
-	// AltScreen gives the demo the whole window: rendered inline (the
-	// default), the content is pinned to the prompt line and the tall VHS
-	// window stays empty — the "Height not showing up" symptom.
 	v.AltScreen = true
 	return v
 }
 
 func main() {
-	tf := timepicker.NewTimeField(time.Date(2026, 7, 10, 8, 30, 45, 0, time.Local))
-	tf.ShowSeconds = true
-	app := demoApp{tf: tf}
-	final, err := tea.NewProgram(app).Run()
+	exui.Init()
+	final, err := exui.Program(newDemo(time.Date(2026, 7, 10, 8, 30, 45, 0, time.Local))).Run()
 	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+		exui.Fatal(err)
 	}
-	// Print the confirmed time after the alt-screen restores, so the choice
-	// stays visible in the console (and the VHS tape captures a clean exit).
 	if a, ok := final.(demoApp); ok && a.tf.Done {
-		fmt.Printf("Selected: %s\n", a.tf.Time().Format("15:04:05"))
+		exui.Finish(true, a.tf.Time().Format("15:04:05"))
 	}
+	exui.Finish(false)
 }

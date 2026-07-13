@@ -1,6 +1,62 @@
 
 # Tasks to update
 
+## Chart library adoption: ntcharts + asciigraph (2026-07-11)
+
+Evaluated github.com/NimbleMarkets/ntcharts (v2.2.0 — targets charm.land v2;
+its go.mod replaces bubbletea with a fork "awaiting upstream merges", which
+does NOT propagate to consumers but is worth re-checking at upgrades) and
+github.com/guptarohit/asciigraph (v0.10.0, zero-dep ASCII plots with axes).
+
+Duplicates removed:
+
+- **snap `charts/canvas.go` (braille pixel canvas) — deleted.**
+  `BrailleLineChart` now plots through ntcharts' `canvas` + `canvas/graph`
+  primitives (BrailleGrid per series → dot patterns merged onto one canvas;
+  interpolated segments replace the old vertical-run fill). Same signature,
+  window, NaN gaps, and scale reporting; per-cell multi-series color
+  *blending* was the one lost feature (overlap cells now take the later
+  series' color — dot patterns still merge).
+- **dash `creator/{charts,canvas,linechart}.go` — deleted** (the original
+  copies snap was extracted from). creator now re-exports snap/charts via
+  aliases; the game's pixel canvas became `examples/gamecanvas.go` on
+  ntcharts primitives (SetPixel/Line/ThickLine/Text preserved).
+
+Kept, deliberately (not duplicates):
+
+- **Sparkline** — ntcharts sparklines have no directional coloring; snap's
+  braille-up/down styles color glyphs green/red by value direction and dash
+  exposes the style names in settings. Feature superset stays ours.
+- **Pie, Sankey, HBar, CellCanvas+Gradient** — no ntcharts/asciigraph
+  equivalent (sankey keeps per-cell color blending via its own hexRGB).
+
+Available to dash now (direct deps in dash go.mod): the full ntcharts option
+surface — barchart (grouped/horizontal), heatmap, linechart with axes/tick
+labels/mouse zones, OHLC candlesticks, streamline/timeseries/waveline
+variants, canvas/graph primitives (wired: examples/gamecanvas.go) — and all
+asciigraph options (height/width/bounds/precision/series colors/legends/
+captions; wired: the gallery's asciigraph section).
+
+## Tape coverage scan (2026-07-11)
+
+Swept every package for demoable capabilities without a tape. Four new
+examples (each with a tape and a render_check test that drives the same flow
+headlessly): `examples/dependencies` (the build-info reader rendered by
+status.InfoModal — wheel scroll + click-outside via its HandleMouse),
+`examples/linechart` (the one chart model the charts demo didn't show:
+braille 2x4 dots, per-cell blend, rolling stream), `examples/cellcanvas`
+(CellCanvas + Gradient truecolor plasma, two pixels per cell via '▀'), and
+`examples/forms` (live parse-and-validate with field-naming errors).
+README gallery updated; gifs pending a Docker-equipped machine
+(`go -C tools/rendertapes run .`).
+
+Deliberately not taped: navigation/status-bar/notification toasts (demoed
+host-shaped in tui-base, decided 2026-07-10); gate (no visual surface —
+worth revisiting if a settings page ever renders it); osc (writes to the
+terminal's taskbar/tab, which a gif can't capture); winterm (registry
+repair); geom/keys/layout/page/uifx/rendercheck (infrastructure);
+logging (placeholder).
+
 ## Overall
 - [x] ~~Height issue~~ Fixed 2026-07-10: demo roots render inline by default, pinning content to the prompt line — they now set AltScreen. (The empty gifs had a second cause: the vhs container has no Go toolchain, so in-tape `go build` failed; rendertapes now cross-compiles demo binaries on the host.)
 - [x] Done 2026-07-10: `tools/rendertapes` (own module) renders all tapes through the official vhs container via the Docker/Podman Go client, worker pool = NumCPU.
@@ -278,7 +334,7 @@ Swept: `w`, `anvil`, `verify_setup`, `weaver_base`, `brick-breaker`,
 
 | Source | Snap home | Why it can't be removed yet |
 | --- | --- | --- |
-| dash `creator/charts.go` (+ canvas/linechart) | `charts/` | dash isn't flipped to depend on snap yet — same tag-then-flip flow as tui-base (snap PR + v0.1.x tag first). |
+| ~~dash `creator/charts.go` (+ canvas/linechart)~~ | `charts/` | **Flipped 2026-07-11**: dash's creator is now type/func aliases over snap/charts; its braille game canvas re-ported onto ntcharts canvas/graph primitives (examples/gamecanvas.go). |
 | weaver_base `gate.go`/`registry.go`/`feature.go` | `gate/` | weaver_base lives on the work Bitbucket network; it can't pull public GitHub modules until its module proxy allows it (or snap is mirrored internally). |
 | tui-base `theme/` (alias shim over `snap/styles`) | `styles/` | Kept intentionally as compat aliases until downstream apps migrate their imports. |
 | tui-base settings picker tests (makePickerTree/assertFrameFits copies) | `pickers/` tests | Intentional duplication: snap owns component-level tests, tui-base keeps integration coverage of the same flows. |

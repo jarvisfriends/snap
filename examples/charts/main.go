@@ -13,9 +13,7 @@
 package main
 
 import (
-	"fmt"
 	"math"
-	"os"
 	"strings"
 	"time"
 
@@ -23,6 +21,7 @@ import (
 	"charm.land/lipgloss/v2"
 
 	"github.com/jarvisfriends/snap/charts"
+	"github.com/jarvisfriends/snap/examples/internal/exui"
 )
 
 // tickMsg drives the fake metrics stream.
@@ -39,7 +38,9 @@ type demoApp struct {
 	sankey *charts.SankeyModel
 	disk   *charts.HBarModel
 
-	t float64
+	chrome *exui.Chrome
+	height int
+	t      float64
 }
 
 func newDemo() demoApp {
@@ -51,6 +52,7 @@ func newDemo() demoApp {
 		pie:    pie,
 		sankey: charts.NewSankey("traffic"),
 		disk:   charts.NewHBar("disk"),
+		chrome: exui.NewChrome(exui.Bind("any key", "quit")),
 	}
 }
 
@@ -75,6 +77,8 @@ func (a demoApp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Split the window: two sparkline rows up top, pie beside sankey
 		// below, one bar across the bottom. Each chart stretches to the
 		// space it is given.
+		a.height = msg.Height
+		a.chrome.SetWidth(msg.Width)
 		half := max(msg.Width/2, 10)
 		a.cpu.SetSize(msg.Width-8, 1)
 		a.mem.SetSize(msg.Width-8, 1)
@@ -132,20 +136,19 @@ func (a demoApp) View() tea.View {
 		a.sankey.View().Content,
 	)
 
-	v := tea.NewView(lipgloss.JoinVertical(lipgloss.Left,
+	v := tea.NewView(a.chrome.Attach(lipgloss.JoinVertical(lipgloss.Left,
 		row("cpu", a.cpu.View().Content),
 		row("mem", a.mem.View().Content),
 		body,
 		row("disk", a.disk.View().Content),
-		lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Render("any key quits"),
-	))
+	), a.height))
 	v.AltScreen = true
 	return v
 }
 
 func main() {
-	if _, err := tea.NewProgram(newDemo()).Run(); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
+	exui.Init()
+	if _, err := exui.Program(newDemo()).Run(); err != nil {
+		exui.Fatal(err)
 	}
 }

@@ -247,17 +247,24 @@ func TestMouseDoubleClickOpens(t *testing.T) {
 	}
 }
 
-// TestWheelMovesAndClamps: the wheel moves the selection a few rows and clamps
-// at both ends instead of wrapping.
+// TestWheelMovesAndClamps: the wheel moves the selection one row per notch
+// and clamps at both ends instead of wrapping.
 func TestWheelMovesAndClamps(t *testing.T) {
 	m := New(sampleCols())
 	m.SetRows(sampleRows())
 
-	m.HandleWheel(false) // down 3 from row 0 → clamped to last (index 2)
+	m.HandleWheel(false) // down 1 from row 0
+	if got := m.bt.GetHighlightedRowIndex(); got != 1 {
+		t.Fatalf("wheel down should move one row, got %d", got)
+	}
+	m.HandleWheel(false)
+	m.HandleWheel(false) // past the last row → clamped to index 2
 	if got := m.bt.GetHighlightedRowIndex(); got != 2 {
 		t.Fatalf("wheel down should clamp to last row, got %d", got)
 	}
-	m.HandleWheel(true) // up 3 from row 2 → clamped to first
+	for range 4 { // back past the first row → clamped to 0
+		m.HandleWheel(true)
+	}
 	if got := m.bt.GetHighlightedRowIndex(); got != 0 {
 		t.Fatalf("wheel up should clamp to first row, got %d", got)
 	}

@@ -233,6 +233,10 @@ func buildDemoBinaries(root string) error {
 		if err != nil || !st.IsDir() {
 			continue
 		}
+		// examples/internal holds the shared exui chrome, not a runnable demo.
+		if filepath.Base(dir) == "internal" {
+			continue
+		}
 		out := filepath.Join(dir, "demo-bin")
 		cmd := exec.Command("go", "build", "-o", out, "./"+filepath.ToSlash(mustRel(root, dir)))
 		cmd.Dir = root

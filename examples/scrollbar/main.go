@@ -1,17 +1,18 @@
 // Command scrollbar demos snap/scrollbar's three presets side by side over
 // the same scrolling text: Smooth (sub-cell glide), Line (thin default), and
 // Classic (retro blocks). Wheel or arrows scroll; clicking or dragging on
-// any bar jumps the view there (scrollbar.OffsetAt); q quits.
+// any bar jumps the view there (scrollbar.OffsetAt); q quits. It is a
+// display-only demo (no value is written to stdout); --no-help hides the
+// status bar.
 package main
 
 import (
-	"fmt"
-	"os"
 	"strconv"
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 
+	"github.com/jarvisfriends/snap/examples/internal/exui"
 	"github.com/jarvisfriends/snap/scrollbar"
 )
 
@@ -20,6 +21,7 @@ const totalLines = 120
 type demoApp struct {
 	offset int
 	w, h   int
+	chrome *exui.Chrome
 	// barCols are the screen columns of the three rendered bars, recorded by
 	// View so onMouse can hit-test clicks and drags against them.
 	barCols [3]int
@@ -27,12 +29,13 @@ type demoApp struct {
 
 func (a *demoApp) Init() tea.Cmd { return nil }
 
-func (a *demoApp) visible() int { return max(a.h-3, 4) }
+func (a *demoApp) visible() int { return max(a.h-1-a.chrome.Height(), 4) }
 
 func (a *demoApp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		a.w, a.h = msg.Width, msg.Height
+		a.chrome.SetWidth(msg.Width)
 	case tea.KeyPressMsg:
 		switch msg.String() {
 		case "up":
@@ -113,8 +116,8 @@ func (a *demoApp) View() tea.View {
 	// (1-col bar + 2-col gap); onMouse hit-tests against these columns.
 	contentW := lipgloss.Width(content)
 	a.barCols = [3]int{contentW + 2, contentW + 5, contentW + 8}
-	footer := dim.Render("wheel/↑↓/PgUp/PgDn scroll · click/drag a bar — smooth · line · classic — q quits")
-	v := tea.NewView(lipgloss.JoinVertical(lipgloss.Left, body, footer))
+	labels := dim.Render("bars: smooth · line · classic")
+	v := tea.NewView(a.chrome.Attach(lipgloss.JoinVertical(lipgloss.Left, body, labels), a.h))
 	v.MouseMode = tea.MouseModeCellMotion
 	v.AltScreen = true
 	v.OnMouse = a.onMouse
@@ -122,8 +125,14 @@ func (a *demoApp) View() tea.View {
 }
 
 func main() {
-	if _, err := tea.NewProgram(&demoApp{}).Run(); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
+	exui.Init()
+	app := &demoApp{chrome: exui.NewChrome(
+		exui.Bind("wheel/↑/↓", "scroll"),
+		exui.Bind("pgup/pgdn", "page"),
+		exui.Bind("click/drag bar", "jump"),
+		exui.Bind("q", "quit"),
+	)}
+	if _, err := exui.Program(app).Run(); err != nil {
+		exui.Fatal(err)
 	}
 }

@@ -316,11 +316,11 @@ func (m *TableModel) HandleClick(x, y int) tea.Cmd {
 	return nil
 }
 
-// HandleWheel scrolls the selection by a few rows.
+// HandleWheel scrolls the selection by one row per wheel notch.
 func (m *TableModel) HandleWheel(up bool) {
-	delta := 3
+	delta := 1
 	if up {
-		delta = -3
+		delta = -1
 	}
 	// WithHighlightedRow clamps to the visible rows and follows pages.
 	m.bt = m.bt.WithHighlightedRow(m.bt.GetHighlightedRowIndex() + delta)

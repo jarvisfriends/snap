@@ -1,15 +1,18 @@
-// Command pills demos snap/styles' pill shapes: single-color pills,
-// color-divided segmented pills, a nav strip, and breadcrumb separators in
-// every PillShape. Left/right (or the wheel) select the shape; q quits.
+// Command pills is a script-usable PillShape picker built on snap/styles:
+// every shape is previewed as pills, a segmented pill, a nav strip, and
+// breadcrumbs; Enter writes the selected shape's config value to stdout (the
+// TUI itself renders on stderr):
+//
+//	shape=$(go run ./examples/pills)
+//
+// --no-help hides the status bar. Quitting (q/esc) prints nothing, exit 1.
 package main
 
 import (
-	"fmt"
-	"os"
-
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 
+	"github.com/jarvisfriends/snap/examples/internal/exui"
 	"github.com/jarvisfriends/snap/styles"
 )
 
@@ -27,18 +30,28 @@ var (
 type demoApp struct {
 	shapes []styles.PillShape
 	sel    int
+	picked bool
+	chrome *exui.Chrome
+	w, h   int
 }
 
 func (a *demoApp) Init() tea.Cmd { return nil }
 
 func (a *demoApp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	if key, ok := msg.(tea.KeyPressMsg); ok {
-		switch key.String() {
-		case "left", "shift+tab":
+	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		a.w, a.h = msg.Width, msg.Height
+		a.chrome.SetWidth(msg.Width)
+	case tea.KeyPressMsg:
+		switch msg.String() {
+		case "left", "shift+tab", "up":
 			a.sel = (a.sel + len(a.shapes) - 1) % len(a.shapes)
-		case "right", "tab":
+		case "right", "tab", "down":
 			a.sel = (a.sel + 1) % len(a.shapes)
-		default:
+		case "enter":
+			a.picked = true
+			return a, tea.Quit
+		case "q", "esc", "ctrl+c":
 			return a, tea.Quit
 		}
 	}
@@ -114,11 +127,9 @@ func (a *demoApp) View() tea.View {
 		"",
 		dim.Render("nav + breadcrumbs ("+sel.DisplayName()+"):"),
 		navRow,
-		"",
-		dim.Render("←/→ or wheel select shape — * needs a Nerd Font — q quits"),
 	)
 
-	v := tea.NewView(lipgloss.JoinVertical(lipgloss.Left, rows...))
+	v := tea.NewView(a.chrome.Attach(lipgloss.JoinVertical(lipgloss.Left, rows...), a.h))
 	v.MouseMode = tea.MouseModeCellMotion
 	v.AltScreen = true
 	v.OnMouse = a.onMouse
@@ -126,7 +137,15 @@ func (a *demoApp) View() tea.View {
 }
 
 func main() {
-	app := &demoApp{shapes: styles.PillShapes()}
+	exui.Init()
+	app := &demoApp{
+		shapes: styles.PillShapes(),
+		chrome: exui.NewChrome(
+			exui.Bind("←/→/wheel", "shape (* needs Nerd Font)"),
+			exui.Bind("enter", "pick"),
+			exui.Bind("q", "quit"),
+		),
+	}
 	// Start on the first pure-Unicode shape so the demo (and its rendered
 	// gif, whose font has no Powerline glyphs) opens on caps that show
 	// everywhere; the Nerd Font shapes are still in the cycle.
@@ -136,8 +155,12 @@ func main() {
 			break
 		}
 	}
-	if _, err := tea.NewProgram(app).Run(); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
+	final, err := exui.Program(app).Run()
+	if err != nil {
+		exui.Fatal(err)
 	}
+	if a, ok := final.(*demoApp); ok && a.picked {
+		exui.Finish(true, string(a.shapes[a.sel]))
+	}
+	exui.Finish(false)
 }
