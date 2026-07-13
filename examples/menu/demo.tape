@@ -3,15 +3,20 @@
 # (rendertapes cross-compiles the linux demo binary and runs this tape in the
 # official vhs container; gifs are build artifacts, not diffable sources)
 Set WindowBar Colorful
+Set WindowBarSize 40
 Output examples/menu/demo.gif
+Set FontFamily "JetBrainsMono Nerd Font"
 Set FontSize 28
+Set Padding 14
 Set Width 1400
-Set Height 1100
+Set Height 800
 Set TypingSpeed 60ms
+Hide
 Type "./examples/menu/demo-bin"
 Enter
 Sleep 2s
-# open the context menu from the keyboard, walk it, choose
+Show
+# open the context menu, walk it, choose: the item ID goes to stdout
 Type "m"
 Sleep 1200ms
 Down
@@ -19,13 +24,4 @@ Sleep 700ms
 Down
 Sleep 700ms
 Enter
-Sleep 1200ms
-# again — the wheel moves the cursor too
-Type "m"
-Sleep 1s
-ScrollDown 1
-Sleep 700ms
-Enter
-Sleep 1200ms
-Type "q"
-Sleep 800ms
+Sleep 2500ms

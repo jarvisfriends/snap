@@ -1,7 +1,6 @@
 // Command rendertapes renders every component demo tape to a gif by running
-// the official VHS container (per the snap ROADMAP): rendering inside Docker
-// produces consistent output across hosts, and Windows-native vhs hangs (see
-// tui-base ROADMAP SP-15).
+// the official VHS container: rendering inside Docker produces consistent
+// output across hosts, and sidesteps a Windows-native vhs/ttyd hang.
 //
 // Tapes run in parallel on a worker pool sized to the CPU count, so large
 // tape sets finish fast without making the host unusable. The Docker Go
@@ -172,6 +171,15 @@ func renderTape(ctx context.Context, cli *client.Client, imageRef, root, relTape
 		&container.Config{
 			Image: imageRef,
 			Cmd:   []string{relTape},
+			// The VHS container's terminal advertises TERM=xterm-256color, so
+			// lipgloss downsamples the demos' true-color backgrounds to the
+			// 256-color cube — the theme base #24273a collapses to ANSI 17
+			// (#00005f), a saturated navy, which is why component panels used
+			// to render bright blue while the page (an OSC default-bg passed
+			// straight through) stayed the intended dark. COLORTERM=truecolor
+			// upgrades the profile so SGR colors match the page. It still
+			// honors NO_COLOR, so this is render-only and safe.
+			Env: []string{"COLORTERM=truecolor"},
 		},
 		&container.HostConfig{
 			Binds:      []string{root + ":/vhs"},
@@ -232,6 +240,10 @@ func buildDemoBinaries(root string) error {
 	for _, dir := range examples {
 		st, err := os.Stat(dir)
 		if err != nil || !st.IsDir() {
+			continue
+		}
+		// examples/internal holds the shared exui chrome, not a runnable demo.
+		if filepath.Base(dir) == "internal" {
 			continue
 		}
 		out := filepath.Join(dir, "demo-bin")

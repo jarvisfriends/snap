@@ -1,17 +1,18 @@
 // Command scrollbar demos snap/scrollbar's three presets side by side over
 // the same scrolling text: Smooth (sub-cell glide), Line (thin default), and
 // Classic (retro blocks). Wheel or arrows scroll; clicking or dragging on
-// any bar jumps the view there (scrollbar.OffsetAt); q quits.
+// any bar jumps the view there (scrollbar.OffsetAt); q quits. It is a
+// display-only demo (no value is written to stdout); --no-help hides the
+// status bar.
 package main
 
 import (
-	"fmt"
-	"os"
-	"strings"
+	"strconv"
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 
+	"github.com/jarvisfriends/snap/examples/internal/exui"
 	"github.com/jarvisfriends/snap/scrollbar"
 )
 
@@ -20,6 +21,7 @@ const totalLines = 120
 type demoApp struct {
 	offset int
 	w, h   int
+	chrome *exui.Chrome
 	// barCols are the screen columns of the three rendered bars, recorded by
 	// View so onMouse can hit-test clicks and drags against them.
 	barCols [3]int
@@ -27,12 +29,13 @@ type demoApp struct {
 
 func (a *demoApp) Init() tea.Cmd { return nil }
 
-func (a *demoApp) visible() int { return max(a.h-3, 4) }
+func (a *demoApp) visible() int { return max(a.h-1-a.chrome.Height(), 4) }
 
 func (a *demoApp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		a.w, a.h = msg.Width, msg.Height
+		a.chrome.SetWidth(msg.Width)
 	case tea.KeyPressMsg:
 		switch msg.String() {
 		case "up":
@@ -82,22 +85,27 @@ func (a *demoApp) View() tea.View {
 	visible := a.visible()
 	dim := lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
 
+	// Line numbers right-align in a fixed cell-width column via lipgloss —
+	// no printf byte padding.
+	numStyle := lipgloss.NewStyle().Width(4).Align(lipgloss.Right)
 	lines := make([]string, 0, visible)
 	for i := a.offset; i < min(a.offset+visible, totalLines); i++ {
 		marker := "  "
 		if i%10 == 0 {
 			marker = "──"
 		}
-		lines = append(lines, fmt.Sprintf(" %3d %s scrolling content", i+1, dim.Render(marker)))
+		lines = append(lines, lipgloss.JoinHorizontal(lipgloss.Top,
+			numStyle.Render(strconv.Itoa(i+1)), " ", dim.Render(marker), " scrolling content"))
 	}
-	content := strings.Join(lines, "\n")
+	content := lipgloss.JoinVertical(lipgloss.Left, lines...)
 
 	bar := func(p scrollbar.Preset) string {
 		st := scrollbar.DefaultStyles()
 		st.Preset = p
 		return scrollbar.Vertical(totalLines, visible, a.offset, visible, st)
 	}
-	gap := strings.Repeat(" ", 2)
+	// A two-cell blank block between columns — a lipgloss gap, not spaces.
+	gap := lipgloss.NewStyle().Width(2).Render("")
 	body := lipgloss.JoinHorizontal(lipgloss.Top,
 		content, gap,
 		bar(scrollbar.PresetSmooth), gap,
@@ -108,8 +116,9 @@ func (a *demoApp) View() tea.View {
 	// (1-col bar + 2-col gap); onMouse hit-tests against these columns.
 	contentW := lipgloss.Width(content)
 	a.barCols = [3]int{contentW + 2, contentW + 5, contentW + 8}
-	header := dim.Render("wheel/↑↓/PgUp/PgDn scroll · click/drag a bar — smooth · line · classic — q quits")
-	v := tea.NewView(lipgloss.JoinVertical(lipgloss.Left, header, body))
+	labels := dim.Render("bars: smooth · line · classic")
+	v := tea.NewView(lipgloss.JoinVertical(lipgloss.Left, body, labels))
+	a.chrome.Apply(&v, a.h)
 	v.MouseMode = tea.MouseModeCellMotion
 	v.AltScreen = true
 	v.OnMouse = a.onMouse
@@ -117,8 +126,14 @@ func (a *demoApp) View() tea.View {
 }
 
 func main() {
-	if _, err := tea.NewProgram(&demoApp{}).Run(); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
+	exui.Init()
+	app := &demoApp{chrome: exui.NewChrome(
+		exui.Bind("wheel/↑/↓", "scroll"),
+		exui.Bind("pgup/pgdn", "page"),
+		exui.Bind("click/drag bar", "jump"),
+		exui.Bind("q", "quit"),
+	)}
+	if _, err := exui.Program(app).Run(); err != nil {
+		exui.Fatal(err)
 	}
 }

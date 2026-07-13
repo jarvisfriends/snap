@@ -1,7 +1,6 @@
 package navigation
 
 import (
-	"fmt"
 	"image/color"
 	"io"
 	"strings"
@@ -69,7 +68,7 @@ func (d navDelegate) Render(w io.Writer, _ list.Model, index int, item list.Item
 			style = d.activeStyle
 		}
 	}
-	_, _ = fmt.Fprintf(w, "%s%s", prefix, style.Width(max(d.itemWidth, 1)).Render(pi.title))
+	_, _ = io.WriteString(w, prefix+style.Width(max(d.itemWidth, 1)).Render(pi.title))
 }
 
 // ─── constants ────────────────────────────────────────────────────────────────
@@ -435,7 +434,7 @@ func (m *Sidebar) renderSettingsItem(c *styles.AppStyle, innerW int) string {
 	} else {
 		style = c.Styles.NavInactive.Padding(0, 0)
 	}
-	return fmt.Sprintf("%s%s", prefix, style.Width(max(innerW-sidebarPrefixWidth, 1)).Render(title))
+	return prefix + style.Width(max(innerW-sidebarPrefixWidth, 1)).Render(title)
 }
 
 // handleMouse routes a mouse event to the correct sidebar zone.

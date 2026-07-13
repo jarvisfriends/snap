@@ -1,12 +1,12 @@
 package charts
 
 import (
-	"fmt"
 	"image/color"
 	"math"
-	"strings"
 
 	"charm.land/lipgloss/v2"
+	ntcanvas "github.com/NimbleMarkets/ntcharts/v2/canvas"
+	"github.com/NimbleMarkets/ntcharts/v2/canvas/graph"
 )
 
 // LineSeries is one line in a BrailleLineChart: a rolling history plus the
@@ -17,19 +17,18 @@ type LineSeries struct {
 	Data  []float64
 }
 
-// brailleDotBit maps a (dx, dy) pixel offset inside one braille cell (2 wide,
-// 4 tall) to its bit in the U+2800 block.
-var brailleDotBit = [2][4]int{
-	{0x01, 0x02, 0x04, 0x40},
-	{0x08, 0x10, 0x20, 0x80},
-}
-
 // BrailleLineChart renders one or more series as overlaid braille line graphs
 // sharing the same scale — ideal for transmit/receive pairs. The newest
 // sample is the rightmost column; series shorter than the window leave the
-// left edge blank. Vertical gaps between consecutive samples are filled so
-// steep changes read as lines, and cells where series overlap blend their
-// colors proportionally.
+// left edge blank. Consecutive samples are connected with interpolated
+// braille line segments, and dots from overlapping series merge within a
+// cell (the later series' color wins the cell).
+//
+// The plotting is delegated to ntcharts' braille grid + canvas primitives
+// (github.com/NimbleMarkets/ntcharts) — this wrapper keeps snap's rolling
+// right-aligned window, NaN gaps, and scale reporting. Apps that want axes,
+// tick labels, mouse zones, or the candlestick/waveline/streamline variants
+// use ntcharts' linechart packages directly.
 //
 // charW/charH are terminal cells. maxVal fixes the top of the scale; pass
 // <= 0 to auto-scale to the visible window. Returns the chart and the scale
@@ -38,7 +37,7 @@ func BrailleLineChart(series []LineSeries, charW, charH int, maxVal float64) (ch
 	if charW <= 0 || charH <= 0 {
 		return "", 0
 	}
-	pixelW, pixelH := charW*2, charH*4
+	pixelW := charW * 2 // braille cells are 2 dots wide
 
 	// Sample each series into the pixel window: last pixelW values,
 	// right-aligned, NaN where there's no data yet.
@@ -69,105 +68,38 @@ func BrailleLineChart(series []LineSeries, charW, charH int, maxVal float64) (ch
 		scale = 1
 	}
 
-	// Plot into per-cell dot masks and per-cell series hit counts.
-	dots := make([][]int, charH)
-	counts := make([][][]int, charH)
-	for cy := range dots {
-		dots[cy] = make([]int, charW)
-		counts[cy] = make([][]int, charW)
-	}
-	plot := func(si, px, py int) {
-		cx, cy := px/2, py/4
-		dots[cy][cx] |= brailleDotBit[px%2][py%4]
-		if counts[cy][cx] == nil {
-			counts[cy][cx] = make([]int, len(series))
-		}
-		counts[cy][cx][si]++
-	}
-
-	for si := range sampled {
-		prevY := -1
+	c := ntcanvas.New(charW, charH)
+	for si, s := range series {
+		// One braille grid per series: dots accumulate per grid, then merge
+		// onto the shared canvas (existing braille runes are combined, blank
+		// cells skipped) so overlapping series keep both dot patterns.
+		grid := graph.NewBrailleGrid(charW, charH, 0, float64(pixelW-1), 0, scale)
+		prev := ntcanvas.Point{X: -1, Y: -1}
+		havePrev := false
 		for px := range pixelW {
 			v := sampled[si][px]
 			if math.IsNaN(v) {
-				prevY = -1
+				havePrev = false
 				continue
 			}
-			f := min(max(v/scale, 0), 1)
-			py := pixelH - 1 - int(f*float64(pixelH-1)+0.5)
-			// Fill the vertical run to the previous sample so steep moves
-			// stay connected instead of raining isolated dots.
-			lo, hi := py, py
-			if prevY >= 0 {
-				lo, hi = min(py, prevY), max(py, prevY)
+			p := grid.GridPoint(ntcanvas.Float64Point{
+				X: float64(px),
+				Y: min(max(v, 0), scale),
+			})
+			if havePrev {
+				for _, lp := range graph.GetLinePoints(prev, p) {
+					grid.Set(lp)
+				}
+			} else {
+				grid.Set(p)
 			}
-			for y := lo; y <= hi; y++ {
-				plot(si, px, y)
-			}
-			prevY = py
+			prev, havePrev = p, true
 		}
-	}
-
-	var sb strings.Builder
-	for cy := range charH {
-		for cx := range charW {
-			mask := dots[cy][cx]
-			if mask == 0 {
-				sb.WriteString(" ")
-				continue
-			}
-			style := lipgloss.NewStyle()
-			if fg := blendSeriesColors(series, counts[cy][cx]); fg != nil {
-				style = style.Foreground(fg)
-			}
-			sb.WriteString(style.Render(string(rune(0x2800 | mask))))
+		style := lipgloss.NewStyle()
+		if s.Color != nil {
+			style = style.Foreground(s.Color)
 		}
-		if cy < charH-1 {
-			sb.WriteString("\n")
-		}
+		graph.DrawBraillePatterns(&c, ntcanvas.Point{X: 0, Y: 0}, grid.BraillePatterns(), style)
 	}
-	return sb.String(), scale
-}
-
-// blendSeriesColors averages the colors of every series present in a cell,
-// weighted by how many of the cell's dots each contributed. A cell owned by a
-// single series keeps that series' color exactly.
-func blendSeriesColors(series []LineSeries, counts []int) color.Color {
-	if counts == nil {
-		return nil
-	}
-	present := -1
-	total := 0
-	for si, c := range counts {
-		if c > 0 {
-			total += c
-			if present == -1 {
-				present = si
-			} else if present >= 0 && si != present {
-				present = -2 // more than one series in this cell
-			}
-		}
-	}
-	if total == 0 {
-		return nil
-	}
-	if present >= 0 {
-		return series[present].Color
-	}
-
-	var r, g, b float64
-	for si, c := range counts {
-		if c == 0 || series[si].Color == nil {
-			continue
-		}
-		cr, cg, cb, _ := series[si].Color.RGBA()
-		r += float64(cr) * float64(c)
-		g += float64(cg) * float64(c)
-		b += float64(cb) * float64(c)
-	}
-	r /= float64(total)
-	g /= float64(total)
-	b /= float64(total)
-	// RGBA components are 0–65535; scale back to 0–255 for the hex form.
-	return lipgloss.Color(fmt.Sprintf("#%02x%02x%02x", int(r/257.0), int(g/257.0), int(b/257.0)))
+	return c.View(), scale
 }

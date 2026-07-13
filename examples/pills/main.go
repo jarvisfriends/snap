@@ -1,16 +1,18 @@
-// Command pills demos snap/styles' pill shapes: single-color pills,
-// color-divided segmented pills, a nav strip, and breadcrumb separators in
-// every PillShape. Left/right (or the wheel) select the shape; q quits.
+// Command pills is a script-usable PillShape picker built on snap/styles:
+// every shape is previewed as pills, a segmented pill, a nav strip, and
+// breadcrumbs; Enter writes the selected shape's config value to stdout (the
+// TUI itself renders on stderr):
+//
+//	shape=$(go run ./examples/pills)
+//
+// --no-help hides the status bar. Quitting (q/esc) prints nothing, exit 1.
 package main
 
 import (
-	"fmt"
-	"os"
-	"strings"
-
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 
+	"github.com/jarvisfriends/snap/examples/internal/exui"
 	"github.com/jarvisfriends/snap/styles"
 )
 
@@ -28,18 +30,28 @@ var (
 type demoApp struct {
 	shapes []styles.PillShape
 	sel    int
+	picked bool
+	chrome *exui.Chrome
+	w, h   int
 }
 
 func (a *demoApp) Init() tea.Cmd { return nil }
 
 func (a *demoApp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	if key, ok := msg.(tea.KeyPressMsg); ok {
-		switch key.String() {
-		case "left", "shift+tab":
+	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		a.w, a.h = msg.Width, msg.Height
+		a.chrome.SetWidth(msg.Width)
+	case tea.KeyPressMsg:
+		switch msg.String() {
+		case "left", "shift+tab", "up":
 			a.sel = (a.sel + len(a.shapes) - 1) % len(a.shapes)
-		case "right", "tab":
+		case "right", "tab", "down":
 			a.sel = (a.sel + 1) % len(a.shapes)
-		default:
+		case "enter":
+			a.picked = true
+			return a, tea.Quit
+		case "q", "esc", "ctrl+c":
 			return a, tea.Quit
 		}
 	}
@@ -58,33 +70,52 @@ func (a *demoApp) onMouse(mm tea.MouseMsg) tea.Cmd {
 	return nil
 }
 
+// Column cell widths. Every cell is centered in its column so the gallery
+// reads as a table: name | Go | version | passing | segmented status pill.
+// Widths are sized to the widest shape's rendering (Fade's two-cell caps).
+// Style.Width/Align pad by terminal cells, so alignment survives any glyphs.
+const (
+	nameColW    = 12
+	goColW      = 10
+	versionColW = 12
+	passColW    = 13
+	segColW     = 28
+)
+
+// colCell centers content within a fixed-width column.
+func colCell(content string, w int) string {
+	return lipgloss.PlaceHorizontal(w, lipgloss.Center, content)
+}
+
 func (a *demoApp) shapeRow(shape styles.PillShape, selected bool) string {
 	st := styles.PillStyles{Shape: shape}
-	name := fmt.Sprintf("  %-6s", shape.DisplayName())
-	if selected {
-		name = lipgloss.NewStyle().Bold(true).Foreground(cBlue).Render("▶ " + name[2:])
+	label := shape.DisplayName()
+	if shape.NeedsNerdFont() {
+		label += "*"
 	}
-	badges := strings.Join([]string{
-		styles.Pill("Go", nil, cBlue, st),
-		styles.Pill("v0.1.5", nil, cMauve, st),
-		styles.Pill("passing", nil, cGreen, st),
-	}, " ")
+	name := label
+	if selected {
+		name = lipgloss.NewStyle().Bold(true).Foreground(cBlue).Render("▶ " + label)
+	}
 	segmented := styles.SegmentedPill([]styles.PillSegment{
 		{Text: " master ", Bg: cBlue},
 		{Text: " +2 ", Bg: cGreen},
 		{Text: " ~1 ", Bg: cPeach},
 		{Text: " !3 ", Bg: cRed},
 	}, st)
-	return name + "  " + badges + "   " + segmented
+	return lipgloss.JoinHorizontal(lipgloss.Left,
+		colCell(name, nameColW),
+		colCell(styles.Pill("Go", nil, cBlue, st), goColW),
+		colCell(styles.Pill("v0.1.5", nil, cMauve, st), versionColW),
+		colCell(styles.Pill("passing", nil, cGreen, st), passColW),
+		colCell(segmented, segColW),
+	)
 }
 
 func (a *demoApp) View() tea.View {
 	dim := lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
 
 	rows := make([]string, 0, len(a.shapes)+6)
-	rows = append(rows,
-		dim.Render("←/→ or wheel select shape — q quits"),
-		"")
 	for i, shape := range a.shapes {
 		rows = append(rows, a.shapeRow(shape, i == a.sel))
 	}
@@ -100,13 +131,18 @@ func (a *demoApp) View() tea.View {
 		nav = append(nav, styles.Pill(label, nil, fill, st))
 	}
 	crumbs := styles.Breadcrumbs([]string{"home", "projects", "snap"}, dim, st)
+	navRow := lipgloss.JoinHorizontal(lipgloss.Top,
+		lipgloss.NewStyle().PaddingLeft(2).Render(lipgloss.JoinHorizontal(lipgloss.Top, nav...)),
+		lipgloss.NewStyle().PaddingLeft(4).Render(crumbs),
+	)
 	rows = append(rows,
 		"",
-		dim.Render(fmt.Sprintf("nav + breadcrumbs (%s):", sel.DisplayName())),
-		"  "+strings.Join(nav, " ")+"    "+crumbs,
+		dim.Render("nav + breadcrumbs ("+sel.DisplayName()+"):"),
+		navRow,
 	)
 
-	v := tea.NewView(strings.Join(rows, "\n"))
+	v := tea.NewView(lipgloss.JoinVertical(lipgloss.Left, rows...))
+	a.chrome.Apply(&v, a.h)
 	v.MouseMode = tea.MouseModeCellMotion
 	v.AltScreen = true
 	v.OnMouse = a.onMouse
@@ -114,9 +150,30 @@ func (a *demoApp) View() tea.View {
 }
 
 func main() {
-	app := &demoApp{shapes: styles.PillShapes()}
-	if _, err := tea.NewProgram(app).Run(); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
+	exui.Init()
+	app := &demoApp{
+		shapes: styles.PillShapes(),
+		chrome: exui.NewChrome(
+			exui.Bind("←/→/wheel", "shape (* needs Nerd Font)"),
+			exui.Bind("enter", "pick"),
+			exui.Bind("q", "quit"),
+		),
 	}
+	// Start on the first pure-Unicode shape so the demo (and its rendered
+	// gif, whose font has no Powerline glyphs) opens on caps that show
+	// everywhere; the Nerd Font shapes are still in the cycle.
+	for i, s := range app.shapes {
+		if !s.NeedsNerdFont() {
+			app.sel = i
+			break
+		}
+	}
+	final, err := exui.Program(app).Run()
+	if err != nil {
+		exui.Fatal(err)
+	}
+	if a, ok := final.(*demoApp); ok && a.picked {
+		exui.Finish(true, string(a.shapes[a.sel]))
+	}
+	exui.Finish(false)
 }

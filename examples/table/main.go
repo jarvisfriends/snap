@@ -1,22 +1,24 @@
-// Command table demos snap/table: arrow keys move the selection, clicking a
-// header sorts that column, `/` filters, Enter (or double-click) opens the
-// row, q quits.
+// Command table is a script-usable row picker built on snap/table: browse,
+// sort, and filter, then Enter (or double-click) writes the chosen row's key
+// to stdout (the TUI itself renders on stderr), so a shell can capture it:
+//
+//	service=$(go run ./examples/table)
+//
+// --no-help hides the status bar. Quitting (q) prints nothing, exit 1.
 package main
 
 import (
-	"fmt"
-	"os"
-
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/jarvisfriends/snap/styles"
+	"github.com/jarvisfriends/snap/examples/internal/exui"
 	"github.com/jarvisfriends/snap/table"
 	"github.com/jarvisfriends/snap/uifx"
 )
 
 type demoApp struct {
 	tbl    *table.TableModel
-	status string
+	chrome *exui.Chrome
+	picked string
 	w, h   int
 }
 
@@ -27,6 +29,9 @@ func newDemo() *demoApp {
 		{Title: "P99 ms"},
 		{Title: "Errors"},
 	})
+	// The status bar below carries the key hints; the table footer's own
+	// hint text would show the same thing twice.
+	t.HideFooterHint = true
 	t.SetRows([]table.Row{
 		{Key: "api", Cells: []table.Cell{table.Text("api"), table.Text("us-east"), table.Num("41", 41), table.Num("3", 3)}},
 		{Key: "web", Cells: []table.Cell{table.Text("web"), table.Text("us-east"), table.Num("120", 120), table.Num("0", 0)}},
@@ -34,7 +39,16 @@ func newDemo() *demoApp {
 		{Key: "batch", Cells: []table.Cell{table.Text("batch"), table.Text("us-west"), table.Num("310", 310), table.Num("1", 1)}},
 		{Key: "cdn", Cells: []table.Cell{table.Text("cdn"), table.Text("global"), table.Num("18", 18), table.Num("0", 0)}},
 	})
-	return &demoApp{tbl: t, status: "↑↓ move · click header sorts · / filters · q quits"}
+	return &demoApp{
+		tbl: t,
+		chrome: exui.NewChrome(
+			exui.Bind("↑/↓", "move"),
+			exui.Bind("s/click header", "sort"),
+			exui.Bind("/", "filter"),
+			exui.Bind("enter", "pick"),
+			exui.Bind("q", "quit"),
+		),
+	}
 }
 
 func (a *demoApp) Init() tea.Cmd { return nil }
@@ -43,13 +57,14 @@ func (a *demoApp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		a.w, a.h = msg.Width, msg.Height
-		a.tbl.SetSize(msg.Width, msg.Height-2)
+		a.chrome.SetWidth(msg.Width)
+		a.tbl.SetSize(msg.Width, msg.Height-a.chrome.Height())
 		return a, nil
 	case table.OpenDetailMsg:
-		a.status = "opened row: " + msg.Key
-		return a, nil
+		a.picked = msg.Key
+		return a, tea.Quit
 	case tea.KeyPressMsg:
-		if msg.String() == "q" || msg.String() == "ctrl+c" {
+		if s := msg.String(); !a.tbl.Filtering() && (s == "q" || s == "ctrl+c") {
 			return a, tea.Quit
 		}
 	case tea.MouseMsg:
@@ -59,14 +74,14 @@ func (a *demoApp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return a, a.tbl.Update(msg)
 }
 
-// onMouse routes clicks and wheels to the table's handlers (page-relative
-// coordinates; the table sits one line below the status header).
+// onMouse routes clicks and wheels to the table's handlers (the table starts
+// at the top of the frame, so screen coordinates are page coordinates).
 func (a *demoApp) onMouse(mm tea.MouseMsg) tea.Cmd {
 	me := mm.Mouse()
 	switch mm.(type) {
 	case tea.MouseClickMsg:
 		if me.Button == tea.MouseLeft {
-			return a.tbl.HandleClick(me.X, me.Y-1)
+			return a.tbl.HandleClick(me.X, me.Y)
 		}
 	case tea.MouseWheelMsg:
 		switch me.Button {
@@ -80,8 +95,8 @@ func (a *demoApp) onMouse(mm tea.MouseMsg) tea.Cmd {
 }
 
 func (a *demoApp) View() tea.View {
-	frame := a.status + "\n" + a.tbl.View(styles.Active(), 1)
-	v := tea.NewView(frame)
+	v := tea.NewView(a.tbl.View(exui.Theme(), 0))
+	a.chrome.Apply(&v, a.h)
 	v.MouseMode = uifx.LevelMedium.MouseMode()
 	v.AltScreen = true
 	v.OnMouse = a.onMouse
@@ -89,8 +104,13 @@ func (a *demoApp) View() tea.View {
 }
 
 func main() {
-	if _, err := tea.NewProgram(newDemo()).Run(); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
+	exui.Init()
+	final, err := exui.Program(newDemo()).Run()
+	if err != nil {
+		exui.Fatal(err)
 	}
+	if a, ok := final.(*demoApp); ok && a.picked != "" {
+		exui.Finish(true, a.picked)
+	}
+	exui.Finish(false)
 }

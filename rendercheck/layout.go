@@ -1,5 +1,5 @@
 // Package testutil provides shared test helpers for layout correctness tests
-// across tui-base and applications built on it.
+// across component libraries and the applications built on them.
 //
 // Typical usage in a page test:
 //

@@ -3,6 +3,7 @@ package menu
 import (
 	"testing"
 
+	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 )
 
@@ -43,15 +44,19 @@ func TestHandleKeyNavigateAndChoose(t *testing.T) {
 	}
 }
 
-func TestHandleKeyVimBindingsAndDismiss(t *testing.T) {
+func TestHandleKeyRebindingAndDismiss(t *testing.T) {
 	var m Menu
+	// Hosts rebind per field (the defaults carry no vim fallbacks).
+	m.Keys = DefaultKeyMap()
+	m.Keys.Up = key.NewBinding(key.WithKeys("k"))
+	m.Keys.Down = key.NewBinding(key.WithKeys("j"))
 	m.Open(0, 0, []Item{{ID: "a", Label: "A"}, {ID: "b", Label: "B"}}, nil)
 
-	m.HandleKey(keyPress('j')) // vim down
+	m.HandleKey(keyPress('j')) // rebound down
 	if sel := m.Selected(); sel == nil || sel.ID != "b" {
 		t.Fatalf("after j Selected = %v, want b", sel)
 	}
-	m.HandleKey(keyPress('k')) // vim up
+	m.HandleKey(keyPress('k')) // rebound up
 	if sel := m.Selected(); sel == nil || sel.ID != "a" {
 		t.Fatalf("after k Selected = %v, want a", sel)
 	}

@@ -1,16 +1,19 @@
-// Package table is a themed, interactive data table widget for tui-base apps.
+// Package table is a themed, interactive data table widget for Bubble Tea apps.
 //
-// It fills the gaps the charm tables leave open: charm.land/bubbles/table has no
-// sorting, filtering, or mouse, and charm.land/lipgloss/table is a pure renderer
-// with no state. This widget keeps the state (cursor, paging, 3-state column
-// sort, `/` filter, double-click tracking) and delegates the actual drawing to
-// lipgloss/table, so borders, column balancing, and truncation stay
-// library-maintained. Colors come from a styles.AppStyle passed to View, so the
-// table recolors live on theme changes.
+// Rendering, pagination, highlighting, and live filtering are delegated to
+// github.com/evertras/bubble-table — the de-facto standard Bubble Tea table —
+// while this wrapper keeps the features it lacks: full mouse support (header
+// clicks sort, row clicks select, double-click opens, wheel scrolls), a
+// 3-state column sort (asc → desc → unsorted) that understands numeric cells
+// whose display text differs from their sort value (a duration shown as
+// "2h 8m" but sorted by milliseconds), theme-hook styling from a
+// styles.AppStyle passed to View so the table recolors live, and a status
+// footer. The table renders borderless and compact: one header line, then
+// data rows.
 //
-// Mouse interaction is cooperative: tui-base routes mouse events to a page's
-// View().OnMouse with page-relative coordinates, and the page forwards clicks to
-// HandleClick / wheels to HandleWheel. Clicking a header sorts that column;
+// Mouse interaction is cooperative: the host routes mouse events to a page's
+// View().OnMouse with page-relative coordinates, and the page forwards clicks
+// to HandleClick / wheels to HandleWheel. Clicking a header sorts that column;
 // double-clicking a row (or pressing the Open key) emits an OpenDetailMsg the
 // host page can act on (e.g. open a detail overlay).
 package table
@@ -25,8 +28,7 @@ import (
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
-	ltable "charm.land/lipgloss/v2/table"
-	"github.com/charmbracelet/x/ansi"
+	btable "github.com/evertras/bubble-table/table"
 
 	"github.com/jarvisfriends/snap/styles"
 )
@@ -35,53 +37,17 @@ import (
 // as a double-click (which opens the row's details).
 const doubleClickWindow = 450 * time.Millisecond
 
-// tableBorder is the border used for the rendered table. columnAtX locates
-// column separators by scanning the rendered top border for this border's
-// MiddleTop rune, so the two must stay in sync — changing tableBorder alone
-// (e.g. to lipgloss.ThickBorder() or lipgloss.DoubleBorder(), whose junction
-// glyphs differ from "┬") is sufficient; no other code needs updating.
-var tableBorder = lipgloss.RoundedBorder()
+// rowDataKey is the reserved bubble-table row-data key carrying our Row.
+// Column keys are decimal indices, so it can never collide.
+const rowDataKey = "__row"
 
-// tableBorderTop, tableBorderBottom, and tableBorderHeader mirror
-// ltable.Table's own BorderTop/BorderBottom/BorderHeader toggles (default
-// on, matching today's behavior). A theme that removes the table's border
-// entirely sets tableBorderTop/tableBorderBottom to false; SetSize, View,
-// and columnAtX all derive their row math from these three vars instead of
-// a hardcoded row count, so the layout and hit-testing collapse to the
-// correct smaller geometry rather than leaving a phantom gap, losing a data
-// row, or (for columnAtX) silently breaking column-click sort because it
-// kept scanning a border row that no longer exists.
-var (
-	tableBorderTop    = true
-	tableBorderBottom = true
-	tableBorderHeader = true
-)
+// chromeRows is the number of non-data lines View draws around the data rows:
+// the header line and the external footer line.
+const chromeRows = 2
 
-// tableChromeRows returns the number of non-data rows View() draws around
-// the data rows for the current border toggles: the header text row and the
-// external footer line are always present; the top border and the
-// header/data separator each add one more row when enabled. (The bottom
-// border row is not counted here, matching the original fixed "4" this
-// replaces — SetSize's budget was never meant to include it.)
-func tableChromeRows() int {
-	n := 2 // header text row + external footer line
-	if tableBorderTop {
-		n++
-	}
-	if tableBorderHeader {
-		n++
-	}
-	return n
-}
-
-// tableHeaderRowOffset returns how many rows below originY the header text
-// row sits: one if a top border is drawn, zero otherwise.
-func tableHeaderRowOffset() int {
-	if tableBorderTop {
-		return 1
-	}
-	return 0
-}
+// minColWidth is the narrowest a column may be squeezed to when the natural
+// widths exceed the available width (room for padding plus a few characters).
+const minColWidth = 5
 
 // Column describes one column header.
 type Column struct {
@@ -124,7 +90,7 @@ type KeyMap struct {
 	Sort     key.Binding // cycle the sort column/direction
 	Filter   key.Binding // enter `/` filter mode
 	Open     key.Binding // open the selected row's details
-	Cancel   key.Binding // leave/clear filter mode
+	Cancel   key.Binding // blur the filter input / clear the filter
 }
 
 // DefaultKeyMap returns the standard bindings (vim + arrows, `/` filter, `s`
@@ -159,32 +125,38 @@ func (km KeyMap) FullHelp() [][]key.Binding {
 
 var _ help.KeyMap = (*KeyMap)(nil)
 
-// Model is the table widget. Construct it with New.
+// TableModel is the table widget. Construct it with New.
 type TableModel struct {
 	KeyMap KeyMap
 
-	cols []Column
-	rows []Row // sorted in place; filtering selects a subset via `filtered`
+	// HideFooterHint suppresses the footer's right-aligned key-hint text
+	// (the cursor/total, sort, and live-filter readouts stay). Hosts that
+	// surface the table's keys in their own help/status bar set this so the
+	// hints aren't shown twice.
+	HideFooterHint bool
 
-	filtered []int
-	cursor   int
-	offset   int
-	pageSize int
+	// bt does the rendering, pagination, highlight, and filter input.
+	// Sorting stays here in the wrapper: bubble-table compares raw data
+	// values, so it cannot sort a Num cell by magnitude while displaying
+	// different text. The wrapper orders rows and hands them over in final
+	// display order.
+	bt btable.Model
+
+	cols []Column
+	rows []Row // sorted in place by the active sort
 
 	sortCol    int
 	sortAsc    bool
 	sortActive bool
 
-	filtering bool
-	filter    string
-
-	width int
+	width         int
+	pageSize      int
+	fixedPageSize bool
 
 	// Geometry recorded by View (page-content coordinates) for HandleClick.
-	colBoundaries []int
-	headerY       int
-	dataStartY    int
-	visibleCount  int
+	colWidths  []int
+	headerY    int
+	dataStartY int
 
 	lastClickRow  int
 	lastClickTime time.Time
@@ -198,7 +170,9 @@ func WithKeyMap(km KeyMap) Option { return func(m *TableModel) { m.KeyMap = km }
 
 // WithPageSize sets a fixed page size (otherwise it's derived from the height
 // passed to SetSize).
-func WithPageSize(n int) Option { return func(m *TableModel) { m.pageSize = n } }
+func WithPageSize(n int) Option {
+	return func(m *TableModel) { m.pageSize, m.fixedPageSize = n, true }
+}
 
 // WithSort sets the initial sort column and direction.
 func WithSort(col int, asc bool) Option {
@@ -221,37 +195,68 @@ func New(cols []Column, opts ...Option) *TableModel {
 	for _, o := range opts {
 		o(m)
 	}
+	m.bt = btable.New(nil).
+		Border(btable.Border{}).
+		WithOuterBorder(false).
+		WithFooterVisibility(false).
+		Filtered(true).
+		Focused(true).
+		WithPageSize(m.pageSize).
+		WithKeyMap(m.btKeyMap())
+	m.syncColumns()
 	return m
+}
+
+// btKeyMap maps our public KeyMap onto bubble-table's bindings. Sort and Open
+// never reach bubble-table (handleKey intercepts them), and the built-in
+// row-select toggle is disabled so it can't swallow the Open key.
+func (m *TableModel) btKeyMap() btable.KeyMap {
+	km := btable.DefaultKeyMap()
+	km.RowUp = m.KeyMap.Up
+	km.RowDown = m.KeyMap.Down
+	km.PageUp = m.KeyMap.PageUp
+	km.PageDown = m.KeyMap.PageDown
+	km.PageFirst = m.KeyMap.Top
+	km.PageLast = m.KeyMap.Bottom
+	km.Filter = m.KeyMap.Filter
+	km.FilterClear = m.KeyMap.Cancel
+	km.RowSelectToggle = key.NewBinding(key.WithDisabled())
+	return km
 }
 
 // ─── data ────────────────────────────────────────────────────────────────────
 
-// SetRows replaces the data, re-applying the active sort + filter.
+// SetRows replaces the data, re-applying the active sort (the live filter, if
+// any, keeps applying on the bubble-table side).
 func (m *TableModel) SetRows(rows []Row) {
 	m.rows = rows
 	m.doSort()
-	m.rebuildFilter()
+	m.syncColumns()
+	m.syncRows()
 }
 
 // SetSize informs the table of its available width/height. The page size is
 // derived from height unless WithPageSize fixed it.
 func (m *TableModel) SetSize(w, h int) {
 	m.width = w
-	m.pageSize = max(h-tableChromeRows(), 3)
-	m.clampCursor()
+	if !m.fixedPageSize {
+		m.pageSize = max(h-chromeRows, 3)
+	}
+	m.bt = m.bt.WithPageSize(m.pageSize)
+	m.syncColumns()
 }
 
 // SelectedRow returns the highlighted row, if any.
 func (m *TableModel) SelectedRow() (Row, bool) {
-	if m.cursor >= 0 && m.cursor < len(m.filtered) {
-		return m.rows[m.filtered[m.cursor]], true
+	if r, ok := m.bt.HighlightedRow().Data[rowDataKey].(Row); ok {
+		return r, true
 	}
 	return Row{}, false
 }
 
 // Filtering reports whether the `/` filter input is active (the host should
 // claim keyboard focus while it is, e.g. via navigation.KeyCapturer).
-func (m *TableModel) Filtering() bool { return m.filtering }
+func (m *TableModel) Filtering() bool { return m.bt.GetIsFilterInputFocused() }
 
 // ─── input ───────────────────────────────────────────────────────────────────
 
@@ -266,54 +271,25 @@ func (m *TableModel) Update(msg tea.Msg) tea.Cmd {
 }
 
 func (m *TableModel) handleKey(msg tea.KeyPressMsg) tea.Cmd {
-	if m.filtering {
+	// KeyMap is a public field hosts may rebind at runtime; re-map it onto
+	// bubble-table before each dispatch so rebinds take effect immediately.
+	m.bt = m.bt.WithKeyMap(m.btKeyMap())
+
+	// While the filter input is focused every key belongs to it (Enter/esc
+	// blur the input; the filter text stays applied until esc clears it).
+	if !m.Filtering() {
 		switch {
-		case key.Matches(msg, m.KeyMap.Cancel):
-			m.filtering, m.filter = false, ""
-			m.rebuildFilter()
-		case msg.Code == tea.KeyEnter:
-			m.filtering = false
-		case msg.Code == tea.KeyBackspace:
-			if m.filter != "" {
-				runes := []rune(m.filter)
-				m.filter = string(runes[:len(runes)-1])
-				m.rebuildFilter()
-			}
-		case msg.Code == tea.KeySpace:
-			m.filter += " "
-			m.rebuildFilter()
-		default:
-			if msg.Text != "" {
-				m.filter += msg.Text
-				m.rebuildFilter()
-			}
+		case key.Matches(msg, m.KeyMap.Sort):
+			m.cycleSort()
+			return nil
+		case key.Matches(msg, m.KeyMap.Open):
+			return m.openSelected()
 		}
-		return nil
 	}
 
-	switch {
-	case key.Matches(msg, m.KeyMap.Up):
-		m.moveCursor(-1)
-	case key.Matches(msg, m.KeyMap.Down):
-		m.moveCursor(1)
-	case key.Matches(msg, m.KeyMap.PageUp):
-		m.moveCursor(-m.pageSize)
-	case key.Matches(msg, m.KeyMap.PageDown):
-		m.moveCursor(m.pageSize)
-	case key.Matches(msg, m.KeyMap.Top):
-		m.cursor = 0
-		m.clampCursor()
-	case key.Matches(msg, m.KeyMap.Bottom):
-		m.cursor = len(m.filtered) - 1
-		m.clampCursor()
-	case key.Matches(msg, m.KeyMap.Filter):
-		m.filtering = true
-	case key.Matches(msg, m.KeyMap.Sort):
-		m.cycleSort()
-	case key.Matches(msg, m.KeyMap.Open):
-		return m.openSelected()
-	}
-	return nil
+	var cmd tea.Cmd
+	m.bt, cmd = m.bt.Update(msg)
+	return cmd
 }
 
 // HandleClick processes a left click at page-relative (x, y): a header click
@@ -327,31 +303,33 @@ func (m *TableModel) HandleClick(x, y int) tea.Cmd {
 		return nil
 	}
 	idx := y - m.dataStartY
-	if idx < 0 || idx >= m.visibleCount {
+	if idx < 0 {
 		return nil
 	}
-	row := m.offset + idx
-	if row < 0 || row >= len(m.filtered) {
+	start, end := m.bt.VisibleIndices()
+	row := start + idx
+	if row > end {
 		return nil
 	}
 	now := time.Now()
 	double := row == m.lastClickRow && now.Sub(m.lastClickTime) < doubleClickWindow
-	m.cursor = row
-	m.clampCursor()
+	m.bt = m.bt.WithHighlightedRow(row)
 	m.lastClickRow, m.lastClickTime = row, now
 	if double {
+		m.lastClickTime = time.Time{} // a third click starts a fresh pair
 		return m.openSelected()
 	}
 	return nil
 }
 
-// HandleWheel scrolls the selection by a few rows.
+// HandleWheel scrolls the selection by one row per wheel notch.
 func (m *TableModel) HandleWheel(up bool) {
+	delta := 1
 	if up {
-		m.moveCursor(-3)
-	} else {
-		m.moveCursor(3)
+		delta = -1
 	}
+	// WithHighlightedRow clamps to the visible rows and follows pages.
+	m.bt = m.bt.WithHighlightedRow(m.bt.GetHighlightedRowIndex() + delta)
 }
 
 func (m *TableModel) openSelected() tea.Cmd {
@@ -363,7 +341,7 @@ func (m *TableModel) openSelected() tea.Cmd {
 	return func() tea.Msg { return OpenDetailMsg{Key: rowKey} }
 }
 
-// ─── sorting / filtering / nav ────────────────────────────────────────────────
+// ─── sorting ─────────────────────────────────────────────────────────────────
 
 func (m *TableModel) doSort() {
 	if !m.sortActive || m.sortCol < 0 || m.sortCol >= len(m.cols) {
@@ -396,7 +374,9 @@ func lessCell(a, b Row, col int, asc bool) bool {
 	return la > lb
 }
 
-// sortByCol cycles a column: asc → desc → unsorted.
+// sortByCol cycles a column: asc → desc → unsorted. Clearing restores insertion
+// order for equal keys only approximately: rows keep whatever stable order the
+// previous sorts left them in, matching the old in-place behavior.
 func (m *TableModel) sortByCol(col int) {
 	if col < 0 || col >= len(m.cols) {
 		return
@@ -410,7 +390,8 @@ func (m *TableModel) sortByCol(col int) {
 		m.sortActive = false
 	}
 	m.doSort()
-	m.rebuildFilter()
+	m.syncColumns()
+	m.syncRows()
 }
 
 // cycleSort walks the current column asc → desc, then advances to the next.
@@ -430,186 +411,146 @@ func (m *TableModel) cycleSort() {
 	}
 }
 
-func (m *TableModel) rebuildFilter() {
-	m.filtered = m.filtered[:0]
-	q := strings.ToLower(strings.TrimSpace(m.filter))
+// ─── bubble-table sync ───────────────────────────────────────────────────────
+
+// syncColumns rebuilds the bubble-table columns: computed widths, the sort
+// indicator on the sorted column's title, and per-column cell padding.
+func (m *TableModel) syncColumns() {
+	m.colWidths = fitWidths(m.naturalWidths(), m.width)
+	cols := make([]btable.Column, len(m.cols))
+	pad := lipgloss.NewStyle().Padding(0, 1)
+	for i, c := range m.cols {
+		title := c.Title
+		if m.sortActive && i == m.sortCol {
+			if m.sortAsc {
+				title += " ▲"
+			} else {
+				title += " ▼"
+			}
+		}
+		cols[i] = btable.NewColumn(strconv.Itoa(i), title, m.colWidths[i]).
+			WithFiltered(c.Filter).
+			WithStyle(pad)
+	}
+	m.bt = m.bt.WithColumns(cols)
+}
+
+// syncRows hands the wrapper-sorted rows to bubble-table in display order.
+// Each bubble-table row carries the display strings under the column keys
+// (which is also what the `/` filter matches) and our Row under rowDataKey.
+func (m *TableModel) syncRows() {
+	rows := make([]btable.Row, len(m.rows))
 	for i, r := range m.rows {
-		if q == "" || rowMatches(r, m.cols, q) {
-			m.filtered = append(m.filtered, i)
+		data := btable.RowData{rowDataKey: r}
+		for c := range m.cols {
+			if c < len(r.Cells) {
+				data[strconv.Itoa(c)] = r.Cells[c].Text
+			}
 		}
+		rows[i] = btable.NewRow(data)
 	}
-	m.clampCursor()
+	m.bt = m.bt.WithRows(rows)
 }
 
-func rowMatches(r Row, cols []Column, q string) bool {
-	for i, c := range cols {
-		if !c.Filter || i >= len(r.Cells) {
-			continue
+// naturalWidths measures each column's content: the widest cell or the title
+// (plus room for a sort indicator), plus the cell padding.
+func (m *TableModel) naturalWidths() []int {
+	w := make([]int, len(m.cols))
+	for i, c := range m.cols {
+		w[i] = lipgloss.Width(c.Title) + 2 // room for " ▲" / " ▼"
+		for _, r := range m.rows {
+			if i < len(r.Cells) {
+				w[i] = max(w[i], lipgloss.Width(r.Cells[i].Text))
+			}
 		}
-		if strings.Contains(strings.ToLower(r.Cells[i].Text), q) {
-			return true
-		}
+		w[i] += 2 // Padding(0, 1)
 	}
-	return false
+	return w
 }
 
-func (m *TableModel) clampCursor() {
-	if m.cursor >= len(m.filtered) {
-		m.cursor = len(m.filtered) - 1
+// fitWidths stretches or squeezes natural column widths to fill total exactly
+// (when a width is known): extra cells are distributed round-robin, deficits
+// are taken from the widest column first, never below minColWidth.
+func fitWidths(natural []int, total int) []int {
+	widths := make([]int, len(natural))
+	copy(widths, natural)
+	if total <= 0 || len(widths) == 0 {
+		return widths
 	}
-	if m.cursor < 0 {
-		m.cursor = 0
+	sum := 0
+	for _, w := range widths {
+		sum += w
 	}
-	if m.cursor < m.offset {
-		m.offset = m.cursor
+	for sum < total {
+		for i := range widths {
+			if sum == total {
+				break
+			}
+			widths[i]++
+			sum++
+		}
 	}
-	if m.cursor >= m.offset+m.pageSize {
-		m.offset = m.cursor - m.pageSize + 1
+	for sum > total {
+		widest := 0
+		for i, w := range widths {
+			if w > widths[widest] {
+				widest = i
+			}
+		}
+		if widths[widest] <= minColWidth {
+			break // can't squeeze further; bubble-table truncates cells
+		}
+		widths[widest]--
+		sum--
 	}
-	if m.offset < 0 {
-		m.offset = 0
-	}
+	return widths
 }
 
-func (m *TableModel) moveCursor(d int) { m.cursor += d; m.clampCursor() }
-
-// columnAtX maps a page-relative X to a column index using the column-junction
-// separators parsed from the rendered top border (see tableBorder).
+// columnAtX maps a page-relative X to a column index using the computed
+// column widths (the borderless layout has no separator cells between them).
 func (m *TableModel) columnAtX(x int) int {
-	for i, b := range m.colBoundaries {
-		if x < b {
+	acc := 0
+	for i, w := range m.colWidths {
+		acc += w
+		if x < acc {
 			return i
 		}
-	}
-	if len(m.cols) > 0 {
-		return len(m.cols) - 1
 	}
 	return -1
 }
 
-// ─── rendering (delegated to lipgloss/table) ──────────────────────────────────
+// ─── rendering (delegated to bubble-table) ───────────────────────────────────
 
 // View renders the table for the given palette, at vertical origin originY
 // within the page content (the number of lines drawn above it). It records
 // geometry for HandleClick and appends a status footer below the table.
 func (m *TableModel) View(c *styles.AppStyle, originY int) string {
-	st := c.Styles
-
 	if len(m.cols) == 0 {
 		return ""
 	}
+	st := c.Styles
 
-	headers := make([]string, len(m.cols))
-	for i, col := range m.cols {
-		h := col.Title
-		if m.sortActive && i == m.sortCol {
-			if m.sortAsc {
-				h += " ▲"
-			} else {
-				h += " ▼"
-			}
-		}
-		headers[i] = h
-	}
+	selectedStyle := st.SelectedItem
+	cellStyle := st.TextOnBg
+	zebraStyle := st.Subtitle
 
-	end := min(m.offset+m.pageSize, len(m.filtered))
-	visible := make([][]string, 0, max(end-m.offset, 0))
-	for fi := m.offset; fi < end; fi++ {
-		r := m.rows[m.filtered[fi]]
-		cells := make([]string, len(m.cols))
-		for i := range m.cols {
-			if i < len(r.Cells) {
-				cells[i] = r.Cells[i].Text
-			}
-		}
-		visible = append(visible, cells)
-	}
-	m.visibleCount = len(visible)
-	selectedIdx := m.cursor - m.offset
-
-	headerStyle := st.Title.Padding(0, 1)
-	sortedHeaderStyle := headerStyle.Background(c.SelectionBg)
-	selectedStyle := st.SelectedItem.Padding(0, 1)
-	cellStyle := st.TextOnBg.Padding(0, 1)
-	zebraStyle := st.Subtitle.Padding(0, 1)
-
-	tbl := ltable.New().
-		Border(tableBorder).
-		BorderTop(tableBorderTop).
-		BorderBottom(tableBorderBottom).
-		BorderHeader(tableBorderHeader).
-		BorderStyle(lipgloss.NewStyle().Foreground(c.Border)).
-		Wrap(false).
-		Width(m.width).
-		StyleFunc(func(row, col int) lipgloss.Style {
-			if row == ltable.HeaderRow {
-				if m.sortActive && col == m.sortCol {
-					return sortedHeaderStyle
-				}
-				return headerStyle
-			}
-			if row == selectedIdx {
+	bt := m.bt.
+		WithBaseStyle(lipgloss.NewStyle().Align(lipgloss.Left)).
+		HeaderStyle(st.Title).
+		WithRowStyleFunc(func(in btable.RowStyleFuncInput) lipgloss.Style {
+			if in.IsHighlighted {
 				return selectedStyle
 			}
-			if row%2 == 1 {
+			if in.Index%2 == 1 {
 				return zebraStyle
 			}
 			return cellStyle
-		}).
-		Headers(headers...).
-		Rows(visible...)
+		})
+	out := bt.View()
 
-	out := tbl.String()
-
-	// Record geometry. The header text row sits tableHeaderRowOffset() rows
-	// below originY (1 if a top border is drawn, 0 otherwise); data rows
-	// start one row after that (the header row itself), plus one more if a
-	// header/data separator row is drawn.
-	headerOffset := tableHeaderRowOffset()
-	m.headerY = originY + headerOffset
-	m.dataStartY = m.headerY + 1
-	if tableBorderHeader {
-		m.dataStartY++
-	}
-
-	// Column boundaries are read from whichever rendered row actually
-	// carries the column-junction glyphs: the top border row if one is
-	// drawn, else the header/data separator row if one is drawn, else there
-	// is no visual row to read and column-click sort is unavailable in this
-	// configuration (colBoundaries stays empty).
-	junctionRow := -1
-	var junction []rune
-	switch {
-	case tableBorderTop:
-		junctionRow = 0
-		junction = []rune(tableBorder.MiddleTop)
-	case tableBorderHeader:
-		junctionRow = headerOffset + 1
-		junction = []rune(tableBorder.Middle)
-	}
-	m.colBoundaries = m.colBoundaries[:0]
-	if lines := strings.Split(
-		out,
-		"\n",
-	); junctionRow >= 0 && junctionRow < len(lines) &&
-		len(junction) > 0 {
-		// BorderStyle colors the border/separator rows, so the raw line
-		// carries ANSI SGR sequences interleaved with the border runes.
-		// Strip them first — otherwise the rune index recorded here (and
-		// later compared against real screen-column mouse coordinates in
-		// HandleClick/columnAtX) is offset by however many escape-sequence
-		// runes preceded it, silently misaligning every column boundary
-		// whenever color output is active.
-		junctionLine := []rune(ansi.Strip(lines[junctionRow]))
-		// Skip the first and last rune: some border presets (ASCII, Markdown)
-		// reuse the same glyph for corners and column junctions, and the
-		// corners must never be mistaken for a column boundary.
-		for x := 1; x < len(junctionLine)-1; x++ {
-			if junctionLine[x] == junction[0] {
-				m.colBoundaries = append(m.colBoundaries, x)
-			}
-		}
-	}
+	// Borderless layout: the header is the first line, data rows follow.
+	m.headerY = originY
+	m.dataStartY = originY + 1
 
 	return lipgloss.JoinVertical(lipgloss.Left, out, m.footer(c, lipgloss.Width(out)))
 }
@@ -617,8 +558,8 @@ func (m *TableModel) View(c *styles.AppStyle, originY int) string {
 func (m *TableModel) footer(c *styles.AppStyle, w int) string {
 	st := c.Styles
 	var left string
-	if total := len(m.filtered); total > 0 {
-		left = " " + strconv.Itoa(m.cursor+1) + "/" + strconv.Itoa(total) + " "
+	if total := m.bt.TotalRows(); total > 0 {
+		left = " " + strconv.Itoa(m.bt.GetHighlightedRowIndex()+1) + "/" + strconv.Itoa(total) + " "
 	} else {
 		left = " 0/0 "
 	}
@@ -630,16 +571,23 @@ func (m *TableModel) footer(c *styles.AppStyle, w int) string {
 		left += "· sorted by " + m.cols[m.sortCol].Title + " " + dir + " "
 	}
 
+	filter := m.bt.GetCurrentFilter()
 	var right string
 	switch {
-	case m.filtering:
-		right = "/" + m.filter + "▏"
-	case m.filter != "":
-		right = "filter: " + m.filter + " (esc clears) "
-	default:
+	case m.Filtering():
+		right = "/" + filter + "▏"
+	case filter != "":
+		right = "filter: " + filter + " (esc clears) "
+	case !m.HideFooterHint:
 		right = "s/click header: sort · enter/double-click: details · / filter "
 	}
 
+	// Right-align the hint text across the remaining cells (at least one so
+	// the sides never touch) instead of hand-building a space filler.
 	gap := max(1, w-lipgloss.Width(left)-lipgloss.Width(right))
-	return st.Subtitle.Render(left) + strings.Repeat(" ", gap) + st.Subtitle.Render(right)
+	return st.Subtitle.Render(left) + lipgloss.PlaceHorizontal(
+		gap+lipgloss.Width(right),
+		lipgloss.Right,
+		st.Subtitle.Render(right),
+	)
 }

@@ -1,27 +1,55 @@
-// Command pickers demos snap/pickers' DirPicker: keyboard and wheel walk a
-// small generated directory tree; Space selects, Ctrl+S picks the browsed
-// folder, Esc aborts.
+// Command pickers is a script-usable directory prompt built on snap/pickers'
+// DirPicker: walk the tree, Space selects, Ctrl+S picks the browsed folder,
+// and the chosen path (relative to the demo tree) is written to stdout (the
+// TUI itself renders on stderr):
+//
+//	dir=$(go run ./examples/pickers)
+//
+// --no-help hides the status bar. Esc aborts: nothing printed, exit 1.
 package main
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/jarvisfriends/snap/examples/internal/exui"
 	"github.com/jarvisfriends/snap/pickers"
 	"github.com/jarvisfriends/snap/uifx"
 )
 
 type demoApp struct {
-	dp *pickers.DirPicker
+	dp     *pickers.DirPicker
+	chrome *exui.Chrome
+	height int
+}
+
+func newDemo(root string) demoApp {
+	dp := pickers.NewDirPicker(root)
+	// The status bar below carries the key hints; the picker's own help
+	// line would show the same thing twice.
+	dp.HideHelp = true
+	return demoApp{
+		dp: dp,
+		chrome: exui.NewChrome(
+			exui.Bind("↑/↓", "move"),
+			exui.Bind("←/→", "close/open"),
+			exui.Bind("space", "select"),
+			exui.Bind("ctrl+s", "pick browsed"),
+			exui.Bind("esc", "cancel"),
+		),
+	}
 }
 
 func (a demoApp) Init() tea.Cmd { return a.dp.Init() }
 
 func (a demoApp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	if _, ok := msg.(tea.MouseMsg); ok {
+	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		a.height = msg.Height
+		a.chrome.SetWidth(msg.Width)
+	case tea.MouseMsg:
 		// Mouse arrives via the root view's OnMouse (the picker's); the
 		// runtime also delivers it here — ignore to avoid double handling.
 		return a, nil
@@ -38,6 +66,7 @@ func (a demoApp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (a demoApp) View() tea.View {
 	v := a.dp.View()
+	a.chrome.Apply(&v, a.height)
 	v.MouseMode = uifx.LevelMedium.MouseMode()
 	v.AltScreen = true
 	return v
@@ -60,26 +89,30 @@ func makeTree() string {
 }
 
 func main() {
-	if err := run(); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
+	exui.Init()
+	picked, ok, err := run()
+	if err != nil {
+		exui.Fatal(err)
 	}
+	exui.Finish(ok, picked)
 }
 
 // run holds the body so the temp-tree cleanup runs on every path (os.Exit
-// in main would skip the defer).
-func run() error {
+// in exui.Finish would skip a defer in main).
+func run() (picked string, ok bool, err error) {
 	root := makeTree()
 	defer os.RemoveAll(root) //nolint:errcheck // temp demo tree
 
-	app := demoApp{dp: pickers.NewDirPicker(root)}
-	final, err := tea.NewProgram(app).Run()
+	final, err := exui.Program(newDemo(root)).Run()
 	if err != nil {
-		return err
+		return "", false, err
 	}
 	if a, ok := final.(demoApp); ok && a.dp.Done {
-		rel, _ := filepath.Rel(root, a.dp.Value())
-		fmt.Printf("Selected: %s\n", rel)
+		rel, relErr := filepath.Rel(root, a.dp.Value())
+		if relErr != nil {
+			rel = a.dp.Value()
+		}
+		return rel, true, nil
 	}
-	return nil
+	return "", false, nil
 }

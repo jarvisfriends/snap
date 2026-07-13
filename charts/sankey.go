@@ -1,7 +1,6 @@
 package charts
 
 import (
-	"fmt"
 	"image/color"
 	"maps"
 	"sort"
@@ -15,6 +14,19 @@ type SankeyFlow struct {
 	Target string
 	Value  float64
 	Color  color.Color
+}
+
+// hexRGB formats blended 0–65535 RGBA components as a "#rrggbb" string
+// (scaled back to 0–255), for the sankey's per-cell color blending.
+func hexRGB(r, g, b float64) string {
+	const digits = "0123456789abcdef"
+	buf := [7]byte{'#'}
+	for i, v := range [3]int{int(r / 257.0), int(g / 257.0), int(b / 257.0)} {
+		v = min(max(v, 0), 255)
+		buf[1+i*2] = digits[v>>4]
+		buf[2+i*2] = digits[v&0xf]
+	}
+	return string(buf[:])
 }
 
 func smoothstep(t float64) float64 {
@@ -191,9 +203,7 @@ func BrailleSankeyChart(flows []SankeyFlow, charW, charH int) string {
 				r /= float64(totalCount)
 				g /= float64(totalCount)
 				b /= float64(totalCount)
-				// color.Color RGBA returns 0-65535, we convert back to 0-255
-				hexColor := fmt.Sprintf("#%02x%02x%02x", int(r/257.0), int(g/257.0), int(b/257.0))
-				style = style.Foreground(lipgloss.Color(hexColor))
+				style = style.Foreground(lipgloss.Color(hexRGB(r, g, b)))
 			}
 
 			sb.WriteString(style.Render(string(rune(runeVal))))
