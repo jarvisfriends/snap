@@ -49,6 +49,11 @@ type AppKeyMap struct {
 	DismissAll     key.Binding // Dismiss all notifications in the history panel
 	ToggleHistory  key.Binding // Toggle the notification history panel
 	Debug          key.Binding
+	// nav is a display-only binding for ShortHelp: it combines Up and Down
+	// into one compact "↑↓ nav" entry (FullHelp lists them separately with
+	// their full descriptions). It is never passed to key.Matches — Up/Down
+	// still do the actual matching — so it doesn't need ApplyCustomizations.
+	nav key.Binding
 }
 
 func DefaultKeyMap() *AppKeyMap {
@@ -87,6 +92,10 @@ func DefaultKeyMap() *AppKeyMap {
 				key.WithHelp("→", "move right"),
 			),
 		},
+		nav: key.NewBinding(
+			key.WithKeys("up", "down"),
+			key.WithHelp("↑↓", "nav"),
+		),
 		Quit: key.NewBinding(
 			key.WithKeys("q", "ctrl+c"),
 			key.WithHelp("q", "quit"),
@@ -233,13 +242,19 @@ func (km *AppKeyMap) BindingDefs() []BindingDef {
 func (km *AppKeyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{km.Quit, km.NextPage, km.PreviousPage, km.OpenSettings, km.ToggleFullHelp},
+		{km.Up, km.Down},
 		{km.ToggleNav, km.ToggleStatus, km.ToggleHistory, km.Debug},
 	}
 }
 
 // ShortHelp implements the bubbles/help KeyMap interface's ShortHelp method.
+// Up and Down collapse into the pre-built nav binding here so the status bar
+// stays short (FullHelp above still lists them as two full bindings) — the
+// pattern to copy whenever two related bindings should share a single
+// short-help slot: a display-only key.Binding (never passed to key.Matches)
+// combining both keys under one compact help label.
 func (km *AppKeyMap) ShortHelp() []key.Binding {
-	return []key.Binding{km.Quit, km.ToggleFullHelp}
+	return []key.Binding{km.Quit, km.nav, km.ToggleFullHelp}
 }
 
 var _ help.KeyMap = (*AppKeyMap)(nil)

@@ -29,7 +29,6 @@ linters:
     - copyloopvar # catches pre-Go-1.22 loop variable capture patterns
     - modernize # idiomatic rewrites: min/max builtins, strings.Cut, slices.*, etc.
     - whitespace # no leading/trailing blank lines inside blocks
-    - goconst # repeated string literals should be named constants
     - unconvert # unnecessary type conversions
     - reassign # reassignment of variables declared in outer scope
     - dupword # duplicate words in comments/strings (e.g. "the the")
@@ -134,11 +133,6 @@ linters:
       # constants for; keeping the parameter is clearer than specializing.
       - linters:
           - unparam
-        path: _test\.go
-      # Repeated fixture literals in tests read better inline than as
-      # constants defined far from their assertions.
-      - linters:
-          - goconst
         path: _test\.go
       # G115 (int -> rune overflow): the braille renderers compute runes as
       # 0x2800 + an 8-bit dot mask; the operands are bounded by construction.

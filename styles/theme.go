@@ -69,7 +69,7 @@ func SetCurrentTint(id string) error {
 	}
 	tintMu.Lock()
 	defer tintMu.Unlock()
-	ensureRegistryUnsafe()
+	verifyRegistryUnsafe()
 	if ok := tint.SetTintID(id); !ok {
 		return fmt.Errorf("unknown tint ID: %s", id)
 	}
@@ -80,16 +80,36 @@ func SetCurrentTint(id string) error {
 // Guarded by tintMu.
 var registryReady bool
 
-// ensureRegistryUnsafe initializes the bubbletint default registry once.
+// verifyRegistryUnsafe initializes the bubbletint default registry once.
 // Callers must hold tintMu. Before this runs, tint.SetTintID/Current panic
 // on the nil registry — which is why standalone hosts (the examples, tests)
 // previously couldn't select a tint without a full app bootstrap.
-func ensureRegistryUnsafe() {
+func verifyRegistryUnsafe() {
 	if registryReady {
 		return
 	}
-	tint.NewDefaultRegistry()
+	// Only create a fresh default registry if none exists yet. A consumer (or an
+	// earlier call) may have already initialized DefaultRegistry and registered
+	// tints onto it (user YAML themes, the built-ins below); calling
+	// NewDefaultRegistry again would discard all of that. Registering the
+	// built-ins is idempotent (Register keys by ID), so it is safe to apply to
+	// whichever registry is live.
+	if tint.DefaultRegistry == nil {
+		tint.NewDefaultRegistry()
+	}
+	registerBuiltinTints()
 	registryReady = true
+}
+
+// VerifyRegistry initializes the bubbletint default registry — the library
+// defaults plus snap's built-in themes — if it has not been initialized yet. It
+// is idempotent, safe for concurrent use, and never discards tints already
+// registered. Consumers that previously called tint.NewDefaultRegistry directly
+// should call this instead so the built-ins (and any user themes) survive.
+func VerifyRegistry() {
+	tintMu.Lock()
+	verifyRegistryUnsafe()
+	tintMu.Unlock()
 }
 
 // AppStyle holds the semantic color palette for the application, derived from
@@ -345,20 +365,14 @@ func fromTint(t *tint.Tint, accessibility bool, preset StylePreset) *AppStyle {
 		AccessiblePairs: o,
 	}
 
-	// Dynamic selection contrast adjustment
-	bgL := colorLuminance(colors.Bg)
-	selL := colorLuminance(colors.SelectionBg)
-	if math.Abs(bgL-selL) < 25.0 {
-		if t.Dark {
-			colors.SelectionBg = lipgloss.Lighten(colors.Bg, 0.15)
-		} else {
-			colors.SelectionBg = lipgloss.Darken(colors.Bg, 0.15)
-		}
-		// Update selL after adjustment
-		selL = colorLuminance(colors.SelectionBg)
-	}
+	// Dynamic selection contrast adjustment: keep the active/selected item's
+	// background clearly separated from the page background. This lightens (or
+	// darkens) the selection color itself rather than collapsing it toward the
+	// page background, so a theme's selection hue survives — e.g. Starfleet's
+	// deep blue brightens to a visible blue instead of a muddy grey.
+	selL := verifySelectionContrast(colors, t.Dark, minSelectionGap)
 
-	// Ensure SelectionFg has high contrast against SelectionBg
+	// Verify SelectionFg has high contrast against SelectionBg
 	selFgL := colorLuminance(colors.SelectionFg)
 	if math.Abs(selFgL-selL) < 40.0 {
 		adjustSelectionFg(colors, t.Dark, selL)
@@ -377,9 +391,46 @@ func fromTint(t *tint.Tint, accessibility bool, preset StylePreset) *AppStyle {
 	return colors
 }
 
+// Luminance gaps (0–255 scale) between the selection background and the page
+// background. minSelectionGap is the always-on floor that keeps a selected item
+// visible on any theme; accessibleSelectionGap is the stronger separation the
+// accessibility pass targets so the active nav item reads unmistakably.
+const (
+	minSelectionGap        = 25.0
+	accessibleSelectionGap = 48.0
+)
+
 func colorLuminance(c color.Color) float64 {
 	r, g, b, _ := c.RGBA()
 	return 0.299*float64(r>>8) + 0.587*float64(g>>8) + 0.114*float64(b>>8)
+}
+
+// verifySelectionContrast nudges the selection background away from the page
+// background until their luminance differs by at least minGap, preserving the
+// selection color's hue (it lightens the selection on dark themes, darkens it on
+// light ones) rather than replacing it with a tint of the page background. It
+// returns the resulting selection-background luminance and stops early if the
+// color saturates at white/black before reaching the gap.
+func verifySelectionContrast(colors *AppStyle, dark bool, minGap float64) float64 {
+	bgL := colorLuminance(colors.Bg)
+	selL := colorLuminance(colors.SelectionBg)
+	for range 12 {
+		if math.Abs(bgL-selL) >= minGap {
+			break
+		}
+		if dark {
+			colors.SelectionBg = lipgloss.Lighten(colors.SelectionBg, 0.08)
+		} else {
+			colors.SelectionBg = lipgloss.Darken(colors.SelectionBg, 0.08)
+		}
+		newL := colorLuminance(colors.SelectionBg)
+		if math.Abs(newL-selL) < 0.5 { // saturated at pure white/black
+			selL = newL
+			break
+		}
+		selL = newL
+	}
+	return selL
 }
 
 func adjustSelectionFg(colors *AppStyle, dark bool, selL float64) {

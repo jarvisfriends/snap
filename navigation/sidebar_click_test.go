@@ -47,7 +47,7 @@ func TestSidebarClickSelectsEveryMainItem(t *testing.T) {
 	}
 
 	for idx := range numMain {
-		y := 1 + idx*navItemStride // row 0 is the header; items every stride rows
+		y := sidebarHeaderRows + idx*navItemStride // header chrome first, then items every stride rows
 		cmd := v.OnMouse(tea.MouseReleaseMsg{X: 0, Y: y, Button: tea.MouseLeft})
 		sel, ok := selectedFrom(cmd)
 		if !ok {

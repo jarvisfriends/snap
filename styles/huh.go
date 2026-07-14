@@ -1,6 +1,8 @@
 package styles
 
 import (
+	"sync"
+
 	"charm.land/huh/v2"
 	"charm.land/lipgloss/v2"
 )
@@ -64,17 +66,37 @@ func overlayPaletteColors(t *huh.Styles, c *AppStyle) {
 	t.Group.Description = t.Focused.Description
 }
 
+// huhStylesCache memoizes the *huh.Styles returned by HuhThemeFunc. huh calls
+// the ThemeFunc once per option per render (see Select.activeStyles), and
+// huh.Styles is a large struct, so copying it every call dominated theme-picker
+// scrolling (a 300-option list re-rendered options up to the cursor on every
+// keypress → ~240ms/key, most of it this copy). huh only ever reads the returned
+// styles — no field type mutates them — so we can hand out a shared pointer and
+// rebuild it only when the active palette's precomputed styles change (detected
+// by pointer identity, since fromTint caches one *huh.Styles per theme).
+var (
+	huhStylesMu     sync.Mutex
+	huhStylesSrc    *huh.Styles // active.HuhStyles pointer the cache was built from
+	huhStylesShared *huh.Styles // shared, read-only styles handed to huh
+)
+
 // HuhThemeFunc returns a ThemeFunc backed by the styles precomputed in the
-// active palette (see fromTint), so there is no separate huh cache to maintain.
-// It returns a shallow copy each call because huh forms mutate the styles they
-// receive; huh.Styles holds only value-type fields, so a shallow copy is safe.
+// active palette (see fromTint). The result is memoized and shared: huh treats
+// it as read-only, so a per-call copy is unnecessary and was prohibitively
+// expensive on hot render paths.
 func HuhThemeFunc() huh.ThemeFunc {
 	return func(_ bool) *huh.Styles {
 		active := Active()
 		if active.HuhStyles == nil {
 			return BuildHuhStyles(active, DefaultStylePreset, true)
 		}
-		cp := *active.HuhStyles
-		return &cp
+		huhStylesMu.Lock()
+		defer huhStylesMu.Unlock()
+		if huhStylesSrc != active.HuhStyles {
+			cp := *active.HuhStyles
+			huhStylesShared = &cp
+			huhStylesSrc = active.HuhStyles
+		}
+		return huhStylesShared
 	}
 }
