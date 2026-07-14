@@ -322,6 +322,24 @@ func (m *TableModel) HandleClick(x, y int) tea.Cmd {
 	return nil
 }
 
+// SelectRowAt highlights the data row at page-relative y (as recorded by the
+// last View) and returns it. It ignores the header row and out-of-range
+// coordinates. Use it to select the row under a right-click before opening a
+// context menu, mirroring the single-click selection HandleClick performs.
+func (m *TableModel) SelectRowAt(y int) (Row, bool) {
+	idx := y - m.dataStartY
+	if idx < 0 {
+		return Row{}, false
+	}
+	start, end := m.bt.VisibleIndices()
+	row := start + idx
+	if row > end {
+		return Row{}, false
+	}
+	m.bt = m.bt.WithHighlightedRow(row)
+	return m.SelectedRow()
+}
+
 // HandleWheel scrolls the selection by one row per wheel notch.
 func (m *TableModel) HandleWheel(up bool) {
 	delta := 1

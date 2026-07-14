@@ -237,6 +237,12 @@ func applyAccessibilityAdjustments(colors *AppStyle) {
 		}
 	}
 
+	// Push the selected-item background further from the page background so the
+	// active nav item stands out — the accessibility pass strengthens the
+	// always-on separation applied in fromTint. Do this before adjusting
+	// SelectionFg so its contrast is checked against the final background.
+	verifySelectionContrast(colors, colorLuminance(colors.Bg) < 128, accessibleSelectionGap)
+
 	adjust(&colors.Fg, colors.Bg)
 	adjust(&colors.Muted, colors.Bg)
 	adjust(&colors.Border, colors.Bg)

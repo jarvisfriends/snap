@@ -80,11 +80,13 @@ const (
 	// area when sizing the sidebar against the full terminal width.
 	sidebarMinContentWidth = 10
 
-	// sidebarHeaderRows and sidebarFooterRows are the fixed single-line chrome
-	// rows drawn around the scrollable page list: one header row, plus one
-	// separator + one pinned Settings row at the bottom.
-	sidebarHeaderRows = 1
-	sidebarFooterRows = 2 // separator + settings
+	// sidebarHeaderRows and sidebarFooterRows are the fixed chrome rows drawn
+	// around the scrollable page list: the title row plus a divider at the top,
+	// and a matching divider + pinned Settings row at the bottom. The symmetric
+	// top/bottom dividers frame the list so the header and pinned Settings read
+	// as intentional anchors instead of floating at the edges.
+	sidebarHeaderRows = 2 // title + divider
+	sidebarFooterRows = 2 // divider + settings
 
 	// sidebarPrefixWidth is the display width of the "▶ " / "● " / "  " cursor
 	// prefix drawn before every nav item's title.
@@ -349,18 +351,25 @@ func (m *Sidebar) expandedView(c *styles.AppStyle) tea.View {
 	}
 	header := headerStyle.Render("≡  NAV")
 
+	// A divider under the header mirrors the one above Settings, framing the
+	// page list top and bottom (see sidebarHeaderRows / sidebarFooterRows).
+	divider := func() string {
+		return c.Styles.NavInactive.
+			Width(innerW).
+			Foreground(c.Border).
+			Render(strings.Repeat("─", innerW))
+	}
+	headerSep := divider()
+
 	// ── Main list ────────────────────────────────────────────────────────
 	listStr := m.mainList.View()
 
 	// ── Separator + pinned Settings ──────────────────────────────────────
-	sep := c.Styles.NavInactive.
-		Width(innerW).
-		Foreground(c.Border).
-		Render(strings.Repeat("─", innerW))
+	sep := divider()
 	settingsStr := m.renderSettingsItem(c, innerW)
 
 	// ── Vertical padding pushes Settings to the absolute bottom ──────────
-	headerH := lipgloss.Height(header)
+	headerH := lipgloss.Height(header) + lipgloss.Height(headerSep)
 	sepH := lipgloss.Height(sep)
 	settingsH := lipgloss.Height(settingsStr)
 	listAreaH := max(m.height-headerH-sepH-settingsH, 1)
@@ -369,6 +378,7 @@ func (m *Sidebar) expandedView(c *styles.AppStyle) tea.View {
 	inner := lipgloss.JoinVertical(
 		lipgloss.Left,
 		header,
+		headerSep,
 		paddedList,
 		sep,
 		settingsStr,
@@ -456,7 +466,8 @@ func (m *Sidebar) handleMouse(mm tea.MouseMsg, height int) tea.Cmd {
 		return nil
 	}
 
-	// Row 0 is the header — clicking it collapses the sidebar.
+	// Row 0 is the header title — clicking it collapses the sidebar. Row 1 is
+	// the header divider, which falls through to the focus behavior below.
 	if me.Y == 0 {
 		return func() tea.Msg { return CollapseToggleMsg{} }
 	}
@@ -472,10 +483,11 @@ func (m *Sidebar) handleMouse(mm tea.MouseMsg, height int) tea.Cmd {
 		)
 	}
 
-	// List items render below the header, one item every navItemStride rows (one
-	// row for the item plus a blank spacing row between items). Map the click row
-	// back to an item index; clicks on a spacing row fall through to focus.
-	listY := me.Y - 1
+	// List items render below the header chrome (title + divider), one item
+	// every navItemStride rows (one row for the item plus a blank spacing row
+	// between items). Map the click row back to an item index; clicks on a
+	// spacing row fall through to focus.
+	listY := me.Y - sidebarHeaderRows
 	numMain := m.numMainItems()
 	if listY >= 0 && listY%navItemStride == 0 {
 		if cmd := m.selectMainItem(listY/navItemStride, numMain); cmd != nil {

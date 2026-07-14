@@ -21,6 +21,14 @@ type Styles struct {
 	TextOnBg   lipgloss.Style
 	Dim        lipgloss.Style
 
+	// BoarderActive / BoarderInactive are complete bordered-box styles: a
+	// rounded border (tinted by the accent / border color) on the theme
+	// background. Render content with them directly — e.g.
+	// BoarderActive.Width(w).Height(h).Render(content) — and derive the content
+	// area and hit-test offsets from the style's frame getters
+	// (GetHorizontalFrameSize, layout.ContentOrigin), never hardcoded literals.
+	// They carry a real border shape (not just a color) so a panel's rendered
+	// size and its mouse hit-testing always agree.
 	BoarderActive   lipgloss.Style
 	BoarderInactive lipgloss.Style
 
@@ -85,8 +93,8 @@ func BuildStyles(c *AppStyle) *Styles {
 		TextOnBg:   base,
 		Dim:        base.Faint(true),
 
-		BoarderActive:   base.BorderForeground(c.Accent),
-		BoarderInactive: base.BorderForeground(c.Border),
+		BoarderActive:   base.Border(lipgloss.RoundedBorder()).BorderForeground(c.Accent),
+		BoarderInactive: base.Border(lipgloss.RoundedBorder()).BorderForeground(c.Border),
 
 		Item:         base.Foreground(c.Muted),
 		SelectedItem: base.Background(c.SelectionBg).Foreground(c.SelectionFg).Bold(true),
