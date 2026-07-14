@@ -74,6 +74,59 @@ func CheckFitsViewport(t *testing.T, m tea.Model, states ...tea.Msg) {
 	}
 }
 
+// CheckFillsViewport asserts a FULL-SCREEN model (one that draws to every row —
+// an app router, or a standalone bordered overlay like the inspector run on its
+// own) fills its viewport EXACTLY at each standard size: the rendered frame is
+// exactly height rows tall, its last row is non-blank, and no line exceeds the
+// width.
+//
+// This is stricter than CheckFitsViewport (which only forbids overflow, and
+// ignores trailing blank rows). It catches a frame that is one or more rows too
+// TALL — the terminal clips the bottom, so a bottom border or the last row goes
+// missing (classically because a border's vertical frame was subtracted from
+// the width but not the height) — AND a frame that is too SHORT, leaving a blank
+// strip or no bottom edge. Use it for full-screen models; content-sized
+// components (individual pages) should use CheckFitsViewport instead.
+//
+// Optional states are replayed after each resize and re-checked, so page/tab
+// switches and overlay toggles are covered too.
+func CheckFillsViewport(t *testing.T, m tea.Model, states ...tea.Msg) {
+	t.Helper()
+	assertFills := func(w, h int, label string) {
+		t.Helper()
+		// A full-screen frame does not end in a newline; tolerate one if present
+		// so a stray trailing newline is not miscounted as an extra row.
+		lines := strings.Split(strings.TrimSuffix(m.View().Content, "\n"), "\n")
+		if len(lines) != h {
+			t.Errorf("width=%d height=%d %s: rendered %d rows, want exactly %d (frame over/underflows the viewport — bottom row clipped or blank)",
+				w, h, label, len(lines), h)
+			return
+		}
+		if strings.TrimSpace(StripANSI(lines[h-1])) == "" {
+			t.Errorf("width=%d height=%d %s: bottom row is blank — the frame does not reach the last row (missing bottom border/content)",
+				w, h, label)
+		}
+		for li, line := range lines {
+			if gw := lipgloss.Width(line); gw > w {
+				t.Errorf("width=%d height=%d %s: line %d width %d exceeds %d: %q",
+					w, h, label, li, gw, w, StripANSI(line))
+			}
+		}
+	}
+	for i, w := range StandardWidths {
+		h := 24
+		if i < len(StandardHeights) {
+			h = StandardHeights[i]
+		}
+		m, _ = m.Update(tea.WindowSizeMsg{Width: w, Height: h})
+		assertFills(w, h, "initial")
+		for si, st := range states {
+			m, _ = m.Update(st)
+			assertFills(w, h, fmt.Sprintf("state[%d] %T", si, st))
+		}
+	}
+}
+
 // StatusProvider is implemented by models (typically an app router) that can report
 // their status bar's current text and visibility, so CheckStatusBarVisible can
 // assert the status bar is present in every rendered frame.
