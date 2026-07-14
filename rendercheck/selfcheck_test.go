@@ -37,6 +37,48 @@ func (m boxModel) View() tea.View {
 	return tea.NewView(box)
 }
 
+// fullBoxModel renders a bordered box that fills the window EXACTLY (outer
+// width/height = the terminal size) — the fixture a full-screen model must
+// match. Unlike boxModel (which is 2 cells smaller each way, valid for
+// CheckFitsViewport), this reaches the last row on every axis.
+type fullBoxModel struct{ w, h int }
+
+func (m fullBoxModel) Init() tea.Cmd { return nil }
+
+func (m fullBoxModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if ws, ok := msg.(tea.WindowSizeMsg); ok {
+		m.w, m.h = ws.Width, ws.Height
+	}
+	return m, nil
+}
+
+func (m fullBoxModel) View() tea.View {
+	if m.w < 2 || m.h < 2 {
+		return tea.NewView("")
+	}
+	box := lipgloss.NewStyle().
+		Border(lipgloss.NormalBorder()).
+		Width(m.w).  // outer width == terminal width
+		Height(m.h). // outer height == terminal height
+		Render("ok")
+	return tea.NewView(box)
+}
+
+// TestCheckFillsViewport covers both paths: a full-screen model fills the
+// viewport exactly, while a model that stops short of the last row (boxModel,
+// 2 cells smaller each way) is rejected.
+func TestCheckFillsViewport(t *testing.T) {
+	t.Parallel()
+
+	CheckFillsViewport(t, fullBoxModel{}, tea.KeyPressMsg{Code: tea.KeyRight})
+
+	rec := &testing.T{}
+	CheckFillsViewport(rec, boxModel{})
+	if !rec.Failed() {
+		t.Fatal("CheckFillsViewport accepted a frame that stops short of the last row")
+	}
+}
+
 // TestWellBehavedModelPassesChecks runs the conformance suite over the
 // fixture: a model that sizes itself to the window must sail through every
 // checker (the checkers' own loops and size tables get exercised in-repo,
