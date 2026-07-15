@@ -3,16 +3,15 @@
 // output across hosts, and sidesteps a Windows-native vhs/ttyd hang.
 //
 // Tapes run in parallel on a worker pool sized to the CPU count, so large
-// tape sets finish fast without making the host unusable. The Docker Go
-// client talks to Docker Desktop or Podman alike (Podman's Docker-compatible
-// socket / DOCKER_HOST are honored automatically).
+// tape sets finish fast without making the host unusable. Docker/Podman
+// CLI commands do the container work so this tool stays dependency-light.
 //
 // Usage, from the snap repo root:
 //
 //	go -C tools/rendertapes run . [-image ghcr.io/charmbracelet/vhs] [-workers N]
 //
-// This is a standalone module so the Docker client dependency never enters
-// snap's library graph.
+// This is a standalone module so tool-only dependencies never enter snap's
+// library graph.
 package main
 
 import (
@@ -28,11 +27,6 @@ import (
 	"runtime"
 	"strings"
 	"sync"
-
-	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/image"
-	"github.com/docker/docker/client"
-	"github.com/docker/docker/pkg/stdcopy"
 )
 
 func main() {
@@ -80,13 +74,8 @@ func run() error {
 	defer cleanDemoBinaries(root)
 
 	ctx := context.Background()
-	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
-	if err != nil {
-		return fmt.Errorf("docker/podman client: %w", err)
-	}
-	defer cli.Close() //nolint:errcheck // process exit follows
 
-	if err := ensureImage(ctx, cli, *imageRef); err != nil {
+	if err := ensureImage(ctx, *imageRef); err != nil {
 		return fmt.Errorf("pull %s: %w", *imageRef, err)
 	}
 
@@ -101,7 +90,7 @@ func run() error {
 				rel, _ := filepath.Rel(root, tape)
 				rel = filepath.ToSlash(rel)
 				log.Printf("==> %s", rel)
-				if err := renderTape(ctx, cli, *imageRef, root, rel); err != nil {
+				if err := renderTape(ctx, *imageRef, root, rel); err != nil {
 					mu.Lock()
 					failures++
 					mu.Unlock()
@@ -150,83 +139,65 @@ func findTapes(root string) ([]string, error) {
 }
 
 // ensureImage pulls the VHS image when it is not already present.
-func ensureImage(ctx context.Context, cli *client.Client, ref string) error {
-	if _, err := cli.ImageInspect(ctx, ref); err == nil {
+func ensureImage(ctx context.Context, ref string) error {
+	if err := runDocker(ctx, "image", "inspect", ref); err == nil {
 		return nil
 	}
-	rc, err := cli.ImagePull(ctx, ref, image.PullOptions{})
-	if err != nil {
-		return err
-	}
-	defer rc.Close() //nolint:errcheck // drain-and-close of a pull stream
-	_, err = io.Copy(io.Discard, rc)
-	return err
+	return runDocker(ctx, "pull", ref)
 }
 
 // renderTape runs one tape in its own container with the repo mounted at
 // /vhs (the image's working directory), mirroring
 // `docker run --rm -v <root>:/vhs ghcr.io/charmbracelet/vhs <tape>`.
-func renderTape(ctx context.Context, cli *client.Client, imageRef, root, relTape string) error {
-	created, err := cli.ContainerCreate(ctx,
-		&container.Config{
-			Image: imageRef,
-			Cmd:   []string{relTape},
-			// The VHS container's terminal advertises TERM=xterm-256color, so
-			// lipgloss downsamples the demos' true-color backgrounds to the
-			// 256-color cube — the theme base #24273a collapses to ANSI 17
-			// (#00005f), a saturated navy, which is why component panels used
-			// to render bright blue while the page (an OSC default-bg passed
-			// straight through) stayed the intended dark. COLORTERM=truecolor
-			// upgrades the profile so SGR colors match the page. It still
-			// honors NO_COLOR, so this is render-only and safe.
-			Env: []string{"COLORTERM=truecolor"},
-		},
-		&container.HostConfig{
-			Binds:      []string{root + ":/vhs"},
-			AutoRemove: false, // removed explicitly after logs are collected
-		},
-		nil, nil, "")
+func renderTape(ctx context.Context, imageRef, root, relTape string) error {
+	// The VHS container's terminal advertises TERM=xterm-256color, so
+	// lipgloss downsamples true-color backgrounds. COLORTERM=truecolor
+	// upgrades the profile so SGR colors match the page while honoring NO_COLOR.
+	out, err := runDockerOutput(ctx,
+		"run", "--rm",
+		"-e", "COLORTERM=truecolor",
+		"-v", root+":/vhs",
+		imageRef,
+		relTape,
+	)
 	if err != nil {
-		return err
-	}
-	id := created.ID
-	defer func() {
-		_ = cli.ContainerRemove(context.WithoutCancel(ctx), id, container.RemoveOptions{Force: true})
-	}()
-
-	if err := cli.ContainerStart(ctx, id, container.StartOptions{}); err != nil {
-		return err
-	}
-
-	waitC, errC := cli.ContainerWait(ctx, id, container.WaitConditionNotRunning)
-	select {
-	case err := <-errC:
-		return err
-	case status := <-waitC:
-		if status.StatusCode != 0 {
-			return fmt.Errorf("vhs exited %d:\n%s", status.StatusCode, containerLogs(ctx, cli, id))
-		}
+		return fmt.Errorf("vhs container failed: %w\n%s", err, strings.TrimSpace(out))
 	}
 	return nil
 }
 
-// containerLogs collects a failed container's output for the error message.
-func containerLogs(ctx context.Context, cli *client.Client, id string) string {
-	rc, err := cli.ContainerLogs(ctx, id, container.LogsOptions{ShowStdout: true, ShowStderr: true})
-	if err != nil {
-		return "(logs unavailable: " + err.Error() + ")"
+func runDocker(ctx context.Context, args ...string) error {
+	cmd := exec.CommandContext(ctx, "docker", args...)
+	cmd.Stdout = io.Discard
+	cmd.Stderr = io.Discard
+	if err := cmd.Run(); err != nil {
+		podman := exec.CommandContext(ctx, "podman", args...)
+		podman.Stdout = io.Discard
+		podman.Stderr = io.Discard
+		if pErr := podman.Run(); pErr == nil {
+			return nil
+		}
+		return err
 	}
-	defer rc.Close() //nolint:errcheck // read-only stream
-	var buf writerBuf
-	_, _ = stdcopy.StdCopy(&buf, &buf, rc)
-	return buf.String()
+	return nil
 }
 
-// writerBuf is a minimal strings.Builder-compatible io.Writer.
-type writerBuf struct{ b []byte }
-
-func (w *writerBuf) Write(p []byte) (int, error) { w.b = append(w.b, p...); return len(p), nil }
-func (w *writerBuf) String() string              { return string(w.b) }
+func runDockerOutput(ctx context.Context, args ...string) (string, error) {
+	cmd := exec.CommandContext(ctx, "docker", args...)
+	out, err := cmd.CombinedOutput()
+	if err == nil {
+		return string(out), nil
+	}
+	podman := exec.CommandContext(ctx, "podman", args...)
+	pout, pErr := podman.CombinedOutput()
+	if pErr == nil {
+		return string(pout), nil
+	}
+	if strings.TrimSpace(string(pout)) != "" {
+		return string(pout), pErr
+	}
+	return string(out), err
+}
 
 // buildDemoBinaries cross-compiles every example for linux/amd64 into
 // examples/<name>/demo-bin — the vhs container has no Go toolchain, so the
