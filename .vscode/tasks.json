@@ -1,16 +1,16 @@
 {
   "version": "2.0.0",
   "tasks": [
-    // {
-    //   "label": "go: build",
-    //   "type": "shell",
-    //   "command": "go build ./...",
-    //   "group": {
-    //     "kind": "build",
-    //     "isDefault": true
-    //   },
-    //   "problemMatcher": []
-    // },
+    {
+      "label": "go: build",
+      "type": "shell",
+      "command": "go build ./...",
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "problemMatcher": []
+    },
     {
       "label": "go: test",
       "type": "shell",
@@ -33,12 +33,18 @@
       "type": "shell",
       "command": "golangci-lint run ./...",
       "problemMatcher": []
-    // },
-    // {
-    //   "label": "go: verify local",
-    //   "type": "shell",
-    //   "command": "bash tools/local_verify.sh",
-    //   "problemMatcher": []
+    },
+    {
+      "label": "go: vet",
+      "type": "shell",
+      "command": "go vet ./...",
+      "problemMatcher": []
+    },
+    {
+      "label": "go: verify local",
+      "type": "shell",
+      "command": "bash tools/local_verify.sh",
+      "problemMatcher": []
     }
   ]
 }

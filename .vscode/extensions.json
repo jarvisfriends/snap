@@ -1,0 +1,14 @@
+{
+  "recommendations": [
+    "golang.go",
+    "golangci-lint.vscode-golangci-lint",
+    "foxundermoon.shell-format",
+    "timonwong.shellcheck",
+    "redhat.vscode-yaml",
+    "esbenp.prettier-vscode",
+    "tamasfe.even-better-toml",
+    "griimick.vhs",
+    "editorconfig.editorconfig",
+    "davidanson.vscode-markdownlint"
+  ]
+}

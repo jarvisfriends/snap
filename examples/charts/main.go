@@ -136,13 +136,15 @@ func (a demoApp) View() tea.View {
 	legendLine := lipgloss.NewStyle().Foreground(lipgloss.Color("240")).
 		Width(pieW).MaxWidth(pieW).Render(legend)
 
-	body := lipgloss.JoinHorizontal(lipgloss.Top,
+	body := lipgloss.JoinHorizontal(
+		lipgloss.Top,
 		lipgloss.JoinVertical(lipgloss.Left, pieFrame, legendLine),
 		"  ",
 		a.sankey.View().Content,
 	)
 
-	v := tea.NewView(lipgloss.JoinVertical(lipgloss.Left,
+	v := tea.NewView(lipgloss.JoinVertical(
+		lipgloss.Left,
 		row("cpu", a.cpu.View().Content),
 		row("mem", a.mem.View().Content),
 		body,

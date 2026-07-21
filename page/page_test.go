@@ -35,7 +35,7 @@ func TestBaseSize(t *testing.T) {
 	}
 }
 
-// TestBaseSatisfiesColorAware ensures an embedder of Base satisfies the
+// TestBaseSatisfiesColorAware verifies an embedder of Base satisfies the
 // styles.ColorAware interface that the router uses to broadcast palette updates.
 func TestBaseSatisfiesColorAware(t *testing.T) {
 	type page struct{ Base }

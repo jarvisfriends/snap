@@ -13,3 +13,29 @@ dist/
 examples/*/datepicker
 examples/*/timepicker
 examples/*/*.exe
+
+# BEGIN copilot-team-baseline
+# Shared local-only artifacts (safe to ignore in OSS repos)
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+.idea/
+.env
+.env.*
+!.env.example
+coverage/
+coverage.out
+.coverage
+*.log
+tmp/
+.cache/
+
+# Go local build/test artifacts
+bin/
+dist/
+*.test
+*.prof
+*.pprof
+# END copilot-team-baseline

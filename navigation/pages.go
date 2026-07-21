@@ -1,18 +1,15 @@
 package navigation
 
 const (
-	// PageIDHome, PageIDInspector, PageIDSettings are the stable page ID strings
+	// PageIDHome and PageIDSettings are the stable page ID strings
 	// used when registering pages with any Navigator. Router and tests should use
 	// these rather than bare string literals so renames stay in one place.
-	PageIDHome      = "home"
-	PageIDInspector = "debug"
-	PageIDSettings  = "settings"
+	PageIDHome     = "home"
+	PageIDSettings = "settings"
 
-	pageIDHome      = PageIDHome
-	pageIDInspector = PageIDInspector
-	pageIDSettings  = PageIDSettings
+	pageIDHome     = PageIDHome
+	pageIDSettings = PageIDSettings
 
-	pageHome      = "Home"
-	pageInspector = "Inspector"
-	pageSettings  = "Settings"
+	pageHome     = "Home"
+	pageSettings = "Settings"
 )

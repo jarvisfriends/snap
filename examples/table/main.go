@@ -42,8 +42,8 @@ func newDemo() *demoApp {
 	return &demoApp{
 		tbl: t,
 		chrome: exui.NewChrome(
-			exui.Bind("↑/↓", "move"),
-			exui.Bind("s/click header", "sort"),
+			exui.Bind("↑↓", "move"),
+			exui.Bind("s click-header", "sort"),
 			exui.Bind("/", "filter"),
 			exui.Bind("enter", "pick"),
 			exui.Bind("q", "quit"),

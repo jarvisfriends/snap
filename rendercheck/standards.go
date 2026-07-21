@@ -465,7 +465,7 @@ func findSizeGuessesInBody(pkg *packages.Package, filename string, body *ast.Blo
 				msgs,
 				fmt.Sprintf(
 					"%s:%d: %s looks like a hardcoded border/frame-size guess in a type that draws a border — "+
-						"call style.GetHorizontalFrameSize()/GetVerticalFrameSize() instead of subtracting a literal",
+						"use layout.InnerSize() or call style.GetHorizontalFrameSize()/GetVerticalFrameSize() instead of subtracting a literal",
 					filename,
 					pos.Line,
 					types.ExprString(bin),

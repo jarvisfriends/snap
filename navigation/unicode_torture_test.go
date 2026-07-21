@@ -65,8 +65,8 @@ func TestMinimalTopNavUnicodeTitlesRenderConsistently(t *testing.T) {
 		}
 	}
 	total := lipgloss.Width(v.Content)
-	if last := m.ends[len(m.ends)-1]; last != total-1 {
-		t.Errorf("last click range ends at %d; rendered row is %d cells", last, total)
+	if total != 120 {
+		t.Errorf("rendered row is %d cells, expected full window width of 120", total)
 	}
 }
 

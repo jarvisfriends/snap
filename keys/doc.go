@@ -1,5 +1,5 @@
 // Package keys defines AppKeyMap, the application-wide key bindings (quit,
-// page cycling, settings, nav/status toggles, inspector) with bubbles/help
+// page cycling, settings, nav/status toggles) with bubbles/help
 // integration and user rebinding support.
 //
 // Bindings live in the struct per ADR-011: help methods never construct

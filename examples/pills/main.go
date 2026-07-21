@@ -103,7 +103,8 @@ func (a *demoApp) shapeRow(shape styles.PillShape, selected bool) string {
 		{Text: " ~1 ", Bg: cPeach},
 		{Text: " !3 ", Bg: cRed},
 	}, st)
-	return lipgloss.JoinHorizontal(lipgloss.Left,
+	return lipgloss.JoinHorizontal(
+		lipgloss.Left,
 		colCell(name, nameColW),
 		colCell(styles.Pill("Go", nil, cBlue, st), goColW),
 		colCell(styles.Pill("v0.1.5", nil, cMauve, st), versionColW),
@@ -131,11 +132,13 @@ func (a *demoApp) View() tea.View {
 		nav = append(nav, styles.Pill(label, nil, fill, st))
 	}
 	crumbs := styles.Breadcrumbs([]string{"home", "projects", "snap"}, dim, st)
-	navRow := lipgloss.JoinHorizontal(lipgloss.Top,
+	navRow := lipgloss.JoinHorizontal(
+		lipgloss.Top,
 		lipgloss.NewStyle().PaddingLeft(2).Render(lipgloss.JoinHorizontal(lipgloss.Top, nav...)),
 		lipgloss.NewStyle().PaddingLeft(4).Render(crumbs),
 	)
-	rows = append(rows,
+	rows = append(
+		rows,
 		"",
 		dim.Render("nav + breadcrumbs ("+sel.DisplayName()+"):"),
 		navRow,
@@ -154,7 +157,7 @@ func main() {
 	app := &demoApp{
 		shapes: styles.PillShapes(),
 		chrome: exui.NewChrome(
-			exui.Bind("←/→/wheel", "shape (* needs Nerd Font)"),
+			exui.Bind("←→ wheel", "shape (* needs Nerd Font)"),
 			exui.Bind("enter", "pick"),
 			exui.Bind("q", "quit"),
 		),

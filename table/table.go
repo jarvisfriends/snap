@@ -30,6 +30,7 @@ import (
 	"charm.land/lipgloss/v2"
 	btable "github.com/evertras/bubble-table/table"
 
+	"github.com/jarvisfriends/snap/keys"
 	"github.com/jarvisfriends/snap/styles"
 )
 
@@ -79,55 +80,11 @@ type Row struct {
 // The host page handles it (e.g. by opening a detail overlay for Key).
 type OpenDetailMsg struct{ Key string }
 
-// KeyMap is the table's key bindings. Use DefaultKeyMap for sensible defaults.
-type KeyMap struct {
-	Up       key.Binding
-	Down     key.Binding
-	PageUp   key.Binding
-	PageDown key.Binding
-	Top      key.Binding
-	Bottom   key.Binding
-	Sort     key.Binding // cycle the sort column/direction
-	Filter   key.Binding // enter `/` filter mode
-	Open     key.Binding // open the selected row's details
-	Cancel   key.Binding // blur the filter input / clear the filter
-}
-
-// DefaultKeyMap returns the standard bindings (vim + arrows, `/` filter, `s`
-// sort, Enter open).
-func DefaultKeyMap() KeyMap {
-	return KeyMap{
-		Up:       key.NewBinding(key.WithKeys("up"), key.WithHelp("↑", "up")),
-		Down:     key.NewBinding(key.WithKeys("down"), key.WithHelp("↓", "down")),
-		PageUp:   key.NewBinding(key.WithKeys("pgup"), key.WithHelp("pgup", "page up")),
-		PageDown: key.NewBinding(key.WithKeys("pgdown"), key.WithHelp("pgdn", "page down")),
-		Top:      key.NewBinding(key.WithKeys("home"), key.WithHelp("home", "top")),
-		Bottom:   key.NewBinding(key.WithKeys("end"), key.WithHelp("end", "bottom")),
-		Sort:     key.NewBinding(key.WithKeys("s"), key.WithHelp("s", "sort")),
-		Filter:   key.NewBinding(key.WithKeys("/"), key.WithHelp("/", "filter")),
-		Open:     key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "details")),
-		Cancel:   key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "clear")),
-	}
-}
-
-// ShortHelp implements help.KeyMap.
-func (km KeyMap) ShortHelp() []key.Binding {
-	return []key.Binding{km.Up, km.Down, km.Sort, km.Filter, km.Open}
-}
-
-// FullHelp implements help.KeyMap.
-func (km KeyMap) FullHelp() [][]key.Binding {
-	return [][]key.Binding{
-		{km.Up, km.Down, km.PageUp, km.PageDown, km.Top, km.Bottom},
-		{km.Sort, km.Filter, km.Open, km.Cancel},
-	}
-}
-
-var _ help.KeyMap = (*KeyMap)(nil)
+var _ help.KeyMap = (*keys.AppKeyMap)(nil)
 
 // TableModel is the table widget. Construct it with New.
 type TableModel struct {
-	KeyMap KeyMap
+	KeyMap *keys.AppKeyMap
 
 	// HideFooterHint suppresses the footer's right-aligned key-hint text
 	// (the cursor/total, sort, and live-filter readouts stay). Hosts that
@@ -166,7 +123,7 @@ type TableModel struct {
 type Option func(*TableModel)
 
 // WithKeyMap overrides the default key bindings.
-func WithKeyMap(km KeyMap) Option { return func(m *TableModel) { m.KeyMap = km } }
+func WithKeyMap(km *keys.AppKeyMap) Option { return func(m *TableModel) { m.KeyMap = km } }
 
 // WithPageSize sets a fixed page size (otherwise it's derived from the height
 // passed to SetSize).
@@ -186,7 +143,7 @@ func WithSort(col int, asc bool) Option {
 // New builds a table for the given columns.
 func New(cols []Column, opts ...Option) *TableModel {
 	m := &TableModel{
-		KeyMap:       DefaultKeyMap(),
+		KeyMap:       keys.DefaultKeyMap(),
 		cols:         cols,
 		pageSize:     20,
 		sortCol:      -1,
@@ -290,6 +247,25 @@ func (m *TableModel) handleKey(msg tea.KeyPressMsg) tea.Cmd {
 	var cmd tea.Cmd
 	m.bt, cmd = m.bt.Update(msg)
 	return cmd
+}
+
+// ShortHelp returns the most relevant keybindings for the table context.
+func (m *TableModel) ShortHelp() []key.Binding {
+	if m.KeyMap == nil {
+		return nil
+	}
+	return []key.Binding{m.KeyMap.Up, m.KeyMap.Down, m.KeyMap.Sort, m.KeyMap.Filter, m.KeyMap.Open}
+}
+
+// FullHelp returns all table keybindings organized into groups.
+func (m *TableModel) FullHelp() [][]key.Binding {
+	if m.KeyMap == nil {
+		return nil
+	}
+	return [][]key.Binding{
+		{m.KeyMap.Up, m.KeyMap.Down, m.KeyMap.PageUp, m.KeyMap.PageDown, m.KeyMap.Top, m.KeyMap.Bottom},
+		{m.KeyMap.Sort, m.KeyMap.Filter, m.KeyMap.Open, m.KeyMap.Cancel},
+	}
 }
 
 // HandleClick processes a left click at page-relative (x, y): a header click

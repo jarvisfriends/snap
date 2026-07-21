@@ -50,14 +50,20 @@ func TestMinimalTopNav_NumberKeySelectsRegardlessOfPrefix(t *testing.T) {
 }
 
 func TestMinimalTopNav_ArrowsWrap(t *testing.T) {
-	m := NewMinimalTopNav() // 3 pages, active 0
+	m := NewMinimalTopNav()
+	m.SetPages([]Page{
+		{ID: pageIDHome, Title: pageHome},
+		{ID: "p1", Title: "Placeholder 1"},
+		{ID: "p2", Title: "Placeholder 2"},
+		{ID: pageIDSettings, Title: pageSettings},
+	})
 	_, cmd := m.Update(tea.KeyPressMsg{Code: tea.KeyLeft})
-	if got := selectedIndex(t, cmd); got != 2 {
-		t.Fatalf("left from 0 should wrap to 2, got %d", got)
+	if got := selectedIndex(t, cmd); got != 3 {
+		t.Fatalf("left from 0 should wrap to 3, got %d", got)
 	}
 	_, cmd = m.Update(tea.KeyPressMsg{Code: tea.KeyRight})
 	if got := selectedIndex(t, cmd); got != 0 {
-		t.Fatalf("right from 2 should wrap to 0, got %d", got)
+		t.Fatalf("right from 3 should wrap to 0, got %d", got)
 	}
 }
 

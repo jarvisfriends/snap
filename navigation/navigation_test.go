@@ -10,9 +10,12 @@ import (
 func TestKeyNavigation(t *testing.T) {
 	t.Parallel()
 	m := New()
-	if m.ActiveIndex != 0 {
-		t.Fatalf("initial ActiveIndex = %d; want 0", m.ActiveIndex)
-	}
+	m.SetPages([]Page{
+		{ID: pageIDHome, Title: pageHome},
+		{ID: "p1", Title: "Placeholder 1"},
+		{ID: "p2", Title: "Placeholder 2"},
+		{ID: pageIDSettings, Title: pageSettings},
+	})
 
 	// Test NextPage (was 'j', now 'down' or 'right' or 'tab')
 	_, _ = m.Update(tea.KeyPressMsg{Code: tea.KeyDown})
@@ -30,6 +33,12 @@ func TestKeyNavigation(t *testing.T) {
 func TestEnterEmitsSelectedMsg(t *testing.T) {
 	t.Parallel()
 	m := New()
+	m.SetPages([]Page{
+		{ID: pageIDHome, Title: pageHome},
+		{ID: "p1", Title: "Placeholder 1"},
+		{ID: "p2", Title: "Placeholder 2"},
+		{ID: pageIDSettings, Title: pageSettings},
+	})
 	// select the last page
 	m.ActiveIndex = len(m.Pages) - 1
 
@@ -50,6 +59,12 @@ func TestEnterEmitsSelectedMsg(t *testing.T) {
 func TestMouseSelectionUpdatesActiveIndexAndEmitsMsg(t *testing.T) {
 	t.Parallel()
 	m := New()
+	m.SetPages([]Page{
+		{ID: pageIDHome, Title: pageHome},
+		{ID: "p1", Title: "Placeholder 1"},
+		{ID: "p2", Title: "Placeholder 2"},
+		{ID: pageIDSettings, Title: pageSettings},
+	})
 	// give the view a deterministic size so we can map lines
 	_, _ = m.Update(tea.WindowSizeMsg{Width: 80, Height: 20})
 	v := m.View()

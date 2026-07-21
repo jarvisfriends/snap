@@ -10,6 +10,12 @@ import (
 
 func TestMouseInput(t *testing.T) {
 	nav := New()
+	nav.SetPages([]Page{
+		{ID: pageIDHome, Title: pageHome},
+		{ID: "p1", Title: "Placeholder 1"},
+		{ID: "p2", Title: "Placeholder 2"},
+		{ID: pageIDSettings, Title: pageSettings},
+	})
 	// set a width/height so the view is rendered predictably
 	nCheck, cCheck := nav.Update(tea.WindowSizeMsg{Width: 20, Height: 10})
 	if nCheck != nav || cCheck != nil {
@@ -22,7 +28,7 @@ func TestMouseInput(t *testing.T) {
 	}
 	fmt.Println("View content lines:")
 	for i, line := range lines {
-		fmt.Printf("%d: %s\n", i, line)
+		fmt.Printf("%2d: %s\n", i, line)
 	}
 
 	for _, page := range nav.Pages {

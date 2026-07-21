@@ -1,6 +1,7 @@
 package navigation
 
 import (
+	"github.com/jarvisfriends/snap/keys"
 	"github.com/jarvisfriends/snap/page"
 
 	"charm.land/bubbles/v2/key"
@@ -12,7 +13,7 @@ type Tabs struct {
 	Pages       []Page
 	ActiveIndex int
 	HoverIndex  int
-	KeyMap      NavKeyMap
+	KeyMap      *keys.AppKeyMap
 	width       int
 	height      int
 	page.Base
@@ -22,12 +23,11 @@ func NewTabs() *Tabs {
 	return &Tabs{
 		Pages: []Page{
 			{ID: pageIDHome, Title: pageHome},
-			{ID: pageIDInspector, Title: pageInspector},
 			{ID: pageIDSettings, Title: pageSettings},
 		},
 		ActiveIndex: 0,
 		HoverIndex:  -1,
-		KeyMap:      DefaultNavKeyMap(),
+		KeyMap:      keys.DefaultKeyMap(),
 	}
 }
 
@@ -44,12 +44,12 @@ func (m *Tabs) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	case tea.KeyPressMsg:
 		switch {
-		case key.Matches(msg, m.KeyMap.PreviousPage):
+		case key.Matches(msg, m.KeyMap.PreviousPage, m.KeyMap.Up, m.KeyMap.Left):
 			if len(m.Pages) > 0 {
 				m.ActiveIndex = (m.ActiveIndex - 1 + len(m.Pages)) % len(m.Pages)
 				return m, func() tea.Msg { return SelectedMsg{PageIndex: m.ActiveIndex} }
 			}
-		case key.Matches(msg, m.KeyMap.NextPage):
+		case key.Matches(msg, m.KeyMap.NextPage, m.KeyMap.Down, m.KeyMap.Right):
 			if len(m.Pages) > 0 {
 				m.ActiveIndex = (m.ActiveIndex + 1) % len(m.Pages)
 				return m, func() tea.Msg { return SelectedMsg{PageIndex: m.ActiveIndex} }
@@ -165,10 +165,12 @@ func (m *Tabs) View() tea.View {
 	rightArrow := arrowStyle.Render("›")
 	leftArrowW := lipgloss.Width(leftArrow)
 	rightArrowW := lipgloss.Width(rightArrow)
+	leftStyle := c.Styles.TabInactive.Width(1).Border(inactiveTabBorder, false, false, true, false)
+	leftPaddingW := lipgloss.Width(leftStyle.Render(""))
 
 	first, last, showLeft, showRight := computeTabWindow(
 		tabWidths,
-		m.width,
+		max(0, m.width-leftPaddingW),
 		m.ActiveIndex,
 		leftArrowW,
 		rightArrowW,
@@ -184,7 +186,8 @@ func (m *Tabs) View() tea.View {
 	}
 
 	var segments []string
-	cur := 0
+	segments = append(segments, leftStyle.Render(""))
+	cur := leftPaddingW
 	leftArrowStart, leftArrowEnd := -1, -2
 	if showLeft {
 		segments = append(segments, leftArrow)
@@ -208,13 +211,13 @@ func (m *Tabs) View() tea.View {
 		rightArrowStart, rightArrowEnd = cur, cur+rightArrowW-1
 	}
 
-	row := lipgloss.JoinHorizontal(lipgloss.Top, segments...)
+	row := lipgloss.JoinHorizontal(lipgloss.Bottom, segments...)
 	rowWidth := lipgloss.Width(row)
 	styled := row
 	if rowWidth < m.width {
 		rightStyle := c.Styles.TabInactive.Width(m.width-rowWidth).
 			Border(inactiveTabBorder, false, false, true, false)
-		styled = lipgloss.JoinHorizontal(lipgloss.Top, row, rightStyle.Render("\n"))
+		styled = lipgloss.JoinHorizontal(lipgloss.Bottom, row, rightStyle.Render(""))
 	}
 
 	v := tea.NewView(styled)
@@ -242,7 +245,7 @@ func (m *Tabs) View() tea.View {
 			}
 			x := me.X
 			y := me.Y
-			// ensure click is within the tab view vertical bounds
+			// verify click is within the tab view vertical bounds
 			if y < 0 || y >= lipgloss.Height(v.Content) {
 				return nil
 			}
@@ -303,7 +306,7 @@ func (m *Tabs) Height() int { return lipgloss.Height(m.View().Content) }
 // Dock reports that the tab bar occupies the top edge.
 func (m *Tabs) Dock() Side           { return DockTop }
 func (m *Tabs) GetPages() []Page     { return m.Pages }
-func (m *Tabs) SetPages(p []Page)    { m.Pages = p }
+func (m *Tabs) SetPages(p []Page)    { m.Pages = EnsureSettingsLast(p) }
 func (m *Tabs) SetActiveIndex(i int) { m.ActiveIndex = i }
 func (m *Tabs) GetActiveIndex() int  { return m.ActiveIndex }
 

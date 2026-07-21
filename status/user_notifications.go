@@ -389,10 +389,12 @@ func RenderStyled(
 	lastLineRendered := baseStyle.Render(lastLeftLine)
 	llw := lipgloss.Width(lastLineRendered)
 
+	paddedWidth := max(width-2, 0)
+
 	// Truncate the variable-length left text so the right segment and icons
 	// always fit; otherwise the row exceeds the terminal width and the last
 	// icon wraps onto its own line, corrupting the frame.
-	if avail := width - rw - spw - npw - ipw - 1; llw > avail && avail > 0 {
+	if avail := paddedWidth - rw - spw - npw - ipw - 1; llw > avail && avail > 0 {
 		lastLineRendered = ansi.Truncate(lastLineRendered, avail, "…")
 		llw = lipgloss.Width(lastLineRendered)
 	}
@@ -402,11 +404,14 @@ func RenderStyled(
 	// background runs unbroken across the full row — no manual gap math.
 	rightCluster := rightRendered + settingsPill + notifPill + infoPill
 	lastRow := lastLineRendered + lipgloss.PlaceHorizontal(
-		width-llw,
+		paddedWidth-llw,
 		lipgloss.Right,
 		rightCluster,
 		lipgloss.WithWhitespaceStyle(baseStyle),
 	)
+	// Add 1-cell padding to both ends manually to guarantee background continuity
+	pad := baseStyle.Render(" ")
+	lastRow = pad + lastRow + pad
 
 	var rendered string
 	if len(leftLines) <= 1 {
@@ -416,15 +421,15 @@ func RenderStyled(
 		for _, line := range leftLines[:len(leftLines)-1] {
 			// Width() pads the row to the full bar width and the padding
 			// inherits the style's background.
-			line = ansi.Truncate(line, width, "…")
-			rows = append(rows, baseStyle.Width(width).Render(line))
+			line = ansi.Truncate(line, paddedWidth, "…")
+			rows = append(rows, pad+baseStyle.Width(paddedWidth).Render(line)+pad)
 		}
 		rows = append(rows, lastRow)
 		rendered = lipgloss.JoinVertical(lipgloss.Left, rows...)
 	}
 
-	gap := max(width-llw-rw-spw-npw-ipw, 0)
-	settingsStart := llw + gap + rw
+	gap := max(paddedWidth-llw-rw-spw-npw-ipw, 0)
+	settingsStart := 1 + llw + gap + rw // 1 cell for left padding
 	settingsEnd := settingsStart + spw - 1
 	notifStart := settingsEnd + 1
 	notifEnd := notifStart + npw - 1

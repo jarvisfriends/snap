@@ -12,9 +12,8 @@
 // Detect and Set are Windows-only; on other platforms they return
 // [errors.ErrUnsupported]. Changes affect only console sessions started after
 // the write. For the complementary runtime guard — moving an already-running
-// app out of a legacy console without touching machine state — see
-// MaybeRelaunchInWindowsTerminal in tui-base's router, one app that builds
-// on this package.
+// app out of a legacy console without touching machine state — hosts can
+// implement a runtime relaunch guard using this package's detection APIs.
 package winterm
 
 // Delegation identifies which host Windows hands new console sessions to.

@@ -28,9 +28,9 @@ type demoApp struct {
 func newDemo() *demoApp {
 	return &demoApp{
 		chrome: exui.NewChrome(
-			exui.Bind("right-click/m", "open menu"),
-			exui.Bind("↑/↓", "move"),
-			exui.Bind("enter/click", "choose"),
+			exui.Bind("right-click m", "open"),
+			exui.Bind("↑↓", "move"),
+			exui.Bind("enter click", "select"),
 			exui.Bind("esc", "dismiss"),
 			exui.Bind("q", "quit"),
 		),

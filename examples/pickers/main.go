@@ -33,8 +33,8 @@ func newDemo(root string) demoApp {
 	return demoApp{
 		dp: dp,
 		chrome: exui.NewChrome(
-			exui.Bind("↑/↓", "move"),
-			exui.Bind("←/→", "close/open"),
+			exui.Bind("↑↓", "move"),
+			exui.Bind("←→", "open back"),
 			exui.Bind("space", "select"),
 			exui.Bind("ctrl+s", "pick browsed"),
 			exui.Bind("esc", "cancel"),

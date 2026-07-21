@@ -277,7 +277,7 @@ func (m *InfoModal) buildInfoLines(
 	if rev != "" {
 		lines = append(lines, dimStyle.Render("  Rev: "+rev+builtAt+modified))
 	}
-	// Package column padded by display cells (A-5): fmt's %-50s pads by
+	// Package column padded by display cells: fmt's %-50s pads by
 	// bytes, which misaligns the Version column for any non-ASCII path.
 	const pkgColW = 50
 	pkgCell := lipgloss.NewStyle().Width(pkgColW)
@@ -360,7 +360,7 @@ func (m *InfoModal) View() (content tea.View) {
 	// Title centered in the content area.
 	name := m.appName
 	if name == "" {
-		name = "TUI Base"
+		name = "Snap"
 	}
 	version := m.appVersion
 	if version == "" {

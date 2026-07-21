@@ -75,7 +75,7 @@ func CheckFitsViewport(t *testing.T, m tea.Model, states ...tea.Msg) {
 }
 
 // CheckFillsViewport asserts a FULL-SCREEN model (one that draws to every row —
-// an app router, or a standalone bordered overlay like the inspector run on its
+// an app router, or a standalone bordered overlay run on its
 // own) fills its viewport EXACTLY at each standard size: the rendered frame is
 // exactly height rows tall, its last row is non-blank, and no line exceeds the
 // width.

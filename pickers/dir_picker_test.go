@@ -104,7 +104,7 @@ func TestDirPickerSpaceSelectsHighlighted(t *testing.T) {
 	dp := newTestDirPicker(t, root)
 
 	_, _ = dp.Update(tea.KeyPressMsg{Code: tea.KeyDown}) // highlight "beta"
-	_, _ = dp.Update(tea.KeyPressMsg{Code: tea.KeySpace, Text: " "})
+	_, _ = dp.Update(tea.KeyPressMsg{Code: tea.KeySpace})
 	if !dp.Done {
 		t.Fatal("expected space to complete the picker")
 	}
@@ -119,7 +119,7 @@ func TestDirPickerCtrlSSelectsCurrentDir(t *testing.T) {
 	root := makePickerTree(t)
 	dp := newTestDirPicker(t, root)
 
-	_, _ = dp.Update(tea.KeyPressMsg{Text: keyCtrlS})
+	_, _ = dp.Update(tea.KeyPressMsg{Text: "ctrl+s"})
 	if !dp.Done {
 		t.Fatal("expected ctrl+s to complete the picker")
 	}

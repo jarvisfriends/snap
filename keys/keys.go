@@ -31,6 +31,14 @@ const (
 	bindingDown           = "Down"
 	bindingLeft           = "Left"
 	bindingRight          = "Right"
+	bindingSort           = "Sort"
+	bindingFilter         = "Filter"
+	bindingOpen           = "Open"
+	bindingCancel         = "Cancel"
+	bindingSave           = "Save"
+	bindingDelete         = "Delete"
+	bindingSubmit         = "Submit"
+	bindingOpenDetail     = "OpenDetail"
 )
 
 type AppKeyMap struct {
@@ -49,6 +57,15 @@ type AppKeyMap struct {
 	DismissAll     key.Binding // Dismiss all notifications in the history panel
 	ToggleHistory  key.Binding // Toggle the notification history panel
 	Debug          key.Binding
+
+	Sort       key.Binding // Cycle the sort column/direction
+	Filter     key.Binding // Enter filter/find mode
+	Open       key.Binding // Open details
+	Cancel     key.Binding // Blur input or clear filter
+	Save       key.Binding // Save changes
+	Delete     key.Binding // Delete item
+	Submit     key.Binding // Submit a form or selection
+	OpenDetail key.Binding // View deeper detail for a selection
 	// nav is a display-only binding for ShortHelp: it combines Up and Down
 	// into one compact "↑↓ nav" entry (FullHelp lists them separately with
 	// their full descriptions). It is never passed to key.Matches — Up/Down
@@ -121,8 +138,8 @@ func DefaultKeyMap() *AppKeyMap {
 			key.WithHelp("end", "go to bottom"),
 		),
 		Select: key.NewBinding(
-			key.WithKeys("enter"),
-			key.WithHelp("enter", "Select current choice"),
+			key.WithKeys("enter", "space"),
+			key.WithHelp("enter/space", "Select current choice"),
 		),
 		ToggleNav: key.NewBinding(
 			key.WithKeys("ctrl+b"),
@@ -142,6 +159,38 @@ func DefaultKeyMap() *AppKeyMap {
 			// Note that the "esc" key is often used for other things in TUI apps,
 			// such as going back a page or closing a menu.
 			// You can choose to use it for those things instead of dismissing modals, or not use it at all.
+		),
+		Sort: key.NewBinding(
+			key.WithKeys("s"),
+			key.WithHelp("s", "sort"),
+		),
+		Filter: key.NewBinding(
+			key.WithKeys("/"),
+			key.WithHelp("/", "filter"),
+		),
+		Open: key.NewBinding(
+			key.WithKeys("enter"),
+			key.WithHelp("enter", "open"),
+		),
+		Cancel: key.NewBinding(
+			key.WithKeys("esc", "ctrl+c"),
+			key.WithHelp("esc", "cancel"),
+		),
+		Save: key.NewBinding(
+			key.WithKeys("ctrl+s"),
+			key.WithHelp("ctrl+s", "save"),
+		),
+		Delete: key.NewBinding(
+			key.WithKeys("delete", "backspace"),
+			key.WithHelp("del", "delete"),
+		),
+		Submit: key.NewBinding(
+			key.WithKeys("enter"),
+			key.WithHelp("enter", "submit"),
+		),
+		OpenDetail: key.NewBinding(
+			key.WithKeys("d"),
+			key.WithHelp("d", "details"),
 		),
 		DismissAll: key.NewBinding(
 			key.WithKeys("d"),
