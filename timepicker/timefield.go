@@ -313,7 +313,7 @@ func (m *TimeFieldModel) handleKey(msg tea.KeyPressMsg) {
 	}
 
 	switch {
-	case key.Matches(msg, m.KeyMap.Quit):
+	case key.Matches(msg, m.KeyMap.Quit, m.KeyMap.Cancel, m.KeyMap.Dismiss):
 		if m.open >= 0 {
 			m.closeDropdown()
 			return

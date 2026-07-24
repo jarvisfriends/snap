@@ -193,8 +193,8 @@ func DefaultKeyMap() *AppKeyMap {
 			key.WithHelp("d", "details"),
 		),
 		DismissAll: key.NewBinding(
-			key.WithKeys("d"),
-			key.WithHelp("d", "dismiss all notifications"),
+			key.WithKeys("D"),
+			key.WithHelp("D", "dismiss all notifications"),
 		),
 		ToggleHistory: key.NewBinding(
 			key.WithKeys("ctrl+n"),
