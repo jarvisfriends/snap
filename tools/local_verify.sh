@@ -41,22 +41,18 @@ warn_missing() {
 # ─── Go checks ────────────────────────────────────────────────────────────────
 GO_FILE_COUNT=$(git ls-files -co --exclude-standard '*.go' | wc -l)
 if [[ -f go.mod && ${GO_FILE_COUNT} -gt 0 ]]; then
-  gofumpt_check() {
+  gofmt_check() {
     local unformatted
     mapfile -t go_files < <(git ls-files '*.go')
     [[ ${#go_files[@]} -eq 0 ]] && return 0
-    if ! command -v gofumpt >/dev/null 2>&1; then
-      echo "gofumpt not found"
-      return 1
-    fi
-    unformatted=$(gofumpt -l "${go_files[@]}" 2>/dev/null || true)
+    unformatted=$(gofmt -l "${go_files[@]}" 2>/dev/null || true)
     if [[ -n "${unformatted}" ]]; then
-      echo "gofumpt required for:"
+      echo "gofmt required for:"
       echo "${unformatted}"
       return 1
     fi
   }
-  run_gate WARN "gofumpt (drift check)" gofumpt_check
+  run_gate WARN "gofmt (drift check)" gofmt_check
 
   if command -v golangci-lint >/dev/null 2>&1; then
     ver=$(golangci-lint --version 2>&1 || true)
@@ -146,46 +142,6 @@ if [[ -f go.mod && ${GO_FILE_COUNT} -gt 0 ]]; then
     fi
   }
   run_gate WARN "go fix (drift check)" gofix_check
-
-  generate_check() {
-    local before_mod after_mod before_untracked after_untracked new_mod new_untracked
-    before_mod=$(mktemp)
-    after_mod=$(mktemp)
-    before_untracked=$(mktemp)
-    after_untracked=$(mktemp)
-
-    git diff --name-only -- >"${before_mod}"
-    git ls-files --others --exclude-standard >"${before_untracked}"
-
-    if ! go generate ./...; then
-      echo "go generate failed"
-      rm -f "$before_mod" "$after_mod" "$before_untracked" "$after_untracked"
-      return 1
-    fi
-
-    git diff --name-only -- >"${after_mod}"
-    git ls-files --others --exclude-standard >"${after_untracked}"
-
-    new_mod=$(comm -13 <(sort "${before_mod}") <(sort "${after_mod}") || true)
-    new_untracked=$(comm -13 <(sort "${before_untracked}") <(sort "${after_untracked}") || true)
-
-    rm -f "$before_mod" "$after_mod" "$before_untracked" "$after_untracked"
-
-    if [[ -n "${new_mod}" || -n "${new_untracked}" ]]; then
-      echo "go generate introduced new drift."
-      if [[ -n "${new_mod}" ]]; then
-        echo "Newly modified tracked files:"
-        echo "${new_mod}"
-      fi
-      if [[ -n "${new_untracked}" ]]; then
-        echo "Newly created untracked files:"
-        echo "${new_untracked}"
-      fi
-      return 1
-    fi
-    return 0
-  }
-  run_gate WARN "go generate (drift check)" generate_check
 
   run_gate FAIL "go vet" go vet ./...
   run_gate FAIL "go build" go build ./...

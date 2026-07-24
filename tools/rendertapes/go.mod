@@ -1,3 +1,3 @@
 module github.com/jarvisfriends/snap/tools/rendertapes
 
-go 1.26.5
+go 1.26.4
