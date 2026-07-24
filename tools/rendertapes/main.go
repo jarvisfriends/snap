@@ -153,7 +153,8 @@ func renderTape(ctx context.Context, imageRef, root, relTape string) error {
 	// The VHS container's terminal advertises TERM=xterm-256color, so
 	// lipgloss downsamples true-color backgrounds. COLORTERM=truecolor
 	// upgrades the profile so SGR colors match the page while honoring NO_COLOR.
-	out, err := runDockerOutput(ctx,
+	out, err := runDockerOutput(
+		ctx,
 		"run", "--rm",
 		"-e", "COLORTERM=truecolor",
 		"-v", root+":/vhs",

@@ -6,6 +6,7 @@ import (
 	"unicode/utf8"
 
 	"charm.land/bubbles/v2/key"
+	"github.com/jarvisfriends/snap/keys"
 	"github.com/jarvisfriends/snap/page"
 	"github.com/jarvisfriends/snap/styles"
 
@@ -25,7 +26,7 @@ type MinimalTopNav struct {
 	Pages       []Page
 	ActiveIndex int
 	ShowNumbers bool
-	KeyMap      NavKeyMap
+	KeyMap      *keys.AppKeyMap
 
 	// PillShape selects the segment geometry. The default, PillDiagonal, is
 	// the pure-Unicode slant that renders in any font; hosts with a Nerd
@@ -45,12 +46,11 @@ func NewMinimalTopNav() *MinimalTopNav {
 	return &MinimalTopNav{
 		Pages: []Page{
 			{ID: pageIDHome, Title: pageHome},
-			{ID: pageIDInspector, Title: pageInspector},
 			{ID: pageIDSettings, Title: pageSettings},
 		},
 		ActiveIndex: 0,
 		ShowNumbers: false,
-		KeyMap:      DefaultNavKeyMap(),
+		KeyMap:      keys.DefaultKeyMap(),
 		PillShape:   styles.PillDiagonal,
 	}
 }
@@ -67,10 +67,10 @@ func (m *MinimalTopNav) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		switch {
-		case key.Matches(msg, m.KeyMap.PreviousPage):
+		case key.Matches(msg, m.KeyMap.PreviousPage, m.KeyMap.Up, m.KeyMap.Left):
 			m.ActiveIndex = (m.ActiveIndex - 1 + len(m.Pages)) % len(m.Pages)
 			return m, m.selectCmd()
-		case key.Matches(msg, m.KeyMap.NextPage):
+		case key.Matches(msg, m.KeyMap.NextPage, m.KeyMap.Down, m.KeyMap.Right):
 			m.ActiveIndex = (m.ActiveIndex + 1) % len(m.Pages)
 			return m, m.selectCmd()
 		case key.Matches(msg, m.KeyMap.Select):
@@ -111,7 +111,7 @@ func (m *MinimalTopNav) pillStyles(c *styles.AppStyle) styles.PillStyles {
 	if shape == "" {
 		shape = styles.PillDiagonal
 	}
-	return styles.PillStyles{Shape: shape, Base: c.Bg}
+	return styles.PillStyles{Shape: shape, Base: c.StatusBg}
 }
 
 func (m *MinimalTopNav) View() tea.View {
@@ -138,13 +138,15 @@ func (m *MinimalTopNav) View() tea.View {
 	// cell of the row is clickable: the left cap belongs to the first tab,
 	// each divider to the tab before it, the right cap to the last.
 	capsW := lipgloss.Width(styles.SegmentedPill(
-		[]styles.PillSegment{{Bg: palette[0]}}, st))
+		[]styles.PillSegment{{Bg: palette[0]}}, st,
+	))
 	divW := lipgloss.Width(styles.SegmentedPill(
-		[]styles.PillSegment{{Bg: palette[0]}, {Bg: palette[1%len(palette)]}}, st)) - capsW
+		[]styles.PillSegment{{Bg: palette[0]}, {Bg: palette[1%len(palette)]}}, st,
+	)) - capsW
 	capL := capsW / 2
 	m.starts = make([]int, len(m.Pages))
 	m.ends = make([]int, len(m.Pages))
-	x := 0
+	x := 1 // Account for the 1-character left padding on the bar
 	for i, text := range texts {
 		w := lipgloss.Width(text)
 		if i == 0 {
@@ -164,8 +166,15 @@ func (m *MinimalTopNav) View() tea.View {
 		x += w
 	}
 
-	v := tea.NewView(row)
-	v.BackgroundColor = c.Styles.TextOnBg.GetBackground()
+	barStyle := lipgloss.NewStyle().
+		Width(m.width).
+		Padding(0, 1).
+		Background(c.StatusBg)
+
+	rowWithBackground := barStyle.Render(row)
+
+	v := tea.View{Content: rowWithBackground}
+	v.BackgroundColor = barStyle.GetBackground()
 	v.ForegroundColor = c.Styles.TextOnBg.GetForeground()
 	v.AltScreen = true
 	v.MouseMode = tea.MouseModeCellMotion
@@ -210,7 +219,7 @@ func (m *MinimalTopNav) Height() int { return lipgloss.Height(m.View().Content) 
 
 func (m *MinimalTopNav) Dock() Side           { return DockTop }
 func (m *MinimalTopNav) GetPages() []Page     { return m.Pages }
-func (m *MinimalTopNav) SetPages(p []Page)    { m.Pages = p }
+func (m *MinimalTopNav) SetPages(p []Page)    { m.Pages = EnsureSettingsLast(p) }
 func (m *MinimalTopNav) SetActiveIndex(i int) { m.ActiveIndex = i }
 func (m *MinimalTopNav) GetActiveIndex() int  { return m.ActiveIndex }
 

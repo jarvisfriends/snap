@@ -10,6 +10,7 @@ import (
 	"charm.land/lipgloss/v2"
 
 	"github.com/jarvisfriends/snap/geom"
+	"github.com/jarvisfriends/snap/keys"
 	"github.com/jarvisfriends/snap/uifx"
 )
 
@@ -26,28 +27,6 @@ const (
 const dropdownVisibleRows = 7
 
 // TimeFieldKeyMap holds the key bindings for the two-column time field.
-type TimeFieldKeyMap struct {
-	NextField key.Binding
-	PrevField key.Binding
-	Up        key.Binding
-	Down      key.Binding
-	Open      key.Binding
-	Submit    key.Binding
-	Quit      key.Binding
-}
-
-// DefaultTimeFieldKeyMap returns the standard bindings.
-func DefaultTimeFieldKeyMap() TimeFieldKeyMap {
-	return TimeFieldKeyMap{
-		NextField: key.NewBinding(key.WithKeys("tab", "right")),
-		PrevField: key.NewBinding(key.WithKeys("shift+tab", "left")),
-		Up:        key.NewBinding(key.WithKeys("up")),
-		Down:      key.NewBinding(key.WithKeys("down")),
-		Open:      key.NewBinding(key.WithKeys("space")),
-		Submit:    key.NewBinding(key.WithKeys("enter")),
-		Quit:      key.NewBinding(key.WithKeys("esc", "ctrl+c")),
-	}
-}
 
 // TimeFieldModel is the redesigned time picker:
 // two columns — hours and minutes — separated by a highlighted colon. Clicking
@@ -73,7 +52,7 @@ type TimeFieldModel struct {
 	base                 time.Time
 	hour, minute, second int
 
-	KeyMap  TimeFieldKeyMap
+	KeyMap  *keys.AppKeyMap
 	Focused Side
 	Done    bool
 	Aborted bool
@@ -116,7 +95,7 @@ type TimeFieldModel struct {
 // Seconds are hidden until ShowSeconds is set.
 func NewTimeField(t time.Time) *TimeFieldModel {
 	m := &TimeFieldModel{
-		KeyMap:    DefaultTimeFieldKeyMap(),
+		KeyMap:    keys.DefaultKeyMap(),
 		Focused:   SideHours,
 		open:      -1,
 		hoverSide: -1,
@@ -334,7 +313,7 @@ func (m *TimeFieldModel) handleKey(msg tea.KeyPressMsg) {
 	}
 
 	switch {
-	case key.Matches(msg, m.KeyMap.Quit):
+	case key.Matches(msg, m.KeyMap.Quit, m.KeyMap.Cancel, m.KeyMap.Dismiss):
 		if m.open >= 0 {
 			m.closeDropdown()
 			return
@@ -349,16 +328,16 @@ func (m *TimeFieldModel) handleKey(msg tea.KeyPressMsg) {
 		}
 		m.commitTyped()
 		m.Done = true
-	case key.Matches(msg, m.KeyMap.Open):
+	case key.Matches(msg, m.KeyMap.Open, m.KeyMap.Select):
 		if m.open >= 0 {
 			m.closeDropdown()
 		} else {
 			m.openDropdown(m.Focused)
 		}
-	case key.Matches(msg, m.KeyMap.NextField):
+	case key.Matches(msg, m.KeyMap.Right, m.KeyMap.NextPage):
 		m.closeDropdown()
 		m.focusSide(min(m.Focused+1, m.lastSide()))
-	case key.Matches(msg, m.KeyMap.PrevField):
+	case key.Matches(msg, m.KeyMap.Left, m.KeyMap.PreviousPage):
 		m.closeDropdown()
 		m.focusSide(max(m.Focused-1, SideHours))
 	case key.Matches(msg, m.KeyMap.Up):

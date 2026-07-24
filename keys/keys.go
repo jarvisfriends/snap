@@ -31,6 +31,14 @@ const (
 	bindingDown           = "Down"
 	bindingLeft           = "Left"
 	bindingRight          = "Right"
+	bindingSort           = "Sort"
+	bindingFilter         = "Filter"
+	bindingOpen           = "Open"
+	bindingCancel         = "Cancel"
+	bindingSave           = "Save"
+	bindingDelete         = "Delete"
+	bindingSubmit         = "Submit"
+	bindingOpenDetail     = "OpenDetail"
 )
 
 type AppKeyMap struct {
@@ -49,6 +57,15 @@ type AppKeyMap struct {
 	DismissAll     key.Binding // Dismiss all notifications in the history panel
 	ToggleHistory  key.Binding // Toggle the notification history panel
 	Debug          key.Binding
+
+	Sort       key.Binding // Cycle the sort column/direction
+	Filter     key.Binding // Enter filter/find mode
+	Open       key.Binding // Open details
+	Cancel     key.Binding // Blur input or clear filter
+	Save       key.Binding // Save changes
+	Delete     key.Binding // Delete item
+	Submit     key.Binding // Submit a form or selection
+	OpenDetail key.Binding // View deeper detail for a selection
 	// nav is a display-only binding for ShortHelp: it combines Up and Down
 	// into one compact "↑↓ nav" entry (FullHelp lists them separately with
 	// their full descriptions). It is never passed to key.Matches — Up/Down
@@ -121,8 +138,8 @@ func DefaultKeyMap() *AppKeyMap {
 			key.WithHelp("end", "go to bottom"),
 		),
 		Select: key.NewBinding(
-			key.WithKeys("enter"),
-			key.WithHelp("enter", "Select current choice"),
+			key.WithKeys("enter", "space"),
+			key.WithHelp("enter/space", "Select current choice"),
 		),
 		ToggleNav: key.NewBinding(
 			key.WithKeys("ctrl+b"),
@@ -143,9 +160,41 @@ func DefaultKeyMap() *AppKeyMap {
 			// such as going back a page or closing a menu.
 			// You can choose to use it for those things instead of dismissing modals, or not use it at all.
 		),
-		DismissAll: key.NewBinding(
+		Sort: key.NewBinding(
+			key.WithKeys("s"),
+			key.WithHelp("s", "sort"),
+		),
+		Filter: key.NewBinding(
+			key.WithKeys("/"),
+			key.WithHelp("/", "filter"),
+		),
+		Open: key.NewBinding(
+			key.WithKeys("enter"),
+			key.WithHelp("enter", "open"),
+		),
+		Cancel: key.NewBinding(
+			key.WithKeys("esc", "ctrl+c"),
+			key.WithHelp("esc", "cancel"),
+		),
+		Save: key.NewBinding(
+			key.WithKeys("ctrl+s"),
+			key.WithHelp("ctrl+s", "save"),
+		),
+		Delete: key.NewBinding(
+			key.WithKeys("delete", "backspace"),
+			key.WithHelp("del", "delete"),
+		),
+		Submit: key.NewBinding(
+			key.WithKeys("enter"),
+			key.WithHelp("enter", "submit"),
+		),
+		OpenDetail: key.NewBinding(
 			key.WithKeys("d"),
-			key.WithHelp("d", "dismiss all notifications"),
+			key.WithHelp("d", "details"),
+		),
+		DismissAll: key.NewBinding(
+			key.WithKeys("D"),
+			key.WithHelp("D", "dismiss all notifications"),
 		),
 		ToggleHistory: key.NewBinding(
 			key.WithKeys("ctrl+n"),
@@ -192,6 +241,14 @@ func (km *AppKeyMap) ApplyCustomizations(custom map[string]string) {
 	km.DismissAll = apply(bindingDismissAll, km.DismissAll)
 	km.ToggleHistory = apply(bindingToggleHistory, km.ToggleHistory)
 	km.Debug = apply(bindingDebug, km.Debug)
+	km.Sort = apply(bindingSort, km.Sort)
+	km.Filter = apply(bindingFilter, km.Filter)
+	km.Open = apply(bindingOpen, km.Open)
+	km.Cancel = apply(bindingCancel, km.Cancel)
+	km.Save = apply(bindingSave, km.Save)
+	km.Delete = apply(bindingDelete, km.Delete)
+	km.Submit = apply(bindingSubmit, km.Submit)
+	km.OpenDetail = apply(bindingOpenDetail, km.OpenDetail)
 	km.PageDown = apply(bindingPageDown, km.PageDown)
 	km.PageUp = apply(bindingPageUp, km.PageUp)
 	km.HalfPageDown = apply(bindingHalfPageDown, km.HalfPageDown)
@@ -226,6 +283,14 @@ func (km *AppKeyMap) BindingDefs() []BindingDef {
 		{bindingDismissAll, "Dismiss All Notifications", strings.Join(km.DismissAll.Keys(), ",")},
 		{bindingToggleHistory, "Notification History", strings.Join(km.ToggleHistory.Keys(), ",")},
 		{bindingDebug, "Quick Debug", strings.Join(km.Debug.Keys(), ",")},
+		{bindingSort, "Sort", strings.Join(km.Sort.Keys(), ",")},
+		{bindingFilter, "Filter", strings.Join(km.Filter.Keys(), ",")},
+		{bindingOpen, "Open", strings.Join(km.Open.Keys(), ",")},
+		{bindingCancel, "Cancel", strings.Join(km.Cancel.Keys(), ",")},
+		{bindingSave, "Save", strings.Join(km.Save.Keys(), ",")},
+		{bindingDelete, "Delete", strings.Join(km.Delete.Keys(), ",")},
+		{bindingSubmit, "Submit", strings.Join(km.Submit.Keys(), ",")},
+		{bindingOpenDetail, "Open Detail", strings.Join(km.OpenDetail.Keys(), ",")},
 		{bindingPageDown, "Page Down", strings.Join(km.PageDown.Keys(), ",")},
 		{bindingPageUp, "Page Up", strings.Join(km.PageUp.Keys(), ",")},
 		{bindingHalfPageDown, "Half Page Down", strings.Join(km.HalfPageDown.Keys(), ",")},

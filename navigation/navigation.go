@@ -1,14 +1,29 @@
 package navigation
 
 import (
-	"charm.land/bubbles/v2/help"
-	"charm.land/bubbles/v2/key"
+	"strings"
+
 	tea "charm.land/bubbletea/v2"
 )
 
 type Page struct {
 	ID    string
 	Title string
+}
+
+// EnsureSettingsLast takes a list of pages and returns a new list where any
+// page with ID "settings" is moved to the end.
+func EnsureSettingsLast(pages []Page) []Page {
+	var normal []Page
+	var settings []Page
+	for _, p := range pages {
+		if strings.EqualFold(p.ID, "settings") {
+			settings = append(settings, p)
+		} else {
+			normal = append(normal, p)
+		}
+	}
+	return append(normal, settings...)
 }
 
 // Side indicates where a navigation component docks relative to the page content.
@@ -123,50 +138,3 @@ type NavFocusMsg struct{ Focused bool }
 // at the top of the sidebar. The router forwards it to the nav's Update so the
 // sidebar can toggle its own collapsed state, then triggers a layout resize.
 type CollapseToggleMsg struct{}
-
-// NavKeyMap defines key bindings used when the sidebar has keyboard focus.
-type NavKeyMap struct {
-	PreviousPage key.Binding
-	NextPage     key.Binding
-	Select       key.Binding
-	Dismiss      key.Binding
-}
-
-// DefaultNavKeyMap returns the default key bindings for sidebar navigation.
-func DefaultNavKeyMap() NavKeyMap {
-	return NavKeyMap{
-		// Arrow-centric primary bindings (shown in help) with vim j/k/h/l as
-		// secondary keys so both paradigms work out of the box.
-		PreviousPage: key.NewBinding(
-			key.WithKeys("up", "left", "shift+tab"),
-			key.WithHelp("↑/←", "prev page"),
-		),
-		NextPage: key.NewBinding(
-			key.WithKeys("down", "right", "tab"),
-			key.WithHelp("↓/→", "next page"),
-		),
-		Select: key.NewBinding(
-			key.WithKeys("enter"),
-			key.WithHelp("enter", "select"),
-		),
-		Dismiss: key.NewBinding(
-			key.WithKeys("esc"),
-			key.WithHelp("esc", "exit nav"),
-		),
-	}
-}
-
-// ShortHelp implements help.KeyMap.
-func (km NavKeyMap) ShortHelp() []key.Binding {
-	return []key.Binding{km.PreviousPage, km.NextPage, km.Select, km.Dismiss}
-}
-
-// FullHelp implements help.KeyMap.
-func (km NavKeyMap) FullHelp() [][]key.Binding {
-	return [][]key.Binding{
-		{km.PreviousPage, km.NextPage},
-		{km.Select, km.Dismiss},
-	}
-}
-
-var _ help.KeyMap = (*NavKeyMap)(nil)

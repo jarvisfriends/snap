@@ -8,7 +8,7 @@ import (
 )
 
 // ColorHex formats a color.Color as a "#rrggbb" string. A nil color yields
-// "#000000". Shared by the router and inspector for OSC/diagnostic output.
+// "#000000". Shared by the router for OSC/diagnostic output.
 func ColorHex(c color.Color) string {
 	if c == nil {
 		return "#000000"

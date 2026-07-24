@@ -62,8 +62,8 @@ func newDemo() *demoApp {
 	return &demoApp{
 		navs: navStyles(),
 		chrome: exui.NewChrome(
-			exui.Bind("↑/↓/←/→", "page"),
-			exui.Bind("click/wheel", "page"),
+			exui.Bind("↑↓←→", "move"),
+			exui.Bind("click wheel", "move"),
 			exui.Bind("n", "nav style"),
 			exui.Bind("enter", "pick"),
 			exui.Bind("q", "quit"),
@@ -126,7 +126,8 @@ func (a *demoApp) body(w, h int) string {
 	if i := a.nav().GetActiveIndex(); i >= 0 && i < len(pages) {
 		title = pages[i].Title
 	}
-	pane := lipgloss.JoinVertical(lipgloss.Left,
+	pane := lipgloss.JoinVertical(
+		lipgloss.Left,
 		lipgloss.NewStyle().Bold(true).Render(title),
 		dim.Render("navigator: "+styleNames[a.style]+" (swappable at runtime — same Navigator contract)"),
 	)

@@ -12,182 +12,132 @@ Charm-stack app and adopts that app's look. Where a snap has multiple
 implementations (navigation styles, scrollbar presets, pill shapes), it
 exposes the choice through a small interface or preset list an app can
 surface to its users at runtime.
-[tui-base](https://github.com/jarvisfriends/tui-base) — an application
-framework built on these components — is one such consumer; the sibling
-[inspector](https://github.com/jarvisfriends/inspector) is another.
 
-## Components
-
-| Folder | What it is |
-|---|---|
-| `charts/` | Sparklines (block + directional braille), horizontal bars, pie/sankey, and braille line charts (plotted via [ntcharts](https://github.com/NimbleMarkets/ntcharts) primitives) — each also wrapped as a tea model with ID-routed data messages and stretch-to-fill sizing — plus a whole-cell `CellCanvas` with color `Gradient`s. For axes, bar charts, heatmaps, or candlesticks, use ntcharts directly |
-| `datepicker/` | Calendar date picker: click-to-confirm days, header month/year focus, keyboard/wheel paging |
-| `dependencies/` | Build-info / dependency reader for about views |
-| `forms/` | Input parsing helpers for text fields (required, duration, ISO date, list splitting) with field-naming errors |
-| `gate/` | Feature-gate registry with env overrides, for settings-surfaced flags |
-| `geom/` | Rect/point geometry helpers for hit-testing and layout |
-| `keys/` | Common key-binding map shared by snaps and apps, rebindable at runtime |
-| `layout/` | Lipgloss-frame arithmetic: content origin, inner size, render-in-box |
-| `logging/` | Reserved — not yet implemented |
-| `menu/` | Right-click context menu (mouse + keyboard, terminal-clamped) |
-| `navigation/` | Tabs, Sidebar, and minimal-top navigators behind one navigator contract, swappable at runtime |
-| `notifications/` | Notification manager: severity, TTL, actions, progress, persistence |
-| `osc/` | Taskbar/tab progress via OSC 9;4 (Windows Terminal, ConEmu, iTerm2) |
-| `page/` | Shared page base (sizing + colors) for full-page components |
-| `pickers/` | Drive-aware directory picker and multi-path editor with per-row pickers |
-| `rendercheck/` | Test helpers: goldens, border/viewport integrity, layout-math and code-standard checks |
-| `scrollbar/` | Vertical scrollbar with three presets, offset clamping, and click/drag-to-scroll mapping (`OffsetAt`) |
-| `status/` | Status bar with interactive regions, info modal, notification toast/history surfaces |
-| `styles/` | The shared style contract: semantic `AppStyle` palette, derived lipgloss styles, presets, YAML themes, and the pill/breadcrumb helpers |
-| `table/` | Sortable, filterable data table (3-state header sort, live filter, row activation) |
-| `timepicker/` | `HH:MM(:SS)` time field with per-column dropdowns, type-ahead, and validation |
-| `uifx/` | Input plumbing: `MouseHandlers` dispatch, named hit `Zones`, effect tiers |
-| `winterm/` | Windows default-terminal detection/repair (registry delegation values) |
-
-The three navigation styles live side by side because they satisfy the same
-navigator contract; an app can swap between them at runtime.
-
-## Gallery
+## Components and gallery
 
 Every demo below lives in `examples/` and is a VHS tape rendered in the
-official vhs container — regenerate them all with
+official vhs container. Regenerate them all with
 `go -C tools/rendertapes run .` (Docker or Podman; the tool cross-compiles
-each example, runs every `*.tape` in parallel, and drops the gifs next to
-their tapes).
+each example, runs every `*.tape` in parallel, and drops gifs next to tapes).
 
-The examples double as script-friendly input tools: each one renders its
-TUI on stderr and writes **only the value the user chose** to stdout — no
-labels, no prefixes — exiting 1 when cancelled, so a shell can use them
-directly:
+The examples also work as script-friendly input tools: each one renders its
+TUI on stderr and writes only the selected value to stdout, exiting 1 on
+cancel.
 
 ```bash
-date=$(go run ./examples/datepicker)   # → 2026-07-12
-when=$(go run ./examples/timepicker)   # → 08:30:45
-svc=$(go run ./examples/table)         # → api
+date=$(go run ./examples/datepicker)   # -> 2026-07-12
+when=$(go run ./examples/timepicker)   # -> 08:30:45
+svc=$(go run ./examples/table)         # -> api
 ```
 
-Every example shows the same snap status bar with its key bindings; pass
-`--no-help` to hide it (e.g. when embedding an example in a script).
+Every example shows the same snap status bar with key bindings; pass
+`--no-help` to hide it.
 
 ### Date picker
 
-![datepicker demo](examples/datepicker/demo.gif)
+Calendar date picker with click-to-confirm days, header month/year focus,
+and keyboard/wheel paging.
 
-Calendar with click-to-highlight / click-again-to-confirm days, header
-month/year focus, and paging: PgUp/PgDn months, Shift+PgUp/PgDn years, the
-wheel over the title pages the unit under the pointer.
+![Date picker demo](examples/datepicker/demo.gif)
 
 ### Time picker
 
-![timepicker demo](examples/timepicker/demo.gif)
+`HH:MM(:SS)` time field with per-column dropdowns, type-ahead, and
+validation.
 
-Two (or three, with `ShowSeconds`) colon-separated columns editing a
-`time.Time`'s clock: digits type ahead, Space/click opens a value dropdown,
-the wheel spins the focused column and hops columns horizontally.
+![Time picker demo](examples/timepicker/demo.gif)
 
 ### Charts
 
-![charts demo](examples/charts/demo.gif)
+Sparklines, horizontal bars, pie, and sankey charts rendered as
+ID-routed tea models with stretch-to-fit sizing.
 
-The chart models live-streaming ID-routed data: two sparklines, a braille
-pie (thin slices fold into "Other" with a legend), a sankey, and an hbar,
-all stretching into the space the window split gives them.
+![Charts demo](examples/charts/demo.gif)
 
 ### Line chart
 
-![linechart demo](examples/linechart/demo.gif)
+Braille line chart showing rolling streams with compact terminal-cell
+rendering.
 
-The braille line chart model streaming two rolling series: 2x4 dots per
-terminal cell, per-cell color blending where series overlap, stretch-to-fill
-sizing.
+![Line chart demo](examples/linechart/demo.gif)
 
 ### Cell canvas
 
-![cellcanvas demo](examples/cellcanvas/demo.gif)
+Whole-cell canvas and gradient helpers for animated truecolor effects.
 
-`charts.CellCanvas` + `charts.Gradient`: an animated truecolor plasma using
-`▀` half-blocks (two pixels per cell — foreground top, background bottom)
-with batched escapes that re-emit colors only when they change.
+![Cell canvas demo](examples/cellcanvas/demo.gif)
 
 ### Pickers
 
-![pickers demo](examples/pickers/demo.gif)
+Drive-aware directory picker and related path-editing interactions.
 
-Drive-aware directory picker: keyboard and wheel walk the tree (wheel left
-= parent, right = open), Space selects, Ctrl+S picks the browsed folder.
+![Pickers demo](examples/pickers/demo.gif)
 
 ### Context menu
 
-![menu demo](examples/menu/demo.gif)
+Right-click menu with keyboard parity and terminal-edge clamping.
 
-Right-click (or keyboard) pop-up menu at the pointer: disabled items are
-skipped, hover and wheel move the cursor, clicking outside dismisses,
-edges clamp to the terminal.
+![Context menu demo](examples/menu/demo.gif)
 
 ### Scrollbar
 
-![scrollbar demo](examples/scrollbar/demo.gif)
+Scrollbar presets with click/drag mapping through `OffsetAt`.
 
-The three presets over one scrolling pane — Smooth (sub-cell eighth-block
-glide), Line (thin default), Classic (retro blocks). Clicking or dragging on
-a bar jumps the view there (`scrollbar.OffsetAt`).
+![Scrollbar demo](examples/scrollbar/demo.gif)
 
 ### Table
 
-![table demo](examples/table/demo.gif)
+Sortable/filterable table with row activation and keyboard/mouse support.
 
-Sortable, filterable data table: header clicks (or `s`) cycle the 3-state
-column sort, `/` filters live, Enter or double-click opens a row, wheel
-scrolls the selection.
+![Table demo](examples/table/demo.gif)
 
-### Dependencies / info modal
+### Dependencies modal
 
-![dependencies demo](examples/dependencies/demo.gif)
+Build info and dependency reader rendered through the status info modal.
 
-The `dependencies` build-info reader rendered by `status.InfoModal`: Go
-version, OS, VCS revision, and a scrollable dependency list. The wheel
-scrolls and clicks-outside dismiss through the modal's own `HandleMouse` —
-hosts forward events, no hit-testing.
+![Dependencies demo](examples/dependencies/demo.gif)
 
-### Forms
+### Forms helpers
 
-![forms demo](examples/forms/demo.gif)
+Parser-backed form validation for required fields, durations, ISO dates,
+and list splitting.
 
-`snap/forms` extending [huh](https://github.com/charmbracelet/huh), not
-replacing it: a plain `huh.Form` whose fields validate through
-`forms.HuhValidate(ParseRequired/ParseDuration/ParseISODate)` — the parser's
-field-naming errors appear inline under each field — and the same parsers
-produce the typed values on submit (`SplitAndClean` turns the messy tag list
-into clean tags).
+![Forms demo](examples/forms/demo.gif)
 
-### Pills
+### Pills and breadcrumbs
 
-![pills demo](examples/pills/demo.gif)
+Segmented pills, shape variants, and breadcrumb styling helpers from the
+shared style contract.
 
-`styles.Pill` badges and color-divided `styles.SegmentedPill` runs in ten
-selectable `PillShape`s, plus the same shapes driving a nav strip and
-`styles.Breadcrumbs`. Six shapes — Circle, Triangle, Diagonal, Fade, Block,
-Plain — are pure Unicode and render everywhere (they're what the gif shows);
-Round, Arrow, Slant, and Flame use Powerline glyphs for terminals with a
-[Nerd Font](https://www.nerdfonts.com/).
+![Pills demo](examples/pills/demo.gif)
 
 ### Navigation
 
-![navigation demo](examples/navigation/demo.gif)
+Tabs, Sidebar, and MinimalTopNav behind one navigator contract.
 
-All three navigator styles — Sidebar, Tabs, MinimalTopNav — behind the one
-`Navigator` contract: `n` swaps styles at runtime (the active page carries
-over), arrows/clicks/wheel move between pages, Enter prints the picked
-page's ID.
+![Navigation demo](examples/navigation/demo.gif)
 
-### Status bar + notifications
+### Status and notifications
 
-![status demo](examples/status/demo.gif)
+Status bar surfaces plus notification toast/history flows.
 
-The status bar every example mounts, shown in full: page key help on the
-left, live segments and a summary on the right, notification toasts by
-severity, a progress notification filling as a fake download runs, and the
-ctrl+n history panel.
+![Status demo](examples/status/demo.gif)
+
+### Supporting packages (no standalone GIF)
+
+- `gate/`: feature-gate registry with env overrides for settings-exposed flags.
+- `geom/`: rect/point geometry helpers for hit-testing and layout math.
+- `keys/`: rebindable common key map shared by snaps and apps.
+- `layout/`: lipgloss frame arithmetic helpers.
+- `logging/`: reserved placeholder.
+- `osc/`: OSC 9;4 taskbar/tab progress integration.
+- `page/`: shared page base for sizing and colors.
+- `rendercheck/`: golden/layout/code-standard test helpers.
+- `uifx/`: mouse handlers, named zones, and effect tiers.
+- `winterm/`: Windows default-terminal detection and repair helpers.
+
+The three navigation styles live side by side because they satisfy the same
+navigator contract; an app can swap between them at runtime.
 
 ## Design rules
 
@@ -212,6 +162,10 @@ ctrl+n history panel.
 windows+linux, shellcheck, markdownlint, go vet, `go test -race`, and a
 dependency review (module-level vulnerability scan plus OpenSSF Scorecards
 on direct dependencies).
+
+For color-audit passes, force a loud demo background at runtime with
+`SNAP_DEMO_DEBUG_BG=#ff0066` before running an example or rendering tapes.
+Any unthemed background holes become obvious immediately.
 
 The test suite also runs `rendercheck.CheckCodeStandards` over the whole
 module: display text is measured and padded in terminal cells, never bytes.
@@ -245,19 +199,19 @@ Every visual snap splits input by concern:
   is the reference; the datepicker's uniform grid and the pickers' list rows
   still use direct arithmetic where that is simpler).
 - **Parents translate and call the child's `OnMouse`.** Bubble Tea v2 only
-  invokes the *root* view's `OnMouse` (absolute coordinates) and does **not**
+  invokes the _root_ view's `OnMouse` (absolute coordinates) and does **not**
   translate for children — a parent adjusts x/y itself and calls the child's
   `View().OnMouse`. Never forward mouse into a child's `Update` — the runtime
-  hands the raw event to both the root `OnMouse` *and* `Update`, so two doors
+  hands the raw event to both the root `OnMouse` _and_ `Update`, so two doors
   means every click processed twice.
 
 ### Effect tiers (`uifx.Level`)
 
-| Tier | Feedback | Root mouse mode |
-|---|---|---|
-| `LevelMinimal` | interactions only — no hover/drag cosmetics, minimal redraw churn (thin links) | `CellMotion` |
-| `LevelMedium` (default) | + wheel everywhere, drag tracking while a button is held | `CellMotion` |
-| `LevelHigh` | + hover highlighting of the element under the pointer | `AllMotion` |
+| Tier                    | Feedback                                                                       | Root mouse mode |
+| ----------------------- | ------------------------------------------------------------------------------ | --------------- |
+| `LevelMinimal`          | interactions only — no hover/drag cosmetics, minimal redraw churn (thin links) | `CellMotion`    |
+| `LevelMedium` (default) | + wheel everywhere, drag tracking while a button is held                       | `CellMotion`    |
+| `LevelHigh`             | + hover highlighting of the element under the pointer                          | `AllMotion`     |
 
 Set a component's `Effects` field and give your root view
 `Effects.MouseMode()`. Hover is a motion-event firehose — that is why it is

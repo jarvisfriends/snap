@@ -5,6 +5,7 @@ import (
 	"io"
 	"strings"
 
+	"github.com/jarvisfriends/snap/keys"
 	"github.com/jarvisfriends/snap/page"
 	"github.com/jarvisfriends/snap/styles"
 
@@ -57,18 +58,21 @@ func (d navDelegate) Render(w io.Writer, _ list.Model, index int, item list.Item
 	if !ok {
 		return
 	}
-	prefix := "  "
-	style := d.normalStyle
+	var style lipgloss.Style
 	if index == d.activeIdx {
+		b := lipgloss.NormalBorder()
 		if d.sidebarFocused {
-			prefix = "▶ "
-			style = d.focusedStyle
+			b.Left = "▶"
+			style = d.focusedStyle.Border(b, false, false, false, true).Padding(0, 0, 0, 1)
 		} else {
-			prefix = "● "
-			style = d.activeStyle
+			b.Left = "●"
+			style = d.activeStyle.Border(b, false, false, false, true).Padding(0, 0, 0, 1)
 		}
+	} else {
+		style = d.normalStyle.Padding(0, 0, 0, 2)
 	}
-	_, _ = io.WriteString(w, prefix+style.Width(max(d.itemWidth, 1)).Render(pi.title))
+	tW := max(d.itemWidth+style.GetHorizontalFrameSize(), 1)
+	_, _ = io.WriteString(w, style.Width(tW).Render(pi.title))
 }
 
 // ─── constants ────────────────────────────────────────────────────────────────
@@ -142,7 +146,7 @@ type Sidebar struct {
 	// expandedWidth is computed from page title lengths; replaces the old magic constant.
 	expandedWidth int
 
-	keyMap NavKeyMap
+	keyMap *keys.AppKeyMap
 
 	width  int
 	height int
@@ -153,14 +157,13 @@ type Sidebar struct {
 func New() *Sidebar {
 	pages := []Page{
 		{ID: pageIDHome, Title: pageHome},
-		{ID: pageIDInspector, Title: pageInspector},
 		{ID: pageIDSettings, Title: pageSettings},
 	}
 	sb := &Sidebar{
 		Pages:       pages,
-		settingsIdx: 2,
+		settingsIdx: 1,
 		ActiveIndex: 0,
-		keyMap:      DefaultNavKeyMap(),
+		keyMap:      keys.DefaultKeyMap(),
 	}
 	sb.expandedWidth = sb.computeExpandedWidth()
 	sb.width = sb.expandedWidth
@@ -201,6 +204,7 @@ func (m *Sidebar) rebuildList() {
 	l.SetShowStatusBar(false)
 	l.SetShowFilter(false)
 	l.SetShowHelp(false)
+	l.SetShowPagination(false)
 	l.DisableQuitKeybindings()
 	m.mainList = l
 	m.syncListCursor()
@@ -276,11 +280,11 @@ func (m *Sidebar) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// gate). We process whatever arrives so direct unit tests stay simple.
 		keyMsg := msg
 		switch {
-		case key.Matches(keyMsg, m.keyMap.PreviousPage):
+		case key.Matches(keyMsg, m.keyMap.PreviousPage, m.keyMap.Up, m.keyMap.Left):
 			m.ActiveIndex = (m.ActiveIndex - 1 + len(m.Pages)) % len(m.Pages)
 			m.syncListCursor()
 			return m, m.emitSelected()
-		case key.Matches(keyMsg, m.keyMap.NextPage):
+		case key.Matches(keyMsg, m.keyMap.NextPage, m.keyMap.Down, m.keyMap.Right):
 			m.ActiveIndex = (m.ActiveIndex + 1) % len(m.Pages)
 			m.syncListCursor()
 			return m, m.emitSelected()
@@ -430,21 +434,21 @@ func (m *Sidebar) renderSettingsItem(c *styles.AppStyle, innerW int) string {
 		return ""
 	}
 	title := m.Pages[m.settingsIdx].Title
-	prefix := "  "
 	var style lipgloss.Style
-
 	if m.ActiveIndex == m.settingsIdx {
+		b := lipgloss.NormalBorder()
 		if m.focused {
-			prefix = "▶ "
-			style = c.Styles.NavActive.Padding(0, 0).Bold(true)
+			b.Left = "▶"
+			style = c.Styles.NavActive.Bold(true).Border(b, false, false, false, true).Padding(0, 0, 0, 1)
 		} else {
-			prefix = "● "
-			style = c.Styles.NavActive.Padding(0, 0)
+			b.Left = "●"
+			style = c.Styles.NavActive.Border(b, false, false, false, true).Padding(0, 0, 0, 1)
 		}
 	} else {
-		style = c.Styles.NavInactive.Padding(0, 0)
+		style = c.Styles.NavInactive.Padding(0, 0, 0, 2)
 	}
-	return prefix + style.Width(max(innerW-sidebarPrefixWidth, 1)).Render(title)
+	tW := max(innerW, 1)
+	return style.Width(tW).Render(title)
 }
 
 // handleMouse routes a mouse event to the correct sidebar zone.
@@ -532,9 +536,9 @@ func (m *Sidebar) GetPages() []Page { return m.Pages }
 
 // SetPages replaces the page list and identifies the Settings pin by ID.
 func (m *Sidebar) SetPages(p []Page) {
-	m.Pages = p
+	m.Pages = EnsureSettingsLast(p)
 	m.settingsIdx = -1
-	for i, pg := range p {
+	for i, pg := range m.Pages {
 		if pg.ID == "settings" {
 			m.settingsIdx = i
 			break

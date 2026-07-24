@@ -8,6 +8,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 
+	"github.com/jarvisfriends/snap/keys"
 	"github.com/jarvisfriends/snap/uifx"
 )
 
@@ -28,29 +29,9 @@ const (
 	FieldSeconds
 )
 
-type KeyMap struct {
-	Up     key.Binding
-	Down   key.Binding
-	Left   key.Binding
-	Right  key.Binding
-	Submit key.Binding
-	Quit   key.Binding
-}
-
-func DefaultKeyMap() KeyMap {
-	return KeyMap{
-		Up:     key.NewBinding(key.WithKeys("up")),
-		Down:   key.NewBinding(key.WithKeys("down")),
-		Left:   key.NewBinding(key.WithKeys("left", "shift+tab")),
-		Right:  key.NewBinding(key.WithKeys("right", "tab")),
-		Submit: key.NewBinding(key.WithKeys("enter")),
-		Quit:   key.NewBinding(key.WithKeys("ctrl+c", "esc", "q")),
-	}
-}
-
 type TimePickerModel struct {
 	Duration time.Duration
-	KeyMap   KeyMap
+	KeyMap   *keys.AppKeyMap
 	Focused  Field
 	Done     bool
 	Aborted  bool
@@ -73,7 +54,7 @@ func New(d time.Duration) *TimePickerModel {
 	return &TimePickerModel{
 		hoverSeg: -1,
 		Duration: d,
-		KeyMap:   DefaultKeyMap(),
+		KeyMap:   keys.DefaultKeyMap(),
 		Focused:  FieldHours,
 		ActiveStyle: lipgloss.NewStyle().
 			Foreground(lipgloss.Color("212")).
@@ -97,18 +78,18 @@ func (m *TimePickerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyPressMsg:
 		switch {
-		case key.Matches(msg, m.KeyMap.Quit):
+		case key.Matches(msg, m.KeyMap.Cancel, m.KeyMap.Dismiss, m.KeyMap.Quit):
 			m.Aborted = true
 			return m, nil
 		case key.Matches(msg, m.KeyMap.Submit):
 			m.Done = true
 			return m, nil
-		case key.Matches(msg, m.KeyMap.Left):
+		case key.Matches(msg, m.KeyMap.Left, m.KeyMap.PreviousPage):
 			m.Focused = (m.Focused - 1)
 			if m.Focused < FieldHours {
 				m.Focused = FieldSeconds
 			}
-		case key.Matches(msg, m.KeyMap.Right):
+		case key.Matches(msg, m.KeyMap.Right, m.KeyMap.NextPage):
 			m.Focused = (m.Focused + 1)
 			if m.Focused > FieldSeconds {
 				m.Focused = FieldHours

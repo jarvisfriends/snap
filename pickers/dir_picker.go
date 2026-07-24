@@ -9,6 +9,7 @@ import (
 	"charm.land/lipgloss/v2"
 
 	"github.com/charmbracelet/x/ansi"
+	"github.com/jarvisfriends/snap/keys"
 	"github.com/jarvisfriends/snap/uifx"
 )
 
@@ -33,43 +34,6 @@ func fitLine(s string, w int) string {
 	return ansi.Truncate(s, w, "…")
 }
 
-// DirPickerKeyMap defines the key bindings for the directory picker.
-// keyCtrlS is the "select the browsed folder" chord (moved with the picker).
-const keyCtrlS = "ctrl+s"
-
-type DirPickerKeyMap struct {
-	Cancel        key.Binding
-	Up            key.Binding
-	Down          key.Binding
-	Open          key.Binding
-	Back          key.Binding
-	Select        key.Binding
-	SelectCurrent key.Binding
-}
-
-// DefaultDirPickerKeyMap returns the standard directory-picker bindings,
-// mirroring the file-picker split: Enter/→ browses, Space selects.
-func DefaultDirPickerKeyMap() DirPickerKeyMap {
-	return DirPickerKeyMap{
-		Cancel: key.NewBinding(key.WithKeys("esc", "ctrl+c"), key.WithHelp("esc", "cancel")),
-		Up:     key.NewBinding(key.WithKeys("up"), key.WithHelp("↑", "up")),
-		Down:   key.NewBinding(key.WithKeys("down"), key.WithHelp("↓", "down")),
-		Open: key.NewBinding(
-			key.WithKeys("enter", "right"),
-			key.WithHelp("enter/→", "open folder"),
-		),
-		Back: key.NewBinding(
-			key.WithKeys("left", "backspace"),
-			key.WithHelp("←", "up folder"),
-		),
-		Select: key.NewBinding(key.WithKeys("space"), key.WithHelp("space", "select folder")),
-		SelectCurrent: key.NewBinding(
-			key.WithKeys(keyCtrlS),
-			key.WithHelp("ctrl+s", "select this folder"),
-		),
-	}
-}
-
 // dirEntriesMsg carries the subdirectory listing produced by readDirCmd.
 type dirEntriesMsg struct {
 	dir     string
@@ -90,7 +54,7 @@ type DirPicker struct {
 	err       error
 	selected  string
 
-	KeyMap  DirPickerKeyMap
+	KeyMap  *keys.AppKeyMap
 	Done    bool
 	Aborted bool
 	Width   int
@@ -145,7 +109,7 @@ func NewDirPicker(initial string) *DirPicker {
 		Styles:   DefaultStyles(),
 		hoverRow: -1,
 		dir:      dir,
-		KeyMap:   DefaultDirPickerKeyMap(),
+		KeyMap:   keys.DefaultKeyMap(),
 	}
 }
 
@@ -229,11 +193,11 @@ func (m *DirPicker) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.cursor++
 			}
 			m.ensureCursorVisible()
-		case key.Matches(msg, m.KeyMap.Open):
+		case key.Matches(msg, m.KeyMap.Open, m.KeyMap.Right):
 			if m.cursor < len(m.entries) {
 				return m, readDirCmd(filepath.Join(m.dir, m.entries[m.cursor]))
 			}
-		case key.Matches(msg, m.KeyMap.Back):
+		case key.Matches(msg, m.KeyMap.Left, m.KeyMap.Delete):
 			if m.dir == "" {
 				break // already at the drive list
 			}
@@ -253,7 +217,7 @@ func (m *DirPicker) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.selected = filepath.Join(m.dir, m.entries[m.cursor])
 				m.Done = true
 			}
-		case key.Matches(msg, m.KeyMap.SelectCurrent):
+		case key.Matches(msg, m.KeyMap.Save):
 			if m.dir != "" {
 				m.selected = m.dir
 				m.Done = true

@@ -66,8 +66,8 @@ func newDemo() *demoApp {
 	return &demoApp{
 		form: newTaskForm(),
 		chrome: exui.NewChrome(
-			exui.Bind("tab/shift+tab", "field"),
-			exui.Bind("enter", "next/submit"),
+			exui.Bind("tab shift+tab", "move"),
+			exui.Bind("enter", "next"),
 			exui.Bind("ctrl+c", "cancel"),
 		),
 	}

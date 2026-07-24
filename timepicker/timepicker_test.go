@@ -7,6 +7,7 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/jarvisfriends/snap/keys"
 )
 
 // send dispatches a message through Update and returns the updated model.
@@ -49,7 +50,7 @@ func TestInitReturnsNil(t *testing.T) {
 
 func TestDefaultKeyMapBindings(t *testing.T) {
 	t.Parallel()
-	km := DefaultKeyMap()
+	km := keys.DefaultKeyMap()
 	if len(km.Up.Keys()) == 0 {
 		t.Error("Up binding has no keys")
 	}
@@ -129,14 +130,18 @@ func TestEnterKeySetsDone(t *testing.T) {
 
 func TestQuitKeysSetAborted(t *testing.T) {
 	t.Parallel()
-	for _, k := range []string{"ctrl+c", "esc", "q"} {
+	for _, msg := range []tea.KeyPressMsg{
+		{Code: tea.KeyEsc},
+		{Code: 'c', Mod: tea.ModCtrl},
+		{Text: "q"},
+	} {
 		m := New(0)
-		m = send(m, tea.KeyPressMsg{Text: k})
+		m = send(m, msg)
 		if !m.Aborted {
-			t.Errorf("key %q should set Aborted = true", k)
+			t.Errorf("key %v should set Aborted = true", msg)
 		}
 		if m.Done {
-			t.Errorf("key %q should not set Done", k)
+			t.Errorf("key %v should not set Done", msg)
 		}
 	}
 }

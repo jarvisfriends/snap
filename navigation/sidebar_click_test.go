@@ -38,7 +38,14 @@ func selectedFrom(cmd tea.Cmd) (SelectedMsg, bool) {
 func TestSidebarClickSelectsEveryMainItem(t *testing.T) {
 	t.Parallel()
 	m := New()
-	_, _ = m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+	m.SetPages([]Page{
+		{ID: pageIDHome, Title: pageHome},
+		{ID: "p1", Title: "Placeholder 1"},
+		{ID: "p2", Title: "Placeholder 2"},
+		{ID: pageIDSettings, Title: pageSettings},
+	})
+	// force a size so it renders and calculates spacing
+	_, _ = m.Update(tea.WindowSizeMsg{Width: 20, Height: 40})
 	v := m.View()
 
 	numMain := m.numMainItems()

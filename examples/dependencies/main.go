@@ -31,8 +31,8 @@ func newDemo() *demoApp {
 	}
 	return &demoApp{modal: m, chrome: exui.NewChrome(
 		exui.Bind("i", "info modal"),
-		exui.Bind("wheel/↑/↓", "scroll"),
-		exui.Bind("esc/outside click", "close"),
+		exui.Bind("wheel ↑↓", "move"),
+		exui.Bind("esc outside-click", "close"),
 		exui.Bind("q", "quit"),
 	)}
 }

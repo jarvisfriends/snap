@@ -4,9 +4,11 @@ import (
 	"strings"
 	"testing"
 
+	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
+	"github.com/jarvisfriends/snap/keys"
 	"github.com/jarvisfriends/snap/styles"
 )
 
@@ -172,6 +174,35 @@ func TestKeyboardSortReordersRows(t *testing.T) {
 			m.rows[1].Key,
 			m.rows[2].Key,
 		)
+	}
+}
+
+func TestWithNilKeyMapUsesDefaults(t *testing.T) {
+	m := New(sampleCols(), WithKeyMap(nil))
+	m.SetRows(sampleRows())
+	if got := len(m.ShortHelp()); got == 0 {
+		t.Fatal("WithKeyMap(nil) should keep default bindings")
+	}
+	if cmd := m.Update(tea.KeyPressMsg{Code: tea.KeyEnter}); cmd == nil {
+		t.Fatal("default open binding should still work after WithKeyMap(nil)")
+	}
+}
+
+func TestSetKeyMapRebindsKeys(t *testing.T) {
+	m := New(sampleCols())
+	m.SetRows(sampleRows())
+	km := keys.DefaultKeyMap()
+	km.Sort = key.NewBinding(key.WithKeys("x"), key.WithHelp("x", "sort"))
+	m.SetKeyMap(km)
+	if cmd := m.Update(keyText("s")); cmd != nil {
+		t.Fatalf("old sort binding should be inactive, got %T", cmd)
+	}
+	if m.sortActive {
+		t.Fatal("old sort binding should not trigger sorting")
+	}
+	m.Update(keyText("x"))
+	if !m.sortActive || m.sortCol != 0 || !m.sortAsc {
+		t.Fatalf("updated sort binding should trigger sorting; got active=%v col=%d asc=%v", m.sortActive, m.sortCol, m.sortAsc)
 	}
 }
 

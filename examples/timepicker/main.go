@@ -31,8 +31,8 @@ func newDemo(start time.Time) demoApp {
 	return demoApp{
 		tf: tf,
 		chrome: exui.NewChrome(
-			exui.Bind("←/→", "column"),
-			exui.Bind("↑/↓", "spin"),
+			exui.Bind("←→", "column"),
+			exui.Bind("↑↓", "move"),
 			exui.Bind("0-9", "type"),
 			exui.Bind("space", "dropdown"),
 			exui.Bind("enter", "confirm"),

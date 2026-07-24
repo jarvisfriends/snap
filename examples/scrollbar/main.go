@@ -106,7 +106,8 @@ func (a *demoApp) View() tea.View {
 	}
 	// A two-cell blank block between columns — a lipgloss gap, not spaces.
 	gap := lipgloss.NewStyle().Width(2).Render("")
-	body := lipgloss.JoinHorizontal(lipgloss.Top,
+	body := lipgloss.JoinHorizontal(
+		lipgloss.Top,
 		content, gap,
 		bar(scrollbar.PresetSmooth), gap,
 		bar(scrollbar.PresetLine), gap,
@@ -128,9 +129,9 @@ func (a *demoApp) View() tea.View {
 func main() {
 	exui.Init()
 	app := &demoApp{chrome: exui.NewChrome(
-		exui.Bind("wheel/↑/↓", "scroll"),
-		exui.Bind("pgup/pgdn", "page"),
-		exui.Bind("click/drag bar", "jump"),
+		exui.Bind("wheel ↑↓", "move"),
+		exui.Bind("pgup pgdn", "page"),
+		exui.Bind("click drag bar", "jump"),
 		exui.Bind("q", "quit"),
 	)}
 	if _, err := exui.Program(app).Run(); err != nil {

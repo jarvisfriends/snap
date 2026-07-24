@@ -102,7 +102,7 @@ func TestDirPickerNavigatesAboveStartAndListsDrives(t *testing.T) {
 	}
 
 	// Selecting a drive entry must yield that drive root.
-	_, _ = dp.Update(tea.KeyPressMsg{Code: tea.KeySpace, Text: " "})
+	_, _ = dp.Update(tea.KeyPressMsg{Code: tea.KeySpace})
 	if !dp.Done || dp.Value() == "" {
 		t.Fatalf("selecting a drive did not complete; value=%q done=%v", dp.Value(), dp.Done)
 	}

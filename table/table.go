@@ -30,6 +30,7 @@ import (
 	"charm.land/lipgloss/v2"
 	btable "github.com/evertras/bubble-table/table"
 
+	"github.com/jarvisfriends/snap/keys"
 	"github.com/jarvisfriends/snap/styles"
 )
 
@@ -79,55 +80,11 @@ type Row struct {
 // The host page handles it (e.g. by opening a detail overlay for Key).
 type OpenDetailMsg struct{ Key string }
 
-// KeyMap is the table's key bindings. Use DefaultKeyMap for sensible defaults.
-type KeyMap struct {
-	Up       key.Binding
-	Down     key.Binding
-	PageUp   key.Binding
-	PageDown key.Binding
-	Top      key.Binding
-	Bottom   key.Binding
-	Sort     key.Binding // cycle the sort column/direction
-	Filter   key.Binding // enter `/` filter mode
-	Open     key.Binding // open the selected row's details
-	Cancel   key.Binding // blur the filter input / clear the filter
-}
-
-// DefaultKeyMap returns the standard bindings (vim + arrows, `/` filter, `s`
-// sort, Enter open).
-func DefaultKeyMap() KeyMap {
-	return KeyMap{
-		Up:       key.NewBinding(key.WithKeys("up"), key.WithHelp("↑", "up")),
-		Down:     key.NewBinding(key.WithKeys("down"), key.WithHelp("↓", "down")),
-		PageUp:   key.NewBinding(key.WithKeys("pgup"), key.WithHelp("pgup", "page up")),
-		PageDown: key.NewBinding(key.WithKeys("pgdown"), key.WithHelp("pgdn", "page down")),
-		Top:      key.NewBinding(key.WithKeys("home"), key.WithHelp("home", "top")),
-		Bottom:   key.NewBinding(key.WithKeys("end"), key.WithHelp("end", "bottom")),
-		Sort:     key.NewBinding(key.WithKeys("s"), key.WithHelp("s", "sort")),
-		Filter:   key.NewBinding(key.WithKeys("/"), key.WithHelp("/", "filter")),
-		Open:     key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "details")),
-		Cancel:   key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "clear")),
-	}
-}
-
-// ShortHelp implements help.KeyMap.
-func (km KeyMap) ShortHelp() []key.Binding {
-	return []key.Binding{km.Up, km.Down, km.Sort, km.Filter, km.Open}
-}
-
-// FullHelp implements help.KeyMap.
-func (km KeyMap) FullHelp() [][]key.Binding {
-	return [][]key.Binding{
-		{km.Up, km.Down, km.PageUp, km.PageDown, km.Top, km.Bottom},
-		{km.Sort, km.Filter, km.Open, km.Cancel},
-	}
-}
-
-var _ help.KeyMap = (*KeyMap)(nil)
+var _ help.KeyMap = (*TableModel)(nil)
 
 // TableModel is the table widget. Construct it with New.
 type TableModel struct {
-	KeyMap KeyMap
+	keyMap *keys.AppKeyMap
 
 	// HideFooterHint suppresses the footer's right-aligned key-hint text
 	// (the cursor/total, sort, and live-filter readouts stay). Hosts that
@@ -165,8 +122,9 @@ type TableModel struct {
 // Option configures a Model at construction.
 type Option func(*TableModel)
 
-// WithKeyMap overrides the default key bindings.
-func WithKeyMap(km KeyMap) Option { return func(m *TableModel) { m.KeyMap = km } }
+// WithKeyMap overrides the default key bindings. Passing nil restores the
+// defaults.
+func WithKeyMap(km *keys.AppKeyMap) Option { return func(m *TableModel) { m.SetKeyMap(km) } }
 
 // WithPageSize sets a fixed page size (otherwise it's derived from the height
 // passed to SetSize).
@@ -186,12 +144,12 @@ func WithSort(col int, asc bool) Option {
 // New builds a table for the given columns.
 func New(cols []Column, opts ...Option) *TableModel {
 	m := &TableModel{
-		KeyMap:       DefaultKeyMap(),
 		cols:         cols,
 		pageSize:     20,
 		sortCol:      -1,
 		lastClickRow: -1,
 	}
+	m.SetKeyMap(nil)
 	for _, o := range opts {
 		o(m)
 	}
@@ -207,19 +165,35 @@ func New(cols []Column, opts ...Option) *TableModel {
 	return m
 }
 
-// btKeyMap maps our public KeyMap onto bubble-table's bindings. Sort and Open
+// SetKeyMap updates the table key bindings. Passing nil restores the defaults.
+func (m *TableModel) SetKeyMap(km *keys.AppKeyMap) {
+	if km == nil {
+		km = keys.DefaultKeyMap()
+	}
+	m.keyMap = km
+}
+
+func (m *TableModel) bindings() *keys.AppKeyMap {
+	if m.keyMap == nil {
+		m.SetKeyMap(nil)
+	}
+	return m.keyMap
+}
+
+// btKeyMap maps the table's bindings onto bubble-table's bindings. Sort and Open
 // never reach bubble-table (handleKey intercepts them), and the built-in
 // row-select toggle is disabled so it can't swallow the Open key.
 func (m *TableModel) btKeyMap() btable.KeyMap {
+	bindings := m.bindings()
 	km := btable.DefaultKeyMap()
-	km.RowUp = m.KeyMap.Up
-	km.RowDown = m.KeyMap.Down
-	km.PageUp = m.KeyMap.PageUp
-	km.PageDown = m.KeyMap.PageDown
-	km.PageFirst = m.KeyMap.Top
-	km.PageLast = m.KeyMap.Bottom
-	km.Filter = m.KeyMap.Filter
-	km.FilterClear = m.KeyMap.Cancel
+	km.RowUp = bindings.Up
+	km.RowDown = bindings.Down
+	km.PageUp = bindings.PageUp
+	km.PageDown = bindings.PageDown
+	km.PageFirst = bindings.Top
+	km.PageLast = bindings.Bottom
+	km.Filter = bindings.Filter
+	km.FilterClear = bindings.Cancel
 	km.RowSelectToggle = key.NewBinding(key.WithDisabled())
 	return km
 }
@@ -271,7 +245,9 @@ func (m *TableModel) Update(msg tea.Msg) tea.Cmd {
 }
 
 func (m *TableModel) handleKey(msg tea.KeyPressMsg) tea.Cmd {
-	// KeyMap is a public field hosts may rebind at runtime; re-map it onto
+	bindings := m.bindings()
+
+	// Re-map the current bindings onto
 	// bubble-table before each dispatch so rebinds take effect immediately.
 	m.bt = m.bt.WithKeyMap(m.btKeyMap())
 
@@ -279,10 +255,10 @@ func (m *TableModel) handleKey(msg tea.KeyPressMsg) tea.Cmd {
 	// blur the input; the filter text stays applied until esc clears it).
 	if !m.Filtering() {
 		switch {
-		case key.Matches(msg, m.KeyMap.Sort):
+		case key.Matches(msg, bindings.Sort):
 			m.cycleSort()
 			return nil
-		case key.Matches(msg, m.KeyMap.Open):
+		case key.Matches(msg, bindings.Open):
 			return m.openSelected()
 		}
 	}
@@ -290,6 +266,21 @@ func (m *TableModel) handleKey(msg tea.KeyPressMsg) tea.Cmd {
 	var cmd tea.Cmd
 	m.bt, cmd = m.bt.Update(msg)
 	return cmd
+}
+
+// ShortHelp returns the most relevant keybindings for the table context.
+func (m *TableModel) ShortHelp() []key.Binding {
+	bindings := m.bindings()
+	return []key.Binding{bindings.Up, bindings.Down, bindings.Sort, bindings.Filter, bindings.Open}
+}
+
+// FullHelp returns all table keybindings organized into groups.
+func (m *TableModel) FullHelp() [][]key.Binding {
+	bindings := m.bindings()
+	return [][]key.Binding{
+		{bindings.Up, bindings.Down, bindings.PageUp, bindings.PageDown, bindings.Top, bindings.Bottom},
+		{bindings.Sort, bindings.Filter, bindings.Open, bindings.Cancel},
+	}
 }
 
 // HandleClick processes a left click at page-relative (x, y): a header click

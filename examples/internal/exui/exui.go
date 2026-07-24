@@ -41,7 +41,10 @@ func Init() { flag.Parse() }
 // gives every component the same injected colors.
 const themeTint = "catppuccin_macchiato"
 
-var themeOnce sync.Once
+var (
+	themeOnce   sync.Once
+	sharedTheme *styles.AppStyle
+)
 
 // Theme returns the shared example palette. Every example passes it into the
 // components it mounts (they are theme-free with injected style hooks) and
@@ -52,8 +55,20 @@ func Theme() *styles.AppStyle {
 		// Best-effort: SetCurrentTint initializes the tint registry; an
 		// unknown id falls back to styles' default palette.
 		_ = styles.SetCurrentTint(themeTint)
+		base := styles.Active()
+		sharedTheme = base
+
+		// Optional debug mode for GIF audits: force a loud background so any
+		// unthemed holes stand out immediately.
+		if dbg := strings.TrimSpace(os.Getenv("SNAP_DEMO_DEBUG_BG")); dbg != "" {
+			cp := *base
+			cp.Bg = lipgloss.Color(dbg)
+			cp.StatusBg = lipgloss.Color(dbg)
+			cp.Styles = styles.BuildStyles(&cp)
+			sharedTheme = &cp
+		}
 	})
-	return styles.Active()
+	return sharedTheme
 }
 
 // Bindings adapts a flat binding list to the help.KeyMap the status bar

@@ -15,7 +15,7 @@ import (
 
 // TableStyles returns bubbles/table styles derived from c: theme item colors
 // for cells, a bold high-contrast header, and the semantic selection colors
-// for the cursor row — the same look as the inspector's data tables and every
+// for the cursor row — the same look as standard data tables and every
 // other selectable list in the framework.
 func TableStyles(c *AppStyle) table.Styles {
 	s := table.DefaultStyles()

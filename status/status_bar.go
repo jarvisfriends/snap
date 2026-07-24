@@ -32,9 +32,8 @@ type BarModel struct {
 	lastRegions []ClickRegion // regions from the last SetWidth render
 
 	// summaryProvider, when set, supplies the right-aligned status bar text
-	// (e.g. the inspector's compact runtime summary shown when the inspector is
-	// closed). It is evaluated on every render so the text stays current without
-	// manual refresh calls.
+	// (e.g. compact runtime summary shown when active). It is evaluated on
+	// every render so the text stays current without manual refresh calls.
 	summaryProvider func() string
 
 	// segmentOrder/segments hold named consumer-provided right-aligned
@@ -169,7 +168,7 @@ func (b *BarModel) View() tea.View {
 func (b *BarModel) SetWidth(width int) {
 	// Apply theme colors to the help widget before rendering.
 	b.applyHelpStyles()
-	// ensure help width is up to date for the left content
+	// verify help width is up to date for the left content
 	b.help.SetWidth(width)
 	c := b.Colors()
 
@@ -187,7 +186,7 @@ func (b *BarModel) SetWidth(width int) {
 	left = styles.ReapplyBg(left, c.Styles.StatusBase.GetBackground())
 
 	// Render the status line using the internal statusbar renderer. The right
-	// segment carries the optional summary (e.g. the inspector's runtime stats).
+	// segment carries the optional summary (e.g. runtime stats).
 	statusLine, regions := b.sb.Render(width, left, b.summary())
 
 	// Store regions so the router can access them without re-parsing ANSI output.

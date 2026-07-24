@@ -36,7 +36,7 @@ func NewSparkline(id string) *SparklineModel {
 	return &SparklineModel{ID: id}
 }
 
-// History returns the current samples (mainly for tests and inspectors).
+// History returns the current samples (mainly for tests).
 func (m *SparklineModel) History() []float64 { return m.history }
 
 func (m *SparklineModel) Init() tea.Cmd { return nil }

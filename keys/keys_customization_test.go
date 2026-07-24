@@ -132,7 +132,10 @@ func TestBindingDefsCoversAllBindings(t *testing.T) {
 	// Spot-check a few required IDs.
 	required := []string{
 		bindingQuit, bindingNextPage, bindingPreviousPage, bindingOpenSettings,
-		bindingToggleNav, bindingToggleStatus, bindingDebug, bindingPageDown, bindingPageUp,
+		bindingToggleNav, bindingToggleStatus, bindingDebug,
+		bindingSort, bindingFilter, bindingOpen, bindingCancel,
+		bindingSave, bindingDelete, bindingSubmit, bindingOpenDetail,
+		bindingPageDown, bindingPageUp,
 	}
 	for _, id := range required {
 		if !seen[id] {
@@ -183,8 +186,16 @@ func TestApplyCustomizationsAndBindingDefsRoundTrip(t *testing.T) {
 
 	km := DefaultKeyMap()
 	km.ApplyCustomizations(map[string]string{
-		bindingQuit:     testKeyCtrlQ,
-		bindingNextPage: "n",
+		bindingQuit:       testKeyCtrlQ,
+		bindingNextPage:   "n",
+		bindingSort:       "o",
+		bindingFilter:     "?",
+		bindingOpen:       "o,enter",
+		bindingCancel:     "ctrl+x",
+		bindingSave:       "ctrl+w",
+		bindingDelete:     "x",
+		bindingSubmit:     "ctrl+m",
+		bindingOpenDetail: "shift+enter",
 	})
 
 	defs := km.BindingDefs()
@@ -198,5 +209,29 @@ func TestApplyCustomizationsAndBindingDefsRoundTrip(t *testing.T) {
 	}
 	if found[bindingNextPage] != "n" {
 		t.Errorf("BindingDefs after customization: NextPage = %q; want n", found[bindingNextPage])
+	}
+	if found[bindingSort] != "o" {
+		t.Errorf("BindingDefs after customization: Sort = %q; want o", found[bindingSort])
+	}
+	if found[bindingFilter] != "?" {
+		t.Errorf("BindingDefs after customization: Filter = %q; want ?", found[bindingFilter])
+	}
+	if found[bindingOpen] != "o,enter" {
+		t.Errorf("BindingDefs after customization: Open = %q; want o,enter", found[bindingOpen])
+	}
+	if found[bindingCancel] != "ctrl+x" {
+		t.Errorf("BindingDefs after customization: Cancel = %q; want ctrl+x", found[bindingCancel])
+	}
+	if found[bindingSave] != "ctrl+w" {
+		t.Errorf("BindingDefs after customization: Save = %q; want ctrl+w", found[bindingSave])
+	}
+	if found[bindingDelete] != "x" {
+		t.Errorf("BindingDefs after customization: Delete = %q; want x", found[bindingDelete])
+	}
+	if found[bindingSubmit] != "ctrl+m" {
+		t.Errorf("BindingDefs after customization: Submit = %q; want ctrl+m", found[bindingSubmit])
+	}
+	if found[bindingOpenDetail] != "shift+enter" {
+		t.Errorf("BindingDefs after customization: OpenDetail = %q; want shift+enter", found[bindingOpenDetail])
 	}
 }

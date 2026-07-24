@@ -28,8 +28,14 @@ func TestMain(m *testing.M) {
 
 func TestNewTabs(t *testing.T) {
 	tabs := NewTabs()
-	if len(tabs.Pages) != 3 {
-		t.Errorf("expected 3 default pages, got %d", len(tabs.Pages))
+	tabs.SetPages([]Page{
+		{ID: pageIDHome, Title: pageHome},
+		{ID: "p1", Title: "Placeholder 1"},
+		{ID: "p2", Title: "Placeholder 2"},
+		{ID: pageIDSettings, Title: pageSettings},
+	})
+	if len(tabs.Pages) != 4 {
+		t.Errorf("expected 4 pages, got %d", len(tabs.Pages))
 	}
 	if tabs.ActiveIndex != 0 {
 		t.Errorf("expected active index 0, got %d", tabs.ActiveIndex)

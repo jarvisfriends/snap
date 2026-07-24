@@ -182,10 +182,10 @@ func TestGateRegistryIntrospection(t *testing.T) {
 // are upcased with non-alphanumerics mapped to underscores.
 func TestLoadFromEnvPrefix(t *testing.T) {
 	g := NewGateRegistry()
-	g.Register(FeatureGate{Name: "inspector.accessibility-tab", Default: false})
-	t.Setenv("MYAPP_GATE_INSPECTOR_ACCESSIBILITY_TAB", "1")
+	g.Register(FeatureGate{Name: "router.accessibility-tab", Default: false})
+	t.Setenv("MYAPP_GATE_ROUTER_ACCESSIBILITY_TAB", "1")
 	g.LoadFromEnvPrefix("MYAPP_GATE_")
-	if !g.Value("inspector.accessibility-tab") {
+	if !g.Value("router.accessibility-tab") {
 		t.Fatal("LoadFromEnvPrefix did not apply the env override")
 	}
 

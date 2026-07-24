@@ -8,28 +8,9 @@ import (
 	huh "charm.land/huh/v2"
 	"charm.land/lipgloss/v2"
 
+	"github.com/jarvisfriends/snap/keys"
 	"github.com/jarvisfriends/snap/uifx"
 )
-
-type MultiFileKeyMap struct {
-	Cancel key.Binding
-	Up     key.Binding
-	Down   key.Binding
-	Submit key.Binding
-	Delete key.Binding
-	Save   key.Binding
-}
-
-func DefaultMultiFileKeyMap() MultiFileKeyMap {
-	return MultiFileKeyMap{
-		Cancel: key.NewBinding(key.WithKeys("esc", "ctrl+c", "q")),
-		Up:     key.NewBinding(key.WithKeys("up")),
-		Down:   key.NewBinding(key.WithKeys("down")),
-		Submit: key.NewBinding(key.WithKeys("enter")),
-		Delete: key.NewBinding(key.WithKeys("delete", "d", "backspace")),
-		Save:   key.NewBinding(key.WithKeys(keyCtrlS)),
-	}
-}
 
 type MultiFileEditor struct {
 	paths       []string
@@ -39,7 +20,7 @@ type MultiFileEditor struct {
 	dirPicker   *DirPicker
 	pickerIndex int
 
-	KeyMap MultiFileKeyMap
+	KeyMap *keys.AppKeyMap
 	// Styles are the injected style hooks (theme-free; see DefaultStyles).
 	Styles Styles
 	// HuhTheme styles the embedded huh file-picker form. Nil uses huh's
@@ -78,7 +59,7 @@ func NewMultiFileEditor(value string) *MultiFileEditor {
 		Styles:   DefaultStyles(),
 		hoverRow: -1,
 		paths:    paths,
-		KeyMap:   DefaultMultiFileKeyMap(),
+		KeyMap:   keys.DefaultKeyMap(),
 	}
 }
 

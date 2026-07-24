@@ -26,9 +26,9 @@ func newDemo(start time.Time) demoApp {
 	return demoApp{
 		dp: datepicker.New(start),
 		chrome: exui.NewChrome(
-			exui.Bind("↑/↓/←/→", "move"),
-			exui.Bind("[/]", "month"),
-			exui.Bind("{/}", "year"),
+			exui.Bind("↑↓←→", "move"),
+			exui.Bind("[]", "month"),
+			exui.Bind("{}", "year"),
 			exui.Bind("enter", "pick"),
 			exui.Bind("q", "quit"),
 		),

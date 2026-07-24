@@ -21,7 +21,7 @@ func FilePickerKeyMap() *huh.KeyMap {
 	km := huh.NewDefaultKeyMap()
 	km.FilePicker.Open = key.NewBinding(
 		key.WithKeys("enter", "right", "space"),
-		key.WithHelp("enter/→", "open folder"),
+		key.WithHelp("enter→", "open folder"),
 	)
 	km.FilePicker.Select = key.NewBinding(
 		key.WithKeys("space"),

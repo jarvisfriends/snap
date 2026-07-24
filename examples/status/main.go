@@ -153,6 +153,9 @@ func (a *demoApp) View() tea.View {
 	}
 
 	v := tea.NewView(base)
+	t := exui.Theme()
+	v.BackgroundColor = t.Bg
+	v.ForegroundColor = t.Fg
 	v.AltScreen = true
 	return v
 }
