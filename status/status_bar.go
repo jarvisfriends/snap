@@ -32,9 +32,8 @@ type BarModel struct {
 	lastRegions []ClickRegion // regions from the last SetWidth render
 
 	// summaryProvider, when set, supplies the right-aligned status bar text
-	// (e.g. compact runtime summary shown when active).
-	// closed). It is evaluated on every render so the text stays current without
-	// manual refresh calls.
+	// (e.g. compact runtime summary shown when active). It is evaluated on
+	// every render so the text stays current without manual refresh calls.
 	summaryProvider func() string
 
 	// segmentOrder/segments hold named consumer-provided right-aligned
