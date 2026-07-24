@@ -1,0 +1,113 @@
+version: 2
+
+project_name: snap
+
+before:
+  hooks:
+    - go mod tidy
+    - go -C tools/rendertapes mod tidy
+
+builds:
+  - id: cellcanvas
+    binary: cellcanvas
+    main: ./examples/cellcanvas
+    env: [CGO_ENABLED=0]
+    goos: [linux, darwin, windows]
+    goarch: [amd64, arm64]
+  - id: charts
+    binary: charts
+    main: ./examples/charts
+    env: [CGO_ENABLED=0]
+    goos: [linux, darwin, windows]
+    goarch: [amd64, arm64]
+  - id: datepicker
+    binary: datepicker
+    main: ./examples/datepicker
+    env: [CGO_ENABLED=0]
+    goos: [linux, darwin, windows]
+    goarch: [amd64, arm64]
+  - id: dependencies
+    binary: dependencies
+    main: ./examples/dependencies
+    env: [CGO_ENABLED=0]
+    goos: [linux, darwin, windows]
+    goarch: [amd64, arm64]
+  - id: forms
+    binary: forms
+    main: ./examples/forms
+    env: [CGO_ENABLED=0]
+    goos: [linux, darwin, windows]
+    goarch: [amd64, arm64]
+  - id: linechart
+    binary: linechart
+    main: ./examples/linechart
+    env: [CGO_ENABLED=0]
+    goos: [linux, darwin, windows]
+    goarch: [amd64, arm64]
+  - id: menu
+    binary: menu
+    main: ./examples/menu
+    env: [CGO_ENABLED=0]
+    goos: [linux, darwin, windows]
+    goarch: [amd64, arm64]
+  - id: navigation
+    binary: navigation
+    main: ./examples/navigation
+    env: [CGO_ENABLED=0]
+    goos: [linux, darwin, windows]
+    goarch: [amd64, arm64]
+  - id: pickers
+    binary: pickers
+    main: ./examples/pickers
+    env: [CGO_ENABLED=0]
+    goos: [linux, darwin, windows]
+    goarch: [amd64, arm64]
+  - id: pills
+    binary: pills
+    main: ./examples/pills
+    env: [CGO_ENABLED=0]
+    goos: [linux, darwin, windows]
+    goarch: [amd64, arm64]
+  - id: scrollbar
+    binary: scrollbar
+    main: ./examples/scrollbar
+    env: [CGO_ENABLED=0]
+    goos: [linux, darwin, windows]
+    goarch: [amd64, arm64]
+  - id: status
+    binary: status
+    main: ./examples/status
+    env: [CGO_ENABLED=0]
+    goos: [linux, darwin, windows]
+    goarch: [amd64, arm64]
+  - id: table
+    binary: table
+    main: ./examples/table
+    env: [CGO_ENABLED=0]
+    goos: [linux, darwin, windows]
+    goarch: [amd64, arm64]
+  - id: timepicker
+    binary: timepicker
+    main: ./examples/timepicker
+    env: [CGO_ENABLED=0]
+    goos: [linux, darwin, windows]
+    goarch: [amd64, arm64]
+
+archives:
+  - id: default
+    formats: [tar.gz]
+    name_template: "{{ .ProjectName }}_{{ .Binary }}_{{ .Os }}_{{ .Arch }}"
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+
+checksum:
+  name_template: checksums.txt
+
+sboms:
+  - artifacts: archive
+
+release:
+  github:
+    owner: jarvisfriends
+    name: snap
