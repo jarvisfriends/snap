@@ -193,7 +193,7 @@ func (m *DirPicker) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.cursor++
 			}
 			m.ensureCursorVisible()
-		case key.Matches(msg, m.KeyMap.Open):
+		case key.Matches(msg, m.KeyMap.Open, m.KeyMap.Right):
 			if m.cursor < len(m.entries) {
 				return m, readDirCmd(filepath.Join(m.dir, m.entries[m.cursor]))
 			}

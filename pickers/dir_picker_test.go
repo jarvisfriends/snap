@@ -81,6 +81,25 @@ func TestDirPickerEnterOpensFolder(t *testing.T) {
 	}
 }
 
+func TestDirPickerRightArrowOpensFolder(t *testing.T) {
+	t.Parallel()
+
+	root := makePickerTree(t)
+	dp := newTestDirPicker(t, root)
+
+	_, cmd := dp.Update(tea.KeyPressMsg{Code: tea.KeyRight})
+	if cmd == nil {
+		t.Fatal("expected right arrow on a folder to return a read command")
+	}
+	_, _ = dp.Update(cmd())
+	if dp.dir != filepath.Join(root, "alpha") {
+		t.Fatalf("dir = %q; want %q", dp.dir, filepath.Join(root, "alpha"))
+	}
+	if dp.Done || dp.Aborted {
+		t.Fatal("right arrow must browse, not complete the picker")
+	}
+}
+
 func TestDirPickerBackGoesToParent(t *testing.T) {
 	t.Parallel()
 
