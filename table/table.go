@@ -84,7 +84,7 @@ var _ help.KeyMap = (*keys.AppKeyMap)(nil)
 
 // TableModel is the table widget. Construct it with New.
 type TableModel struct {
-	KeyMap *keys.AppKeyMap
+	keyMap *keys.AppKeyMap
 
 	// HideFooterHint suppresses the footer's right-aligned key-hint text
 	// (the cursor/total, sort, and live-filter readouts stay). Hosts that
@@ -122,8 +122,9 @@ type TableModel struct {
 // Option configures a Model at construction.
 type Option func(*TableModel)
 
-// WithKeyMap overrides the default key bindings.
-func WithKeyMap(km *keys.AppKeyMap) Option { return func(m *TableModel) { m.KeyMap = km } }
+// WithKeyMap overrides the default key bindings. Passing nil restores the
+// defaults.
+func WithKeyMap(km *keys.AppKeyMap) Option { return func(m *TableModel) { m.SetKeyMap(km) } }
 
 // WithPageSize sets a fixed page size (otherwise it's derived from the height
 // passed to SetSize).
@@ -143,12 +144,12 @@ func WithSort(col int, asc bool) Option {
 // New builds a table for the given columns.
 func New(cols []Column, opts ...Option) *TableModel {
 	m := &TableModel{
-		KeyMap:       keys.DefaultKeyMap(),
 		cols:         cols,
 		pageSize:     20,
 		sortCol:      -1,
 		lastClickRow: -1,
 	}
+	m.SetKeyMap(nil)
 	for _, o := range opts {
 		o(m)
 	}
@@ -164,19 +165,35 @@ func New(cols []Column, opts ...Option) *TableModel {
 	return m
 }
 
-// btKeyMap maps our public KeyMap onto bubble-table's bindings. Sort and Open
+// SetKeyMap updates the table key bindings. Passing nil restores the defaults.
+func (m *TableModel) SetKeyMap(km *keys.AppKeyMap) {
+	if km == nil {
+		km = keys.DefaultKeyMap()
+	}
+	m.keyMap = km
+}
+
+func (m *TableModel) bindings() *keys.AppKeyMap {
+	if m.keyMap == nil {
+		m.SetKeyMap(nil)
+	}
+	return m.keyMap
+}
+
+// btKeyMap maps the table's bindings onto bubble-table's bindings. Sort and Open
 // never reach bubble-table (handleKey intercepts them), and the built-in
 // row-select toggle is disabled so it can't swallow the Open key.
 func (m *TableModel) btKeyMap() btable.KeyMap {
+	bindings := m.bindings()
 	km := btable.DefaultKeyMap()
-	km.RowUp = m.KeyMap.Up
-	km.RowDown = m.KeyMap.Down
-	km.PageUp = m.KeyMap.PageUp
-	km.PageDown = m.KeyMap.PageDown
-	km.PageFirst = m.KeyMap.Top
-	km.PageLast = m.KeyMap.Bottom
-	km.Filter = m.KeyMap.Filter
-	km.FilterClear = m.KeyMap.Cancel
+	km.RowUp = bindings.Up
+	km.RowDown = bindings.Down
+	km.PageUp = bindings.PageUp
+	km.PageDown = bindings.PageDown
+	km.PageFirst = bindings.Top
+	km.PageLast = bindings.Bottom
+	km.Filter = bindings.Filter
+	km.FilterClear = bindings.Cancel
 	km.RowSelectToggle = key.NewBinding(key.WithDisabled())
 	return km
 }
@@ -228,7 +245,9 @@ func (m *TableModel) Update(msg tea.Msg) tea.Cmd {
 }
 
 func (m *TableModel) handleKey(msg tea.KeyPressMsg) tea.Cmd {
-	// KeyMap is a public field hosts may rebind at runtime; re-map it onto
+	bindings := m.bindings()
+
+	// Re-map the current bindings onto
 	// bubble-table before each dispatch so rebinds take effect immediately.
 	m.bt = m.bt.WithKeyMap(m.btKeyMap())
 
@@ -236,10 +255,10 @@ func (m *TableModel) handleKey(msg tea.KeyPressMsg) tea.Cmd {
 	// blur the input; the filter text stays applied until esc clears it).
 	if !m.Filtering() {
 		switch {
-		case key.Matches(msg, m.KeyMap.Sort):
+		case key.Matches(msg, bindings.Sort):
 			m.cycleSort()
 			return nil
-		case key.Matches(msg, m.KeyMap.Open):
+		case key.Matches(msg, bindings.Open):
 			return m.openSelected()
 		}
 	}
@@ -251,20 +270,16 @@ func (m *TableModel) handleKey(msg tea.KeyPressMsg) tea.Cmd {
 
 // ShortHelp returns the most relevant keybindings for the table context.
 func (m *TableModel) ShortHelp() []key.Binding {
-	if m.KeyMap == nil {
-		return nil
-	}
-	return []key.Binding{m.KeyMap.Up, m.KeyMap.Down, m.KeyMap.Sort, m.KeyMap.Filter, m.KeyMap.Open}
+	bindings := m.bindings()
+	return []key.Binding{bindings.Up, bindings.Down, bindings.Sort, bindings.Filter, bindings.Open}
 }
 
 // FullHelp returns all table keybindings organized into groups.
 func (m *TableModel) FullHelp() [][]key.Binding {
-	if m.KeyMap == nil {
-		return nil
-	}
+	bindings := m.bindings()
 	return [][]key.Binding{
-		{m.KeyMap.Up, m.KeyMap.Down, m.KeyMap.PageUp, m.KeyMap.PageDown, m.KeyMap.Top, m.KeyMap.Bottom},
-		{m.KeyMap.Sort, m.KeyMap.Filter, m.KeyMap.Open, m.KeyMap.Cancel},
+		{bindings.Up, bindings.Down, bindings.PageUp, bindings.PageDown, bindings.Top, bindings.Bottom},
+		{bindings.Sort, bindings.Filter, bindings.Open, bindings.Cancel},
 	}
 }
 
