@@ -122,7 +122,7 @@ type SelectedMsg struct {
 // KeyCapturer can be implemented by page models that need exclusive keyboard
 // focus. When CapturesKeys returns true the router will bypass its own global
 // key shortcuts (quit, page-cycling) and will not forward key events to the
-// navigation component, verifying every keystroke reaches the active page.
+// navigation component, ensuring every keystroke reaches the active page.
 type KeyCapturer interface {
 	CapturesKeys() bool
 }
