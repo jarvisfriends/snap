@@ -31,9 +31,11 @@ var presetThemes = map[StylePreset]func(bool) *huh.Styles{
 	PresetCatppuccin: huh.ThemeCatppuccin,
 }
 
-// orderedPresets is the stable display order for pickers.
-var orderedPresets = []StylePreset{
-	PresetCharm, PresetBase, PresetDracula, PresetBase16, PresetCatppuccin,
+// stylePresetsInOrder returns the stable display order for pickers.
+func stylePresetsInOrder() []StylePreset {
+	return []StylePreset{
+		PresetCharm, PresetBase, PresetDracula, PresetBase16, PresetCatppuccin,
+	}
 }
 
 // NormalizePreset validates s and returns a known StylePreset, defaulting to
@@ -49,6 +51,7 @@ func NormalizePreset(s string) StylePreset {
 // StylePresets returns the selectable style presets in display order. Use this
 // to build a settings picker.
 func StylePresets() []StylePreset {
+	orderedPresets := stylePresetsInOrder()
 	out := make([]StylePreset, len(orderedPresets))
 	copy(out, orderedPresets)
 	return out

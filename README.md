@@ -2,6 +2,11 @@
 
 ![snap — ready-to-snap Bubble Tea components](assets/banner.svg)
 
+[![CI](https://github.com/jarvisfriends/snap/actions/workflows/ci.yml/badge.svg)](https://github.com/jarvisfriends/snap/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/jarvisfriends/snap/actions/workflows/codeql.yml/badge.svg)](https://github.com/jarvisfriends/snap/actions/workflows/codeql.yml)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/jarvisfriends/snap/badge)](https://scorecard.dev/viewer/?uri=github.com/jarvisfriends/snap)
+[![Go Reference](https://pkg.go.dev/badge/github.com/jarvisfriends/snap.svg)](https://pkg.go.dev/github.com/jarvisfriends/snap)
+
 **Jarvis Friends Snap** — ready-to-use, production-minded
 [Bubble Tea v2](https://github.com/charmbracelet/bubbletea) components
 ("snaps"): navigation, tables, pickers, calendars, charts, and status

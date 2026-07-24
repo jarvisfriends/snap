@@ -31,60 +31,17 @@ import (
 
 	"github.com/jarvisfriends/snap/keys"
 	"github.com/jarvisfriends/snap/notifications"
+	"github.com/jarvisfriends/snap/rendercheck"
 	"github.com/jarvisfriends/snap/styles"
 
 	"charm.land/lipgloss/v2"
 )
 
-// ─── ANSI helpers ────────────────────────────────────────────────────────────
+func stripANSI(s string) string { return rendercheck.StripANSI(s) }
 
-var ansiRE = regexp.MustCompile(`\x1b\[[0-9;]*[mK]`)
+func bgNumericParams(c color.Color) string { return rendercheck.BGNumericParams(c) }
 
-// stripANSI removes ANSI escape sequences, leaving only printable characters.
-func stripANSI(s string) string { return ansiRE.ReplaceAllString(s, "") }
-
-// firstEscape returns the first ANSI escape sequence found in s,
-// e.g. "\x1b[48;5;236m".
-func firstEscape(s string) string {
-	i := strings.Index(s, "\x1b[")
-	if i < 0 {
-		return ""
-	}
-	j := strings.Index(s[i:], "m")
-	if j < 0 {
-		return ""
-	}
-	return s[i : i+j+1]
-}
-
-// bgEscape asks lipgloss to render a single character with the given
-// background color and returns just the ANSI escape code prefix.
-// Returns "" when lipgloss emits no escape (e.g. NO_COLOR mode).
-func bgEscape(c color.Color) string {
-	return firstEscape(lipgloss.NewStyle().Background(c).Render("X"))
-}
-
-// bgNumericParams extracts the numeric parameter string from the ANSI background
-// escape code (e.g. "48;5;236" from "\x1b[48;5;236m").  Checking for this
-// substring rather than the full standalone escape is necessary because lipgloss
-// often emits combined fg+bg sequences such as "\x1b[38;5;238;48;5;236m".
-func bgNumericParams(c color.Color) string {
-	full := bgEscape(c) // e.g. "\x1b[48;5;236m"
-	if len(full) < 4 {
-		return ""
-	}
-	// strip leading "\x1b[" (2 bytes) and trailing "m" (1 byte)
-	return full[2 : len(full)-1]
-}
-
-// nonBlankLines splits s on "\n" and strips trailing blank lines.
-func nonBlankLines(s string) []string {
-	lines := strings.Split(s, "\n")
-	for len(lines) > 0 && strings.TrimSpace(stripANSI(lines[len(lines)-1])) == "" {
-		lines = lines[:len(lines)-1]
-	}
-	return lines
-}
+func nonBlankLines(s string) []string { return rendercheck.TrimTrailingBlankLines(s) }
 
 // iconPresent reports whether any of the three status-bar icon glyphs appear in s.
 func iconPresent(s string) bool {
@@ -104,13 +61,13 @@ func TestFullHelpIconsOnLastRow(t *testing.T) {
 	b.help.ShowAll = true
 	b.SetWidth(120)
 
-	lines := nonBlankLines(b.helpView.Content)
+	lines := rendercheck.TrimTrailingBlankLines(b.helpView.Content)
 	if len(lines) < 2 {
 		t.Skip("full help produced only one line — need multi-row rendering")
 	}
 
-	last := stripANSI(lines[len(lines)-1])
-	first := stripANSI(lines[0])
+	last := rendercheck.StripANSI(lines[len(lines)-1])
+	first := rendercheck.StripANSI(lines[0])
 
 	if !iconPresent(last) {
 		t.Errorf("icons (⚙/🔔/ℹ) not found on last row (row %d)\n  last:  %q\n  first: %q",
@@ -136,12 +93,12 @@ func TestFullHelpAllRowsCarryStatusBg(t *testing.T) {
 	b.SetWidth(120)
 
 	c := styles.Active()
-	wantParams := bgNumericParams(c.StatusBg)
+	wantParams := rendercheck.BGNumericParams(c.StatusBg)
 	if wantParams == "" {
 		t.Skip("no ANSI background code — running in no-color mode")
 	}
 
-	lines := nonBlankLines(b.helpView.Content)
+	lines := rendercheck.TrimTrailingBlankLines(b.helpView.Content)
 	if len(lines) < 2 {
 		t.Skip("full help produced only one line — need multi-row rendering")
 	}
@@ -149,7 +106,7 @@ func TestFullHelpAllRowsCarryStatusBg(t *testing.T) {
 	for i, line := range lines {
 		if !strings.Contains(line, wantParams) {
 			t.Errorf("row %d missing StatusBg params %q\n  stripped: %q",
-				i, wantParams, stripANSI(line))
+				i, wantParams, rendercheck.StripANSI(line))
 		}
 	}
 }
@@ -172,8 +129,8 @@ func TestHistoryOverlayAllRowsCarryMainBg(t *testing.T) {
 	}
 
 	c := styles.Active()
-	statusBgParams := bgNumericParams(c.StatusBg)
-	mainBgParams := bgNumericParams(c.Bg)
+	statusBgParams := rendercheck.BGNumericParams(c.StatusBg)
+	mainBgParams := rendercheck.BGNumericParams(c.Bg)
 
 	if mainBgParams == "" {
 		t.Skip("no ANSI background code — running in no-color mode")
@@ -182,17 +139,17 @@ func TestHistoryOverlayAllRowsCarryMainBg(t *testing.T) {
 		t.Skip("main Bg and StatusBg are identical in this theme — cannot distinguish")
 	}
 
-	for i, line := range nonBlankLines(rendered) {
+	for i, line := range rendercheck.TrimTrailingBlankLines(rendered) {
 		if !strings.Contains(line, mainBgParams) {
 			t.Errorf("overlay row %d missing main Bg params %q\n  stripped: %q",
-				i, mainBgParams, stripANSI(line))
+				i, mainBgParams, rendercheck.StripANSI(line))
 		}
 		if strings.Contains(line, statusBgParams) {
 			t.Errorf(
 				"overlay row %d contains StatusBg params %q — should use the main Bg throughout\n  stripped: %q",
 				i,
 				statusBgParams,
-				stripANSI(line),
+				rendercheck.StripANSI(line),
 			)
 		}
 	}
@@ -211,7 +168,7 @@ func TestHelpSeparatorPresentInShortHelp(t *testing.T) {
 	b.SetKeys(keys.DefaultKeyMap())
 	b.SetWidth(120)
 
-	stripped := stripANSI(b.helpView.Content)
+	stripped := rendercheck.StripANSI(b.helpView.Content)
 	if !strings.Contains(stripped, "•") {
 		t.Error("separator '•' not found in short-help output — " +
 			"check that the help widget separator style is wired correctly")
@@ -226,8 +183,8 @@ func TestHelpSeparatorPresentInShortHelp(t *testing.T) {
 func TestHelpSeparatorStyleUsesStatusBg(t *testing.T) {
 	c := styles.Active()
 
-	mainBgParams := bgNumericParams(c.Bg)
-	statusBgParams := bgNumericParams(c.StatusBg)
+	mainBgParams := rendercheck.BGNumericParams(c.Bg)
+	statusBgParams := rendercheck.BGNumericParams(c.StatusBg)
 	if mainBgParams == "" || mainBgParams == statusBgParams {
 		t.Skip("cannot distinguish main Bg from StatusBg in this environment")
 	}
@@ -258,8 +215,8 @@ func TestHelpSeparatorForegroundVisibleAgainstStatusBg(t *testing.T) {
 		Foreground(c.StatusBg).
 		Render("•")
 
-	sepFgCode := firstEscape(sepRendered)
-	invFgCode := firstEscape(invisRendered)
+	sepFgCode := rendercheck.FirstEscape(sepRendered)
+	invFgCode := rendercheck.FirstEscape(invisRendered)
 
 	if sepFgCode != "" && invFgCode != "" && sepFgCode == invFgCode {
 		t.Errorf("separator foreground ANSI code %q matches background — dot will be invisible",
@@ -288,7 +245,7 @@ func TestHistoryOverlayHeaderNoTrailingUnstyled(t *testing.T) {
 	overlay.showHistory = true
 
 	rendered := overlay.RenderHistoryOverlay(80, 20)
-	lines := nonBlankLines(rendered)
+	lines := rendercheck.TrimTrailingBlankLines(rendered)
 	if len(lines) < 3 {
 		t.Fatal("overlay too short")
 	}
@@ -299,7 +256,7 @@ func TestHistoryOverlayHeaderNoTrailingUnstyled(t *testing.T) {
 		t.Errorf(
 			"header row has unstyled space after reset — right-side background will be terminal default\n"+
 				"  stripped: %q",
-			stripANSI(headerLine),
+			rendercheck.StripANSI(headerLine),
 		)
 	}
 }
@@ -321,7 +278,7 @@ func TestHistoryOverlayNotifRowNoTrailingUnstyled(t *testing.T) {
 	overlay.showHistory = true
 
 	rendered := overlay.RenderHistoryOverlay(80, 20)
-	lines := nonBlankLines(rendered)
+	lines := rendercheck.TrimTrailingBlankLines(rendered)
 	// row 0=border, row 1=header, row 2=notification row, row 3=footer, row 4=border
 	if len(lines) < 4 {
 		t.Fatal("overlay too short — need at least border+header+notif+footer")
@@ -330,7 +287,7 @@ func TestHistoryOverlayNotifRowNoTrailingUnstyled(t *testing.T) {
 	notifLine := lines[2]
 	if resetSpaceRE.MatchString(notifLine) {
 		t.Errorf("notification row has unstyled space after reset — gap too small\n"+
-			"  stripped: %q", stripANSI(notifLine))
+			"  stripped: %q", rendercheck.StripANSI(notifLine))
 	}
 }
 
@@ -348,14 +305,14 @@ func TestShortHelpNoInterElementUnstyled(t *testing.T) {
 	b.SetKeys(keys.DefaultKeyMap())
 	b.SetWidth(120)
 
-	lines := nonBlankLines(b.helpView.Content)
+	lines := rendercheck.TrimTrailingBlankLines(b.helpView.Content)
 	if len(lines) == 0 {
 		t.Fatal("short help produced no output")
 	}
 	for i, line := range lines {
 		if resetSpaceRE.MatchString(line) {
 			t.Errorf("short-help row %d has unstyled space after reset — "+
-				"inter-element background hole\n  stripped: %q", i, stripANSI(line))
+				"inter-element background hole\n  stripped: %q", i, rendercheck.StripANSI(line))
 		}
 	}
 }
@@ -370,14 +327,14 @@ func TestFullHelpRowsNoInterElementUnstyled(t *testing.T) {
 	b.help.ShowAll = true
 	b.SetWidth(120)
 
-	lines := nonBlankLines(b.helpView.Content)
+	lines := rendercheck.TrimTrailingBlankLines(b.helpView.Content)
 	if len(lines) < 2 {
 		t.Skip("full help produced only one line — need multi-row rendering")
 	}
 	for i, line := range lines {
 		if resetSpaceRE.MatchString(line) {
 			t.Errorf("full-help row %d has unstyled space after reset — "+
-				"inter-element background hole\n  stripped: %q", i, stripANSI(line))
+				"inter-element background hole\n  stripped: %q", i, rendercheck.StripANSI(line))
 		}
 	}
 }

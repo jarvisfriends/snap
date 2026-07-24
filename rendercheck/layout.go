@@ -94,7 +94,7 @@ func CheckNoBorderOverflow(t *testing.T, m tea.Model, minWidth, height int) {
 // BackgroundColor OSC fills them.
 func CheckNoBackgroundHoles(t *testing.T, rendered string, wantBg color.Color, label string) {
 	t.Helper()
-	params := bgNumericParams(wantBg)
+	params := BGNumericParams(wantBg)
 	if params == "" {
 		t.Skip("no ANSI background code — running in no-color mode")
 	}
@@ -127,17 +127,27 @@ func CheckEmojiColumnWidths(t *testing.T, symbols []string, colW int) {
 	}
 }
 
-// ─── shared ANSI helpers (duplicated from status package to avoid import cycle) ──────
+// ─── shared ANSI helpers ─────────────────────────────────────────────────────
 
 var ansiRE = regexp.MustCompile(`\x1b\[[0-9;]*[mK]`)
 
 // StripANSI removes ANSI escape sequences, leaving only printable characters.
 func StripANSI(s string) string { return ansiRE.ReplaceAllString(s, "") }
 
+// TrimTrailingBlankLines splits s on "\n" and removes trailing blank lines
+// after ANSI stripping. Internal blank lines are preserved.
+func TrimTrailingBlankLines(s string) []string {
+	lines := strings.Split(s, "\n")
+	for len(lines) > 0 && strings.TrimSpace(StripANSI(lines[len(lines)-1])) == "" {
+		lines = lines[:len(lines)-1]
+	}
+	return lines
+}
+
 // NonBlankLines splits s on "\n", strips trailing blank lines, and returns
 // only lines with non-whitespace content (after ANSI stripping).
 func NonBlankLines(s string) []string {
-	lines := strings.Split(s, "\n")
+	lines := TrimTrailingBlankLines(s)
 	var out []string
 	for _, l := range lines {
 		if strings.TrimSpace(StripANSI(l)) != "" {
@@ -147,8 +157,8 @@ func NonBlankLines(s string) []string {
 	return out
 }
 
-// firstEscape returns the first ANSI escape sequence found in s.
-func firstEscape(s string) string {
+// FirstEscape returns the first ANSI escape sequence found in s.
+func FirstEscape(s string) string {
 	i := strings.Index(s, "\x1b[")
 	if i < 0 {
 		return ""
@@ -160,10 +170,10 @@ func firstEscape(s string) string {
 	return s[i : i+j+1]
 }
 
-// bgNumericParams extracts the numeric parameter string from the ANSI
+// BGNumericParams extracts the numeric parameter string from the ANSI
 // background escape code (e.g. "48;5;236" from "\x1b[48;5;236m").
-func bgNumericParams(c color.Color) string {
-	full := firstEscape(lipgloss.NewStyle().Background(c).Render("X"))
+func BGNumericParams(c color.Color) string {
+	full := FirstEscape(lipgloss.NewStyle().Background(c).Render("X"))
 	if len(full) < 4 {
 		return ""
 	}
