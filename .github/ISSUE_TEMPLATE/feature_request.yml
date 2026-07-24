@@ -1,0 +1,23 @@
+name: Feature request
+description: Propose a new component, extension point, or behavior improvement
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What are you trying to build?
+      description: Describe the app-level need or missing UI primitive.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed shape (optional)
+      description: API sketch, prior art, or existing Charm package comparison.
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: I checked the README and existing issues first
+          required: true

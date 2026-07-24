@@ -107,7 +107,29 @@ checksum:
 sboms:
   - artifacts: archive
 
+signs:
+  - cmd: cosign
+    artifacts: checksum
+    output: true
+    certificate: "${artifact}.pem"
+    args:
+      - sign-blob
+      - "--output-certificate=${certificate}"
+      - "--output-signature=${signature}"
+      - "${artifact}"
+      - "--yes"
+
+snapshot:
+  version_template: "{{ .Tag }}-next"
+
 release:
   github:
     owner: jarvisfriends
     name: snap
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
