@@ -87,6 +87,10 @@ if [[ -f go.mod && ${GO_FILE_COUNT} -gt 0 ]]; then
         lint_rendertapes() { (cd tools/rendertapes && golangci-lint run ./...); }
         run_gate FAIL "golangci-lint (tools/rendertapes)" lint_rendertapes
       fi
+      if [[ -f tools/releasetag/go.mod ]]; then
+        lint_releasetag() { (cd tools/releasetag && golangci-lint run ./...); }
+        run_gate FAIL "golangci-lint (tools/releasetag)" lint_releasetag
+      fi
     fi
   else
     warn_missing golangci-lint "go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest"
@@ -130,7 +134,13 @@ if [[ -f go.mod && ${GO_FILE_COUNT} -gt 0 ]]; then
 
   tidy_check() {
     go mod tidy
-    if ! git diff --exit-code -- go.mod go.sum; then
+    if [[ -f tools/releasetag/go.mod ]]; then
+      go -C tools/releasetag mod tidy
+    fi
+    if [[ -f tools/rendertapes/go.mod ]]; then
+      go -C tools/rendertapes mod tidy
+    fi
+    if ! git diff --exit-code -- go.mod go.sum tools/releasetag/go.mod tools/releasetag/go.sum tools/rendertapes/go.mod tools/rendertapes/go.sum; then
       echo "go mod tidy changed files — commit the result before pushing"
       return 1
     fi
@@ -146,7 +156,13 @@ if [[ -f go.mod && ${GO_FILE_COUNT} -gt 0 ]]; then
   run_gate WARN "go fix (drift check)" gofix_check
 
   run_gate FAIL "go vet" go vet ./...
+  if [[ -f tools/releasetag/go.mod ]]; then
+    run_gate FAIL "go vet (tools/releasetag)" go -C tools/releasetag vet ./...
+  fi
   run_gate FAIL "go build" go build ./...
+  if [[ -f tools/releasetag/go.mod ]]; then
+    run_gate FAIL "go build (tools/releasetag)" go -C tools/releasetag build ./...
+  fi
   if [[ -f tools/rendertapes/go.mod ]]; then
     run_gate FAIL "go build (tools/rendertapes)" go -C tools/rendertapes build ./...
   fi

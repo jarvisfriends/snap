@@ -1,0 +1,39 @@
+name: Bug report
+description: Something renders wrong, routes wrong, or crashes
+labels: ["bug"]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What did you see, and what did you expect instead?
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: How to reproduce
+      description: Steps, or a minimal example using one of the snaps.
+      placeholder: |
+        1. Run ...
+        2. Press ...
+    validations:
+      required: true
+  - type: input
+    id: terminal
+    attributes:
+      label: Terminal + size
+      description: e.g. Windows Terminal 90x40, iTerm2 120x40, over SSH?
+    validations:
+      required: true
+  - type: input
+    id: versions
+    attributes:
+      label: snap version / commit and Go version
+    validations:
+      required: true
+  - type: textarea
+    id: component
+    attributes:
+      label: Affected component(s)
+      description: Which snap package or example is involved?

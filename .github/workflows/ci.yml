@@ -25,13 +25,13 @@ jobs:
         # ubuntu covers the release/lint platform.
         os: [ubuntu-24.04, windows-2022]
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: Set up Go
-        uses: actions/setup-go@v7
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         with:
           go-version: '1.26.x'
       - name: Cache Go modules
-        uses: actions/cache@v6
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: |
             ~/.cache/go-build
@@ -41,12 +41,18 @@ jobs:
             ${{ runner.os }}-go-
       - name: Build
         run: go build ./...
+      - name: Build releasetag (nested module)
+        if: matrix.os == 'ubuntu-24.04'
+        run: go -C tools/releasetag build ./...
       - name: Build rendertapes (nested module)
         run: go -C tools/rendertapes build ./...
       - name: Test (race)
         run: go test -race ./... -v
       - name: Vet
         run: go vet ./...
+      - name: Vet releasetag (nested module)
+        if: matrix.os == 'ubuntu-24.04'
+        run: go -C tools/releasetag vet ./...
       - name: gofmt check
         if: matrix.os == 'ubuntu-24.04'
         run: |
@@ -60,9 +66,10 @@ jobs:
         if: matrix.os == 'ubuntu-24.04'
         run: |
           go mod tidy
+          go -C tools/releasetag mod tidy
           go -C tools/rendertapes mod tidy
-          if ! git diff --exit-code -- go.mod go.sum tools/rendertapes/go.mod tools/rendertapes/go.sum; then
-            echo "go mod tidy would change files — run 'go mod tidy' (root and tools/rendertapes) and commit the result"
+          if ! git diff --exit-code -- go.mod go.sum tools/releasetag/go.mod tools/releasetag/go.sum tools/rendertapes/go.mod tools/rendertapes/go.sum; then
+            echo "go mod tidy would change files — run 'go mod tidy' (root, tools/releasetag, and tools/rendertapes) and commit the result"
             exit 1
           fi
       - name: go mod verify
@@ -73,9 +80,9 @@ jobs:
     name: go generate drift
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: Set up Go
-        uses: actions/setup-go@v7
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         with:
           go-version: '1.26.x'
       - name: Install stringer
@@ -93,9 +100,9 @@ jobs:
     name: go fix drift
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: Set up Go
-        uses: actions/setup-go@v7
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         with:
           go-version: '1.26.x'
       - name: Check for go fix drift
@@ -109,13 +116,13 @@ jobs:
     name: Lint
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: Set up Go
-        uses: actions/setup-go@v7
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         with:
           go-version: '1.26.x'
       - name: Lint (GOOS=linux, full)
-        uses: golangci/golangci-lint-action@v9
+        uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9
         with:
           # Pinned: keep in sync with tui-base and tools/local_verify.sh.
           version: v2.12.2
@@ -134,7 +141,7 @@ jobs:
           echo "OS-specific packages: ${pkgs:-none}"
       - name: Lint (GOOS=windows, OS-specific packages only)
         if: steps.ospkgs.outputs.pkgs != ''
-        uses: golangci/golangci-lint-action@v9
+        uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9
         env:
           GOOS: windows
           GOARCH: amd64
@@ -142,31 +149,36 @@ jobs:
           version: v2.12.2
           args: ${{ steps.ospkgs.outputs.pkgs }}
       - name: Lint rendertapes (nested module)
-        uses: golangci/golangci-lint-action@v9
+        uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9
         with:
           version: v2.12.2
           working-directory: tools/rendertapes
+      - name: Lint releasetag (nested module)
+        uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9
+        with:
+          version: v2.12.2
+          working-directory: tools/releasetag
 
   workflow-lint:
     name: Workflow Lint (actionlint)
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: actionlint
-        uses: reviewdog/action-actionlint@v1
+        uses: reviewdog/action-actionlint@50842263c20a7c46bd0065b9e624d3c569db061e # v1
 
   docs:
     name: Docs Lint and Links
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: Markdown lint
-        uses: DavidAnson/markdownlint-cli2-action@v24
+        uses: DavidAnson/markdownlint-cli2-action@6bf21b07787794f89a243495939cd651942aeabe # v24
         with:
           globs: |
             **/*.md
       - name: Link check
-        uses: lycheeverse/lychee-action@v2
+        uses: lycheeverse/lychee-action@e7477775783ea5526144ba13e8db5eec57747ce8 # v2
         env:
           # Authenticated GitHub requests avoid the anonymous rate limit
           # that makes github.com links flake.
@@ -179,9 +191,9 @@ jobs:
     name: Shellcheck
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: Shellcheck scripts
-        uses: ludeeus/action-shellcheck@2.0.0
+        uses: ludeeus/action-shellcheck@00cae500b08a931fb5698e11e79bfbd38e612a38 # 2.0.0
         with:
           scandir: './'
 
@@ -193,20 +205,34 @@ jobs:
       contents: read
       pull-requests: read
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: Dependency review
-        uses: actions/dependency-review-action@v5
+        uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5
 
   govulncheck:
     name: govulncheck
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: Set up Go
-        uses: actions/setup-go@v7
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         with:
           go-version: '1.26.x'
       - name: Install govulncheck
         run: go install golang.org/x/vuln/cmd/govulncheck@v1.5.0
       - name: Run govulncheck
         run: govulncheck ./...
+
+  fuzz-smoke:
+    name: Fuzz smoke
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+        with:
+          go-version: '1.26.x'
+      - name: Run timed fuzz smoke
+        env:
+          FUZZTIME: 10s
+        run: bash tools/fuzz.sh
