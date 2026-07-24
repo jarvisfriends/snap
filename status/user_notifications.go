@@ -404,7 +404,7 @@ func RenderStyled(
 	// background runs unbroken across the full row — no manual gap math.
 	rightCluster := rightRendered + settingsPill + notifPill + infoPill
 	lastRow := lastLineRendered + lipgloss.PlaceHorizontal(
-		paddedWidth-llw,
+		max(0, paddedWidth-llw),
 		lipgloss.Right,
 		rightCluster,
 		lipgloss.WithWhitespaceStyle(baseStyle),
