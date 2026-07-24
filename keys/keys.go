@@ -266,7 +266,16 @@ type BindingDef struct {
 	Def   string
 }
 
-// BindingDefs returns the current bindings in a format suitable for generating settings UI.
+// BindingDefs returns the app-global bindings in a format suitable for a
+// key-rebinding settings UI. These are the top-level shortcuts a user is
+// expected to customize; they are mutually exclusive, so a consumer's
+// conflict check can treat any repeated key as an error.
+//
+// Component-level bindings (table sort/filter/open, form save/submit/cancel,
+// etc.) are intentionally excluded: they are widget defaults that overlap the
+// global keys by context (e.g. enter both selects and submits, esc both
+// cancels and dismisses) and would read as false conflicts in a flat list.
+// Use ComponentBindingDefs for those.
 func (km *AppKeyMap) BindingDefs() []BindingDef {
 	return []BindingDef{
 		{bindingQuit, "Quit Application", strings.Join(km.Quit.Keys(), ",")},
@@ -283,14 +292,6 @@ func (km *AppKeyMap) BindingDefs() []BindingDef {
 		{bindingDismissAll, "Dismiss All Notifications", strings.Join(km.DismissAll.Keys(), ",")},
 		{bindingToggleHistory, "Notification History", strings.Join(km.ToggleHistory.Keys(), ",")},
 		{bindingDebug, "Quick Debug", strings.Join(km.Debug.Keys(), ",")},
-		{bindingSort, "Sort", strings.Join(km.Sort.Keys(), ",")},
-		{bindingFilter, "Filter", strings.Join(km.Filter.Keys(), ",")},
-		{bindingOpen, "Open", strings.Join(km.Open.Keys(), ",")},
-		{bindingCancel, "Cancel", strings.Join(km.Cancel.Keys(), ",")},
-		{bindingSave, "Save", strings.Join(km.Save.Keys(), ",")},
-		{bindingDelete, "Delete", strings.Join(km.Delete.Keys(), ",")},
-		{bindingSubmit, "Submit", strings.Join(km.Submit.Keys(), ",")},
-		{bindingOpenDetail, "Open Detail", strings.Join(km.OpenDetail.Keys(), ",")},
 		{bindingPageDown, "Page Down", strings.Join(km.PageDown.Keys(), ",")},
 		{bindingPageUp, "Page Up", strings.Join(km.PageUp.Keys(), ",")},
 		{bindingHalfPageDown, "Half Page Down", strings.Join(km.HalfPageDown.Keys(), ",")},
@@ -299,6 +300,24 @@ func (km *AppKeyMap) BindingDefs() []BindingDef {
 		{bindingDown, "Down", strings.Join(km.Down.Keys(), ",")},
 		{bindingLeft, "Left", strings.Join(km.Left.Keys(), ",")},
 		{bindingRight, "Right", strings.Join(km.Right.Keys(), ",")},
+	}
+}
+
+// ComponentBindingDefs returns the component-level bindings (table, form, and
+// modal widget keys). They intentionally overlap the app-global keys in
+// BindingDefs by context, so present them in a separate settings section (or
+// omit them) rather than in the same flat conflict-checked list. Their custom
+// values still round-trip through ApplyCustomizations by ID.
+func (km *AppKeyMap) ComponentBindingDefs() []BindingDef {
+	return []BindingDef{
+		{bindingSort, "Sort", strings.Join(km.Sort.Keys(), ",")},
+		{bindingFilter, "Filter", strings.Join(km.Filter.Keys(), ",")},
+		{bindingOpen, "Open", strings.Join(km.Open.Keys(), ",")},
+		{bindingCancel, "Cancel", strings.Join(km.Cancel.Keys(), ",")},
+		{bindingSave, "Save", strings.Join(km.Save.Keys(), ",")},
+		{bindingDelete, "Delete", strings.Join(km.Delete.Keys(), ",")},
+		{bindingSubmit, "Submit", strings.Join(km.Submit.Keys(), ",")},
+		{bindingOpenDetail, "Open Detail", strings.Join(km.OpenDetail.Keys(), ",")},
 	}
 }
 
