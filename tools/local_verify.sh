@@ -157,7 +157,11 @@ if [[ -f go.mod && ${GO_FILE_COUNT} -gt 0 ]]; then
     git diff --name-only -- >"${before_mod}"
     git ls-files --others --exclude-standard >"${before_untracked}"
 
-    go generate ./...
+    if ! go generate ./...; then
+      echo "go generate failed"
+      rm -f "$before_mod" "$after_mod" "$before_untracked" "$after_untracked"
+      return 1
+    fi
 
     git diff --name-only -- >"${after_mod}"
     git ls-files --others --exclude-standard >"${after_untracked}"
