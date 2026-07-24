@@ -261,3 +261,12 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
           slug: jarvisfriends/snap
           files: ./coverage.out
+      - name: Upload coverage to Coveralls (goveralls)
+        # Non-fatal: no-op until the repo is connected on coveralls.io. Uses the
+        # workflow GITHUB_TOKEN via Coveralls' GitHub integration on public repos.
+        continue-on-error: true
+        env:
+          COVERALLS_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          go install github.com/mattn/goveralls@v0.0.12
+          goveralls -coverprofile=coverage.out -service=github
