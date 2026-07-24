@@ -80,7 +80,7 @@ type Row struct {
 // The host page handles it (e.g. by opening a detail overlay for Key).
 type OpenDetailMsg struct{ Key string }
 
-var _ help.KeyMap = (*keys.AppKeyMap)(nil)
+var _ help.KeyMap = (*TableModel)(nil)
 
 // TableModel is the table widget. Construct it with New.
 type TableModel struct {
