@@ -241,6 +241,14 @@ func (km *AppKeyMap) ApplyCustomizations(custom map[string]string) {
 	km.DismissAll = apply(bindingDismissAll, km.DismissAll)
 	km.ToggleHistory = apply(bindingToggleHistory, km.ToggleHistory)
 	km.Debug = apply(bindingDebug, km.Debug)
+	km.Sort = apply(bindingSort, km.Sort)
+	km.Filter = apply(bindingFilter, km.Filter)
+	km.Open = apply(bindingOpen, km.Open)
+	km.Cancel = apply(bindingCancel, km.Cancel)
+	km.Save = apply(bindingSave, km.Save)
+	km.Delete = apply(bindingDelete, km.Delete)
+	km.Submit = apply(bindingSubmit, km.Submit)
+	km.OpenDetail = apply(bindingOpenDetail, km.OpenDetail)
 	km.PageDown = apply(bindingPageDown, km.PageDown)
 	km.PageUp = apply(bindingPageUp, km.PageUp)
 	km.HalfPageDown = apply(bindingHalfPageDown, km.HalfPageDown)
@@ -275,6 +283,14 @@ func (km *AppKeyMap) BindingDefs() []BindingDef {
 		{bindingDismissAll, "Dismiss All Notifications", strings.Join(km.DismissAll.Keys(), ",")},
 		{bindingToggleHistory, "Notification History", strings.Join(km.ToggleHistory.Keys(), ",")},
 		{bindingDebug, "Quick Debug", strings.Join(km.Debug.Keys(), ",")},
+		{bindingSort, "Sort", strings.Join(km.Sort.Keys(), ",")},
+		{bindingFilter, "Filter", strings.Join(km.Filter.Keys(), ",")},
+		{bindingOpen, "Open", strings.Join(km.Open.Keys(), ",")},
+		{bindingCancel, "Cancel", strings.Join(km.Cancel.Keys(), ",")},
+		{bindingSave, "Save", strings.Join(km.Save.Keys(), ",")},
+		{bindingDelete, "Delete", strings.Join(km.Delete.Keys(), ",")},
+		{bindingSubmit, "Submit", strings.Join(km.Submit.Keys(), ",")},
+		{bindingOpenDetail, "Open Detail", strings.Join(km.OpenDetail.Keys(), ",")},
 		{bindingPageDown, "Page Down", strings.Join(km.PageDown.Keys(), ",")},
 		{bindingPageUp, "Page Up", strings.Join(km.PageUp.Keys(), ",")},
 		{bindingHalfPageDown, "Half Page Down", strings.Join(km.HalfPageDown.Keys(), ",")},
