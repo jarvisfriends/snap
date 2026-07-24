@@ -236,3 +236,28 @@ jobs:
         env:
           FUZZTIME: 10s
         run: bash tools/fuzz.sh
+
+  coverage:
+    name: Coverage (ubuntu)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
+        with:
+          go-version: '1.26.x'
+      - name: Run tests with coverage
+        run: go test -race -covermode=atomic -coverprofile=coverage.out ./...
+      - name: Upload coverage artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: coverage
+          path: coverage.out
+      - name: Upload coverage to Codecov
+        # Tokenless upload works on public repos; the action does not fail the
+        # build if the upload errors. Coverage scope/ignores are in codecov.yml.
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          slug: jarvisfriends/snap
+          files: ./coverage.out
