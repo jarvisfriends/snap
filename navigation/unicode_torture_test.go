@@ -68,6 +68,9 @@ func TestMinimalTopNavUnicodeTitlesRenderConsistently(t *testing.T) {
 	if total != 120 {
 		t.Errorf("rendered row is %d cells, expected full window width of 120", total)
 	}
+	if last := len(m.ends) - 1; last >= 0 && m.ends[last] >= total {
+		t.Errorf("last tab click range ends at %d, outside rendered width %d", m.ends[last], total)
+	}
 }
 
 func TestSidebarUnicodeTitlesFitWidth(t *testing.T) {
