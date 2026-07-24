@@ -129,17 +129,50 @@ func TestBindingDefsCoversAllBindings(t *testing.T) {
 		seen[d.ID] = true
 	}
 
-	// Spot-check a few required IDs.
+	// Spot-check a few required app-global IDs. Component-level bindings
+	// (Sort/Filter/Open/Cancel/Save/Delete/Submit/OpenDetail) live in
+	// ComponentBindingDefs now, not here.
 	required := []string{
 		bindingQuit, bindingNextPage, bindingPreviousPage, bindingOpenSettings,
 		bindingToggleNav, bindingToggleStatus, bindingDebug,
-		bindingSort, bindingFilter, bindingOpen, bindingCancel,
-		bindingSave, bindingDelete, bindingSubmit, bindingOpenDetail,
 		bindingPageDown, bindingPageUp,
 	}
 	for _, id := range required {
 		if !seen[id] {
 			t.Errorf("BindingDefs missing required ID %q", id)
+		}
+	}
+
+	// The component-level bindings must NOT leak into the app-global list —
+	// that overlap is exactly what the split prevents.
+	for _, id := range []string{
+		bindingSort, bindingFilter, bindingOpen, bindingCancel,
+		bindingSave, bindingDelete, bindingSubmit, bindingOpenDetail,
+	} {
+		if seen[id] {
+			t.Errorf("component binding %q must not appear in BindingDefs()", id)
+		}
+	}
+}
+
+func TestComponentBindingDefsCoversContextualKeys(t *testing.T) {
+	t.Parallel()
+
+	km := DefaultKeyMap()
+	defs := km.ComponentBindingDefs()
+	seen := make(map[string]bool, len(defs))
+	for _, d := range defs {
+		if d.ID == "" || d.Title == "" || d.Def == "" {
+			t.Errorf("ComponentBindingDef has empty field: %+v", d)
+		}
+		seen[d.ID] = true
+	}
+	for _, id := range []string{
+		bindingSort, bindingFilter, bindingOpen, bindingCancel,
+		bindingSave, bindingDelete, bindingSubmit, bindingOpenDetail,
+	} {
+		if !seen[id] {
+			t.Errorf("ComponentBindingDefs missing required ID %q", id)
 		}
 	}
 }
@@ -198,7 +231,9 @@ func TestApplyCustomizationsAndBindingDefsRoundTrip(t *testing.T) {
 		bindingOpenDetail: "shift+enter",
 	})
 
-	defs := km.BindingDefs()
+	// Customizations round-trip through both the app-global and component
+	// binding lists (ApplyCustomizations applies every ID).
+	defs := append(km.BindingDefs(), km.ComponentBindingDefs()...)
 	found := map[string]string{}
 	for _, d := range defs {
 		found[d.ID] = d.Def
