@@ -38,6 +38,12 @@ svc=$(go run ./examples/table)         # -> api
 Every example shows the same snap status bar with key bindings; pass
 `--no-help` to hide it.
 
+Prebuilt binaries for every example ship as their own signed, per-OS/arch
+release archive (`snap_<example>_<os>_<arch>`) on the
+[Releases page](https://github.com/jarvisfriends/snap/releases) — no Go
+toolchain required to use one as a scripting tool. See
+[`examples/USAGE.md`](examples/USAGE.md) for the full calling convention.
+
 ### Date picker
 
 Calendar date picker with click-to-confirm days, header month/year focus,

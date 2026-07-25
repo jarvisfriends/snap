@@ -7,99 +7,132 @@ before:
     - go mod tidy
     - go -C tools/rendertapes mod tidy
 
+# -s -w strips debug symbols (smaller release binaries) and -X injects the
+# release tag into exui.Version, so every distributed example is
+# self-identifying via --version. Shape factored into &example_build; each
+# entry below only overrides id/binary/main.
 builds:
-  - id: cellcanvas
+  - &example_build
+    id: cellcanvas
     binary: cellcanvas
     main: ./examples/cellcanvas
     env: [CGO_ENABLED=0]
     goos: [linux, darwin, windows]
     goarch: [amd64, arm64]
-  - id: charts
+    ldflags:
+      - -s -w -X github.com/jarvisfriends/snap/examples/internal/exui.Version={{.Version}}
+  - <<: *example_build
+    id: charts
     binary: charts
     main: ./examples/charts
-    env: [CGO_ENABLED=0]
-    goos: [linux, darwin, windows]
-    goarch: [amd64, arm64]
-  - id: datepicker
+  - <<: *example_build
+    id: datepicker
     binary: datepicker
     main: ./examples/datepicker
-    env: [CGO_ENABLED=0]
-    goos: [linux, darwin, windows]
-    goarch: [amd64, arm64]
-  - id: dependencies
+  - <<: *example_build
+    id: dependencies
     binary: dependencies
     main: ./examples/dependencies
-    env: [CGO_ENABLED=0]
-    goos: [linux, darwin, windows]
-    goarch: [amd64, arm64]
-  - id: forms
+  - <<: *example_build
+    id: forms
     binary: forms
     main: ./examples/forms
-    env: [CGO_ENABLED=0]
-    goos: [linux, darwin, windows]
-    goarch: [amd64, arm64]
-  - id: linechart
+  - <<: *example_build
+    id: linechart
     binary: linechart
     main: ./examples/linechart
-    env: [CGO_ENABLED=0]
-    goos: [linux, darwin, windows]
-    goarch: [amd64, arm64]
-  - id: menu
+  - <<: *example_build
+    id: menu
     binary: menu
     main: ./examples/menu
-    env: [CGO_ENABLED=0]
-    goos: [linux, darwin, windows]
-    goarch: [amd64, arm64]
-  - id: navigation
+  - <<: *example_build
+    id: navigation
     binary: navigation
     main: ./examples/navigation
-    env: [CGO_ENABLED=0]
-    goos: [linux, darwin, windows]
-    goarch: [amd64, arm64]
-  - id: pickers
+  - <<: *example_build
+    id: pickers
     binary: pickers
     main: ./examples/pickers
-    env: [CGO_ENABLED=0]
-    goos: [linux, darwin, windows]
-    goarch: [amd64, arm64]
-  - id: pills
+  - <<: *example_build
+    id: pills
     binary: pills
     main: ./examples/pills
-    env: [CGO_ENABLED=0]
-    goos: [linux, darwin, windows]
-    goarch: [amd64, arm64]
-  - id: scrollbar
+  - <<: *example_build
+    id: scrollbar
     binary: scrollbar
     main: ./examples/scrollbar
-    env: [CGO_ENABLED=0]
-    goos: [linux, darwin, windows]
-    goarch: [amd64, arm64]
-  - id: status
+  - <<: *example_build
+    id: status
     binary: status
     main: ./examples/status
-    env: [CGO_ENABLED=0]
-    goos: [linux, darwin, windows]
-    goarch: [amd64, arm64]
-  - id: table
+  - <<: *example_build
+    id: table
     binary: table
     main: ./examples/table
-    env: [CGO_ENABLED=0]
-    goos: [linux, darwin, windows]
-    goarch: [amd64, arm64]
-  - id: timepicker
+  - <<: *example_build
+    id: timepicker
     binary: timepicker
     main: ./examples/timepicker
-    env: [CGO_ENABLED=0]
-    goos: [linux, darwin, windows]
-    goarch: [amd64, arm64]
 
+# One archive per example (not one combined archive per OS/arch): each example
+# is a small, standalone, scriptable tool (examples/USAGE.md explains the
+# stdout/stderr/exit-code contract), so it ships as its own
+# snap_<example>_<os>_<arch> download instead of bundling all 14 binaries
+# together under one example's name. The common shape is factored into the
+# &example_archive anchor; each entry below only overrides id/ids.
 archives:
-  - id: default
+  - &example_archive
+    id: cellcanvas
+    ids: [cellcanvas]
     formats: [tar.gz]
     name_template: "{{ .ProjectName }}_{{ .Binary }}_{{ .Os }}_{{ .Arch }}"
     format_overrides:
       - goos: windows
         formats: [zip]
+    files:
+      - LICENSE
+      - CHANGELOG.md
+      - src: examples/USAGE.md
+        dst: USAGE.md
+  - <<: *example_archive
+    id: charts
+    ids: [charts]
+  - <<: *example_archive
+    id: datepicker
+    ids: [datepicker]
+  - <<: *example_archive
+    id: dependencies
+    ids: [dependencies]
+  - <<: *example_archive
+    id: forms
+    ids: [forms]
+  - <<: *example_archive
+    id: linechart
+    ids: [linechart]
+  - <<: *example_archive
+    id: menu
+    ids: [menu]
+  - <<: *example_archive
+    id: navigation
+    ids: [navigation]
+  - <<: *example_archive
+    id: pickers
+    ids: [pickers]
+  - <<: *example_archive
+    id: pills
+    ids: [pills]
+  - <<: *example_archive
+    id: scrollbar
+    ids: [scrollbar]
+  - <<: *example_archive
+    id: status
+    ids: [status]
+  - <<: *example_archive
+    id: table
+    ids: [table]
+  - <<: *example_archive
+    id: timepicker
+    ids: [timepicker]
 
 checksum:
   name_template: checksums.txt
