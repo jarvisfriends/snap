@@ -169,7 +169,7 @@ func TestUserNotificationOverlay_VisibilityAndAnimation(t *testing.T) {
 	}
 
 	// Drive the animation to completion.
-	for i := 0; i < o.animFrames+1; i++ {
+	for range o.animFrames + 1 {
 		o.Update(TickMsg{})
 	}
 	if o.animating {
