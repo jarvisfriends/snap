@@ -36,13 +36,18 @@ validation, status bar, and more).
 ## Try it without writing code
 
 Every component also ships as a standalone example binary — a small,
-scriptable tool, not just a demo. Run one directly:
+scriptable tool, not just a demo. `go run` fetches and runs it directly, no
+clone required:
 
 ```bash
-go run ./examples/datepicker   # renders the picker, prints your choice
+go run github.com/jarvisfriends/snap/examples/datepicker@latest   # renders the picker, prints your choice
 ```
 
-or download a prebuilt, signed binary for your OS from the
+Pin a specific release instead of `@latest` by using its tag, e.g.
+`@v0.2.8`. If you already have the repo cloned locally, drop the module path
+and version instead: `go run ./examples/datepicker`.
+
+You can also download a prebuilt, signed binary for your OS from the
 [Releases page](https://github.com/jarvisfriends/snap/releases) — see
 [`examples/USAGE.md`](../examples/USAGE.md) for the full calling convention
 and a table of every example.
