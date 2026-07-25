@@ -93,13 +93,180 @@ builds:
     goos: [linux, darwin, windows]
     goarch: [amd64, arm64]
 
+# One archive per example (not one combined archive per OS/arch): each example
+# is a small, standalone, scriptable tool (examples/USAGE.md explains the
+# stdout/stderr/exit-code contract), so it ships as its own
+# snap_<example>_<os>_<arch> download instead of bundling all 14 binaries
+# together under one example's name.
 archives:
-  - id: default
+  - id: cellcanvas
+    ids: [cellcanvas]
     formats: [tar.gz]
     name_template: "{{ .ProjectName }}_{{ .Binary }}_{{ .Os }}_{{ .Arch }}"
     format_overrides:
       - goos: windows
         formats: [zip]
+    files:
+      - LICENSE
+      - CHANGELOG.md
+      - src: examples/USAGE.md
+        dst: USAGE.md
+  - id: charts
+    ids: [charts]
+    formats: [tar.gz]
+    name_template: "{{ .ProjectName }}_{{ .Binary }}_{{ .Os }}_{{ .Arch }}"
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+    files:
+      - LICENSE
+      - CHANGELOG.md
+      - src: examples/USAGE.md
+        dst: USAGE.md
+  - id: datepicker
+    ids: [datepicker]
+    formats: [tar.gz]
+    name_template: "{{ .ProjectName }}_{{ .Binary }}_{{ .Os }}_{{ .Arch }}"
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+    files:
+      - LICENSE
+      - CHANGELOG.md
+      - src: examples/USAGE.md
+        dst: USAGE.md
+  - id: dependencies
+    ids: [dependencies]
+    formats: [tar.gz]
+    name_template: "{{ .ProjectName }}_{{ .Binary }}_{{ .Os }}_{{ .Arch }}"
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+    files:
+      - LICENSE
+      - CHANGELOG.md
+      - src: examples/USAGE.md
+        dst: USAGE.md
+  - id: forms
+    ids: [forms]
+    formats: [tar.gz]
+    name_template: "{{ .ProjectName }}_{{ .Binary }}_{{ .Os }}_{{ .Arch }}"
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+    files:
+      - LICENSE
+      - CHANGELOG.md
+      - src: examples/USAGE.md
+        dst: USAGE.md
+  - id: linechart
+    ids: [linechart]
+    formats: [tar.gz]
+    name_template: "{{ .ProjectName }}_{{ .Binary }}_{{ .Os }}_{{ .Arch }}"
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+    files:
+      - LICENSE
+      - CHANGELOG.md
+      - src: examples/USAGE.md
+        dst: USAGE.md
+  - id: menu
+    ids: [menu]
+    formats: [tar.gz]
+    name_template: "{{ .ProjectName }}_{{ .Binary }}_{{ .Os }}_{{ .Arch }}"
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+    files:
+      - LICENSE
+      - CHANGELOG.md
+      - src: examples/USAGE.md
+        dst: USAGE.md
+  - id: navigation
+    ids: [navigation]
+    formats: [tar.gz]
+    name_template: "{{ .ProjectName }}_{{ .Binary }}_{{ .Os }}_{{ .Arch }}"
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+    files:
+      - LICENSE
+      - CHANGELOG.md
+      - src: examples/USAGE.md
+        dst: USAGE.md
+  - id: pickers
+    ids: [pickers]
+    formats: [tar.gz]
+    name_template: "{{ .ProjectName }}_{{ .Binary }}_{{ .Os }}_{{ .Arch }}"
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+    files:
+      - LICENSE
+      - CHANGELOG.md
+      - src: examples/USAGE.md
+        dst: USAGE.md
+  - id: pills
+    ids: [pills]
+    formats: [tar.gz]
+    name_template: "{{ .ProjectName }}_{{ .Binary }}_{{ .Os }}_{{ .Arch }}"
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+    files:
+      - LICENSE
+      - CHANGELOG.md
+      - src: examples/USAGE.md
+        dst: USAGE.md
+  - id: scrollbar
+    ids: [scrollbar]
+    formats: [tar.gz]
+    name_template: "{{ .ProjectName }}_{{ .Binary }}_{{ .Os }}_{{ .Arch }}"
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+    files:
+      - LICENSE
+      - CHANGELOG.md
+      - src: examples/USAGE.md
+        dst: USAGE.md
+  - id: status
+    ids: [status]
+    formats: [tar.gz]
+    name_template: "{{ .ProjectName }}_{{ .Binary }}_{{ .Os }}_{{ .Arch }}"
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+    files:
+      - LICENSE
+      - CHANGELOG.md
+      - src: examples/USAGE.md
+        dst: USAGE.md
+  - id: table
+    ids: [table]
+    formats: [tar.gz]
+    name_template: "{{ .ProjectName }}_{{ .Binary }}_{{ .Os }}_{{ .Arch }}"
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+    files:
+      - LICENSE
+      - CHANGELOG.md
+      - src: examples/USAGE.md
+        dst: USAGE.md
+  - id: timepicker
+    ids: [timepicker]
+    formats: [tar.gz]
+    name_template: "{{ .ProjectName }}_{{ .Binary }}_{{ .Os }}_{{ .Arch }}"
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+    files:
+      - LICENSE
+      - CHANGELOG.md
+      - src: examples/USAGE.md
+        dst: USAGE.md
 
 checksum:
   name_template: checksums.txt
