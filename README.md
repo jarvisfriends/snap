@@ -2,6 +2,7 @@
 
 ![snap — ready-to-snap Bubble Tea components](assets/banner.svg)
 
+[![Codacy Badge](https://api.codacy.com/project/badge/Grade/790d64aadf6b4f0c835ec2003e635b11)](https://app.codacy.com/gh/jarvisfriends/snap?utm_source=github.com&utm_medium=referral&utm_content=jarvisfriends/snap&utm_campaign=Badge_Grade)
 [![CI](https://github.com/jarvisfriends/snap/actions/workflows/ci.yml/badge.svg)](https://github.com/jarvisfriends/snap/actions/workflows/ci.yml)
 [![OpenSSF Best Practices](https://www.bestpractices.dev/projects/13784/badge)](https://www.bestpractices.dev/projects/13784)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/jarvisfriends/snap/badge)](https://scorecard.dev/viewer/?uri=github.com/jarvisfriends/snap)
