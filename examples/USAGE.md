@@ -21,6 +21,8 @@ dir=$(./pickers)          # -> /home/me/projects/snap
 - Every tool shows the same snap status bar with its key bindings at the
   bottom; pass `--no-help` to hide it if you only want the component itself.
 - Mouse and keyboard both work identically in every tool.
+- Pass `--version` to print the release tag this binary was built from and
+  exit — useful for confirming which build a downloaded archive contains.
 
 ## All example tools in this release
 

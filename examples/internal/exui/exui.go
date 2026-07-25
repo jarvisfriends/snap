@@ -31,10 +31,28 @@ import (
 	"github.com/jarvisfriends/snap/styles"
 )
 
-var noHelp = flag.Bool("no-help", false, "hide the status/help bar (script mode)")
+var (
+	noHelp      = flag.Bool("no-help", false, "hide the status/help bar (script mode)")
+	showVersion = flag.Bool("version", false, "print the version and exit")
+)
 
-// Init parses the shared example flags. Call it first in main.
-func Init() { flag.Parse() }
+// Version is injected at build time via -ldflags for release binaries:
+//
+//	-X github.com/jarvisfriends/snap/examples/internal/exui.Version=v1.2.3
+//
+// A local `go run` build keeps the "dev" default.
+var Version = "dev"
+
+// Init parses the shared example flags. Call it first in main. Exits 0 after
+// printing Version when --version is passed, so a released archive's binary
+// is self-identifying without needing to consult the archive's file name.
+func Init() {
+	flag.Parse()
+	if *showVersion {
+		fmt.Println(Version)
+		os.Exit(0)
+	}
+}
 
 // themeTint is the palette every example renders with: Catppuccin Macchiato,
 // whose deep blue base keeps the demos off the terminal-default black and
