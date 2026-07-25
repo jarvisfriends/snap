@@ -3,6 +3,7 @@
 ![snap — ready-to-snap Bubble Tea components](assets/banner.svg)
 
 [![CI](https://github.com/jarvisfriends/snap/actions/workflows/ci.yml/badge.svg)](https://github.com/jarvisfriends/snap/actions/workflows/ci.yml)
+[![OpenSSF Best Practices](https://www.bestpractices.dev/projects/13784/badge)](https://www.bestpractices.dev/projects/13784)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/jarvisfriends/snap/badge)](https://scorecard.dev/viewer/?uri=github.com/jarvisfriends/snap)
 [![Go Reference](https://pkg.go.dev/badge/github.com/jarvisfriends/snap.svg)](https://pkg.go.dev/github.com/jarvisfriends/snap)
 
@@ -36,6 +37,12 @@ svc=$(go run ./examples/table)         # -> api
 
 Every example shows the same snap status bar with key bindings; pass
 `--no-help` to hide it.
+
+Prebuilt binaries for every example ship as their own signed, per-OS/arch
+release archive (`snap_<example>_<os>_<arch>`) on the
+[Releases page](https://github.com/jarvisfriends/snap/releases) — no Go
+toolchain required to use one as a scripting tool. See
+[`examples/USAGE.md`](examples/USAGE.md) for the full calling convention.
 
 ### Date picker
 
