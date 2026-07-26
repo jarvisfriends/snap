@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Jarvis Friends contributors
+// SPDX-License-Identifier: MIT
+
 // Package page provides a small embeddable base for app pages, removing the
 // colors/size boilerplate every page would otherwise repeat. A page model embeds
 // [Base] and inherits a shared-palette pointer (satisfying styles.ColorAware) plus

@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Jarvis Friends contributors
+// SPDX-License-Identifier: MIT
+
 // Package scrollbar renders minimal scroll indicators for scrolling regions.
 // Ported from the tribble console's dashboard scrollbar, decoupled from its
 // model, and restyled: the default is a thin line track with a heavy thumb

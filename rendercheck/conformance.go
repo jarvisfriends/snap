@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Jarvis Friends contributors
+// SPDX-License-Identifier: MIT
+
 package rendercheck
 
 // conformance.go — model-agnostic conformance checks any Bubble Tea app can

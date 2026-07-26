@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Jarvis Friends contributors
+// SPDX-License-Identifier: MIT
+
 // Command cellcanvas demos snap/charts' whole-cell canvas and color
 // gradients: a classic plasma field animates over a truecolor palette built
 // from chained charts.Gradient blends. Each cell renders '▀' with an

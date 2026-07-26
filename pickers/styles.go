@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Jarvis Friends contributors
+// SPDX-License-Identifier: MIT
+
 // Package pickers holds directory/file selection components: a drive-aware
 // directory browser (DirPicker) and a
 // multi-path editor (MultiFileEditor) whose rows open per-row pickers. Both

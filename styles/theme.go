@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Jarvis Friends contributors
+// SPDX-License-Identifier: MIT
+
 // Package theme builds the application's visual styling by combining three
 // orthogonal axes that the end user can choose independently:
 //

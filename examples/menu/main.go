@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Jarvis Friends contributors
+// SPDX-License-Identifier: MIT
+
 // Command menu is a script-usable context-menu picker built on snap/menu:
 // right-click anywhere (or press m) to pop the menu, choose an item, and the
 // chosen item's ID is written to stdout (the TUI itself renders on stderr):

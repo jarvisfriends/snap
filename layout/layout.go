@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Jarvis Friends contributors
+// SPDX-License-Identifier: MIT
+
 // Package layout provides lipgloss-frame arithmetic helpers: where content
 // starts inside a bordered/padded style, how much room it has, and rendering
 // content into a fixed outer box. They complement geom (pure cell rectangles,

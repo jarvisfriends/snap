@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Jarvis Friends contributors
+// SPDX-License-Identifier: MIT
+
 // Package winterm reads and writes the Windows *default terminal* delegation —
 // the per-user setting that decides whether console applications open in the
 // legacy console host (conhost) or in Windows Terminal.

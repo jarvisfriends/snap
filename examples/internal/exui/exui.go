@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Jarvis Friends contributors
+// SPDX-License-Identifier: MIT
+
 // Package exui is the shared chrome for snap's example programs, so every
 // example reads the same way and doubles as a script-friendly input tool:
 //

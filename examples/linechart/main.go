@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Jarvis Friends contributors
+// SPDX-License-Identifier: MIT
+
 // Command linechart demos snap/charts' braille line chart model: two live
 // series (a sine sweep and its noisy echo) stream through ID-routed
 // LineDataMsgs into a LineChartModel that stretches to fill the window —

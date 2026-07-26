@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Jarvis Friends contributors
+// SPDX-License-Identifier: MIT
+
 // Command status demos snap/status + snap/notifications end to end: the
 // status bar (key help on the left, live segments and a summary on the
 // right) with notification toasts, a progress notification that fills as a

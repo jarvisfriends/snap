@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Jarvis Friends contributors
+// SPDX-License-Identifier: MIT
+
 // Command timepicker is a script-usable time prompt built on snap/timepicker:
 // confirm a time and HH:MM:SS is written to stdout (the TUI itself renders on
 // stderr), so a shell can capture it:

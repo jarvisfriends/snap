@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Jarvis Friends contributors
+// SPDX-License-Identifier: MIT
+
 // Command dependencies demos snap/dependencies rendered by snap/status's
 // InfoModal: the running binary's build info (Go version, OS, VCS revision)
 // above a scrollable dependency list read via dependencies.ExpandedBuildInfo.

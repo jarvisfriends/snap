@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Jarvis Friends contributors
+// SPDX-License-Identifier: MIT
+
 // Package table is a themed, interactive data table widget for Bubble Tea apps.
 //
 // Rendering, pagination, highlighting, and live filtering are delegated to

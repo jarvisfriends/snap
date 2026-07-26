@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Jarvis Friends contributors
+// SPDX-License-Identifier: MIT
+
 // Package geom provides small screen-geometry primitives shared across the
 // framework and its consumers. The charm v2 rendering model does mouse handling
 // through the tea.View OnMouse callback with explicit rectangle hit-testing

@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Jarvis Friends contributors
+// SPDX-License-Identifier: MIT
+
 // Package forms provides small input-parsing helpers for text fields:
 // trim-and-validate parsers that return user-facing error messages naming
 // the field, so every form page doesn't re-invent "required", duration, and
