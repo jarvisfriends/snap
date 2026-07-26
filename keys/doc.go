@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Jarvis Friends contributors
+// SPDX-License-Identifier: MIT
+
 // Package keys defines AppKeyMap, the application-wide key bindings (quit,
 // page cycling, settings, nav/status toggles) with bubbles/help
 // integration and user rebinding support.

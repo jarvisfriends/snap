@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Jarvis Friends contributors
+// SPDX-License-Identifier: MIT
+
 // Package osc emits terminal OSC escape sequences for taskbar / tab progress
 // (the ConEmu OSC 9;4 protocol, honored by Windows Terminal and others).
 //

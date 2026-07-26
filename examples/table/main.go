@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Jarvis Friends contributors
+// SPDX-License-Identifier: MIT
+
 // Command table is a script-usable row picker built on snap/table: browse,
 // sort, and filter, then Enter (or double-click) writes the chosen row's key
 // to stdout (the TUI itself renders on stderr), so a shell can capture it:

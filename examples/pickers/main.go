@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Jarvis Friends contributors
+// SPDX-License-Identifier: MIT
+
 // Command pickers is a script-usable directory prompt built on snap/pickers'
 // DirPicker: walk the tree, Space selects, Ctrl+S picks the browsed folder,
 // and the chosen path (relative to the demo tree) is written to stdout (the
@@ -83,7 +86,7 @@ func makeTree() string {
 		"projects/alpha", "projects/beta", "projects/gamma",
 		"documents/reports", "music",
 	} {
-		_ = os.MkdirAll(filepath.Join(root, d), 0o750)
+		_ = os.MkdirAll(filepath.Join(root, d), 0o700)
 	}
 	return root
 }

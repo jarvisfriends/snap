@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Jarvis Friends contributors
+// SPDX-License-Identifier: MIT
+
 // Package testutil provides shared test helpers for layout correctness tests
 // across component libraries and the applications built on them.
 //

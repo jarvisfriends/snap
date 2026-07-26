@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Jarvis Friends contributors
+// SPDX-License-Identifier: MIT
+
 // Package timepicker is a small Bubble Tea component for editing a
 // time.Duration as hours/minutes/seconds segments. It ships theme-free with
 // exported style hooks (ActiveStyle, InactiveStyle, HelpStyle) that consumers

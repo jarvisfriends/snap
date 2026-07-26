@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Jarvis Friends contributors
+// SPDX-License-Identifier: MIT
+
 // Command navigation is a script-usable page picker that shows all three
 // snap/navigation styles behind the one Navigator contract: n swaps between
 // Sidebar, Tabs, and MinimalTopNav at runtime (the swap the contract exists

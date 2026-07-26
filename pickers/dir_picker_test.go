@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Jarvis Friends contributors
+// SPDX-License-Identifier: MIT
+
 package pickers
 
 import (
@@ -16,7 +19,7 @@ func makePickerTree(t *testing.T) string {
 	t.Helper()
 	root := t.TempDir()
 	for _, d := range []string{"alpha", "beta"} {
-		if err := os.Mkdir(filepath.Join(root, d), 0o750); err != nil {
+		if err := os.Mkdir(filepath.Join(root, d), 0o700); err != nil {
 			t.Fatalf("mkdir %s: %v", d, err)
 		}
 	}
@@ -183,7 +186,7 @@ func TestDirPickerViewFitsWidth(t *testing.T) {
 		"alpha",
 		strings.Repeat("very-long-directory-name-", 4),
 	)
-	if err := os.MkdirAll(deep, 0o750); err != nil {
+	if err := os.MkdirAll(deep, 0o700); err != nil {
 		t.Fatalf("mkdir deep: %v", err)
 	}
 

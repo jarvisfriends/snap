@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Jarvis Friends contributors
+// SPDX-License-Identifier: MIT
+
 // Package rendercheck holds test helpers that catch rendered-string building
 // mistakes in Bubble Tea v2 apps: layout math that guesses frame sizes,
 // borders that lose their edges, lines that overflow the viewport, display-

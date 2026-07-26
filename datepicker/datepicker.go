@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Jarvis Friends contributors
+// SPDX-License-Identifier: MIT
+
 // Package datepicker provides a Bubble Tea v2 component for viewing and selecting
 // a date from a monthly view.
 package datepicker
