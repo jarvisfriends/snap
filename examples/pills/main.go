@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Jarvis Friends contributors
+// SPDX-License-Identifier: MIT
+
 // Command pills is a script-usable PillShape picker built on snap/styles:
 // every shape is previewed as pills, a segmented pill, a nav strip, and
 // breadcrumbs; Enter writes the selected shape's config value to stdout (the

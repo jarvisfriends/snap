@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Jarvis Friends contributors
+// SPDX-License-Identifier: MIT
+
 // Command charts is the canonical multi-chart wiring example: several chart
 // models of the same and different types live in one app, every data message
 // carries the ID of the chart it belongs to, and the window is split between

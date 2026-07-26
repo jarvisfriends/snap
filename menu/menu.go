@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Jarvis Friends contributors
+// SPDX-License-Identifier: MIT
+
 // Package menu provides a right-click context menu: a small pop-up action
 // list opened at the pointer position, clamped to the terminal, and driven
 // by mouse or keyboard. Ported from the tribble console and decoupled from

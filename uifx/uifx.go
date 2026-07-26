@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Jarvis Friends contributors
+// SPDX-License-Identifier: MIT
+
 // Package uifx defines the shared interaction-effect tiers for snap
 // components. The tiers map directly onto Bubble Tea v2 mouse reporting:
 //

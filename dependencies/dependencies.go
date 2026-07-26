@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Jarvis Friends contributors
+// SPDX-License-Identifier: MIT
+
 // Package dependencies reads the running binary's build info (module path,
 // version, VCS state, and dependency list) for display in about/info views.
 package dependencies

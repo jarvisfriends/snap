@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Jarvis Friends contributors
+// SPDX-License-Identifier: MIT
+
 // Command forms is a script-usable task form proving snap/forms extends huh
 // rather than replacing it: a plain huh.Form whose fields validate through
 // forms.HuhValidate(ParseRequired/ParseDuration/ParseISODate), with

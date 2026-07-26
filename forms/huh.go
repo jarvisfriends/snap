@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Jarvis Friends contributors
+// SPDX-License-Identifier: MIT
+
 package forms
 
 // This package extends charm.land/huh/v2 — it does not replace it. The

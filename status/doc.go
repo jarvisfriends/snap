@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Jarvis Friends contributors
+// SPDX-License-Identifier: MIT
+
 // Package status renders the bottom status bar and its attached surfaces:
 // key-binding help (short and expanded), the settings/notification/info icon
 // cluster with click regions, the notification history panel, and the

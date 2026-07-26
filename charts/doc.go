@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Jarvis Friends contributors
+// SPDX-License-Identifier: MIT
+
 // Package charts holds terminal chart primitives:
 // sparklines (block and directional braille), horizontal bars, pie charts,
 // sankey flows, multi-series braille line charts, and a whole-cell CellCanvas

@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Jarvis Friends contributors
+// SPDX-License-Identifier: MIT
+
 // Package navigation defines the Navigator interface and the built-in
 // navigators: Sidebar (left-docked list), Tabs (top-docked bordered tab bar
 // with overflow paging), and MinimalTopNav (compact top row with optional

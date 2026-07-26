@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Jarvis Friends contributors
+// SPDX-License-Identifier: MIT
+
 // Package notifications provides a severity-aware notification manager with
 // toast display, history, and optional JSON persistence.
 package notifications

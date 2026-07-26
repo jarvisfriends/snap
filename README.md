@@ -236,3 +236,9 @@ hit zones** — never hardcoded screen coordinates and never styled output
 (styles vary by color profile; where rendering must be checked, an injected
 `Transform` marker keeps it profile-independent). That keeps every failure a
 real behavior change.
+
+## Verifying releases
+
+Release archives are checksummed, ship SPDX SBOMs, and `checksums.txt` is signed with keyless cosign by the
+release workflow. See [docs/release-verification.md](docs/release-verification.md) for the two-command
+verification.

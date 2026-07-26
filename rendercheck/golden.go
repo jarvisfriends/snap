@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Jarvis Friends contributors
+// SPDX-License-Identifier: MIT
+
 package rendercheck
 
 import (
@@ -21,7 +24,7 @@ func Golden(t *testing.T, name, got string) {
 	path := filepath.Join("testdata", "golden", name+".golden")
 
 	if os.Getenv("UPDATE_GOLDEN") == "1" {
-		if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
+		if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 			t.Fatalf("creating golden dir: %v", err)
 		}
 		if err := os.WriteFile(path, []byte(got), 0o600); err != nil {

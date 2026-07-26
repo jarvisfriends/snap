@@ -1,3 +1,6 @@
+// Copyright (c) 2026 Jarvis Friends contributors
+// SPDX-License-Identifier: MIT
+
 // Command scrollbar demos snap/scrollbar's three presets side by side over
 // the same scrolling text: Smooth (sub-cell glide), Line (thin default), and
 // Classic (retro blocks). Wheel or arrows scroll; clicking or dragging on

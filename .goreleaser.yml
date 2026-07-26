@@ -19,6 +19,10 @@ builds:
     env: [CGO_ENABLED=0]
     goos: [linux, darwin, windows]
     goarch: [amd64, arm64]
+    # Reproducible builds: strip host paths and pin the embedded mod time.
+    flags:
+      - -trimpath
+    mod_timestamp: "{{ .CommitTimestamp }}"
     ldflags:
       - -s -w -X github.com/jarvisfriends/snap/examples/internal/exui.Version={{.Version}}
   - <<: *example_build
