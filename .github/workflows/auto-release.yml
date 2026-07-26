@@ -74,4 +74,4 @@ jobs:
           go build -C tools/releasetag -o "$RUNNER_TEMP/releasetag" .
           "$RUNNER_TEMP/releasetag" -mode apply
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.RELEASE_PAT || github.token }}
