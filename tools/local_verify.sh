@@ -59,7 +59,8 @@ if [[ -f go.mod && ${GO_FILE_COUNT} -gt 0 ]]; then
   if command -v golangci-lint >/dev/null 2>&1; then
     ver=$(golangci-lint --version 2>&1 || true)
     if [[ $ver =~ ([0-9]+)\.[0-9]+\.[0-9]+ && ${BASH_REMATCH[1]} == 1 ]]; then
-      FAILURES+=("golangci-lint v1 detected — install v2: go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest")
+      # renovate: datasource=go depName=github.com/golangci/golangci-lint/v2
+      FAILURES+=("golangci-lint v1 detected — install v2: go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.12.2")
     else
       # Full lint once with the native GOOS. Other platforms only re-lint
       # the packages whose sources actually diverge by OS (file suffixes or
@@ -93,7 +94,8 @@ if [[ -f go.mod && ${GO_FILE_COUNT} -gt 0 ]]; then
       fi
     fi
   else
-    warn_missing golangci-lint "go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest"
+    # renovate: datasource=go depName=github.com/golangci/golangci-lint/v2
+    warn_missing golangci-lint "go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.12.2"
   fi
 fi
 
@@ -124,7 +126,8 @@ if [[ -d .github/workflows ]]; then
   if command -v actionlint >/dev/null 2>&1; then
     run_gate FAIL "actionlint" actionlint
   else
-    warn_missing actionlint "go install github.com/rhysd/actionlint/cmd/actionlint@latest"
+    # renovate: datasource=go depName=github.com/rhysd/actionlint
+    warn_missing actionlint "go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.12"
   fi
 fi
 
