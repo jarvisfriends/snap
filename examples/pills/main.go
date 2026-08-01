@@ -1,15 +1,15 @@
 // Copyright (c) 2026 Jarvis Friends contributors
 // SPDX-License-Identifier: MIT
 
-// Command pills is a script-usable PillShape picker built on snap/styles:
+// Package pills implements the `snap_input pills` subcommand: a script-usable PillShape picker built on snap/styles:
 // every shape is previewed as pills, a segmented pill, a nav strip, and
 // breadcrumbs; Enter writes the selected shape's config value to stdout (the
 // TUI itself renders on stderr):
 //
-//	shape=$(go run ./examples/pills)
+//	shape=$(go run ./examples/snap_input pills)
 //
 // --no-help hides the status bar. Quitting (q/esc) prints nothing, exit 1.
-package main
+package pills
 
 import (
 	tea "charm.land/bubbletea/v2"
@@ -41,10 +41,13 @@ type demoApp struct {
 func (a *demoApp) Init() tea.Cmd { return nil }
 
 func (a *demoApp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if cmd, done := a.chrome.Update(msg); done {
+		return a, cmd
+	}
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		a.w, a.h = msg.Width, msg.Height
-		a.chrome.SetWidth(msg.Width)
+		a.chrome.SetSize(msg.Width, msg.Height)
 	case tea.KeyPressMsg:
 		switch msg.String() {
 		case "left", "shift+tab", "up":
@@ -117,7 +120,7 @@ func (a *demoApp) shapeRow(shape styles.PillShape, selected bool) string {
 }
 
 func (a *demoApp) View() tea.View {
-	dim := lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
+	dim := exui.Dim()
 
 	rows := make([]string, 0, len(a.shapes)+6)
 	for i, shape := range a.shapes {
@@ -148,14 +151,13 @@ func (a *demoApp) View() tea.View {
 	)
 
 	v := tea.NewView(lipgloss.JoinVertical(lipgloss.Left, rows...))
-	a.chrome.Apply(&v, a.h)
-	v.MouseMode = tea.MouseModeCellMotion
-	v.AltScreen = true
 	v.OnMouse = a.onMouse
+	a.chrome.Frame(&v, a.h)
 	return v
 }
 
-func main() {
+// Run is the snap_input subcommand entry point.
+func Run() {
 	exui.Init()
 	app := &demoApp{
 		shapes: styles.PillShapes(),
@@ -179,7 +181,7 @@ func main() {
 		exui.Fatal(err)
 	}
 	if a, ok := final.(*demoApp); ok && a.picked {
-		exui.Finish(true, string(a.shapes[a.sel]))
+		exui.FinishFields(true, exui.F("shape", string(a.shapes[a.sel])))
 	}
 	exui.Finish(false)
 }

@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Jarvis Friends contributors
 // SPDX-License-Identifier: MIT
 
-package main
+package dependencies
 
 import (
 	"strings"
@@ -10,7 +10,19 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
+
+	"github.com/jarvisfriends/snap/dependencies"
 )
+
+// requireDeps skips assertions that need a populated dependency list: some
+// build environments (e.g. certain `go test` binaries) return build info
+// with zero deps, leaving the modal nothing to list or scroll.
+func requireDeps(t *testing.T) {
+	t.Helper()
+	if info := dependencies.ExpandedBuildInfo(); info == nil || len(info.Dependencies) == 0 {
+		t.Skip("build info carries no dependency list in this environment")
+	}
+}
 
 // resize opens the demo at w x h (the first WindowSizeMsg opens the modal).
 func resize(t *testing.T, w, h int) *demoApp {
@@ -30,7 +42,8 @@ func TestDependenciesDemoShowsModal(t *testing.T) {
 	t.Parallel()
 
 	a := resize(t, 100, 32)
-	if !a.modal.IsVisible() {
+	requireDeps(t)
+	if !a.chrome.Info().IsVisible() {
 		t.Fatal("modal not visible after the first WindowSizeMsg")
 	}
 	frame := ansi.Strip(a.View().Content)
@@ -38,7 +51,7 @@ func TestDependenciesDemoShowsModal(t *testing.T) {
 		t.Fatalf("frame missing the dependencies header:\n%s", frame)
 	}
 	if !strings.Contains(frame, "charm.land/bubbletea") {
-		t.Fatal("frame does not list the bubbletea dependency")
+		t.Fatalf("frame does not list the bubbletea dependency:\n%s", frame)
 	}
 	for i, line := range strings.Split(frame, "\n") {
 		if lw := lipgloss.Width(line); lw > 100 {
@@ -53,12 +66,13 @@ func TestDependenciesDemoWheelAndDismiss(t *testing.T) {
 	t.Parallel()
 
 	a := resize(t, 90, 24)
+	requireDeps(t)
 	before := ansi.Strip(a.View().Content)
-	if cmd := a.onMouse(tea.MouseWheelMsg{X: 45, Y: 12, Button: tea.MouseWheelDown}); cmd != nil {
+	if cmd := a.View().OnMouse(tea.MouseWheelMsg{X: 45, Y: 12, Button: tea.MouseWheelDown}); cmd != nil {
 		t.Fatalf("wheel inside the modal produced a cmd: %v", cmd())
 	}
 	if after := ansi.Strip(a.View().Content); after == before {
-		t.Fatal("wheel down did not scroll the dependency list")
+		t.Fatalf("wheel down did not scroll the dependency list:\n%s", after)
 	}
 
 	m, _ := a.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
@@ -66,7 +80,7 @@ func TestDependenciesDemoWheelAndDismiss(t *testing.T) {
 	if !ok {
 		t.Fatalf("Update returned %T; want *demoApp", m)
 	}
-	if a.modal.IsVisible() {
+	if a.chrome.Info().IsVisible() {
 		t.Fatal("Esc did not close the modal")
 	}
 	m, _ = a.Update(tea.KeyPressMsg{Code: 'i', Text: "i"})
@@ -74,7 +88,7 @@ func TestDependenciesDemoWheelAndDismiss(t *testing.T) {
 	if !ok {
 		t.Fatalf("Update returned %T; want *demoApp", m)
 	}
-	if !a.modal.IsVisible() {
+	if !a.chrome.Info().IsVisible() {
 		t.Fatal("i did not reopen the modal")
 	}
 }

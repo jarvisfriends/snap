@@ -5,7 +5,7 @@
 # official vhs container; gifs are build artifacts, not diffable sources)
 Set WindowBar Colorful
 Set WindowBarSize 40
-Output examples/timepicker/demo.gif
+Output examples/timepicker/timepicker.gif
 Set FontFamily "JetBrainsMono Nerd Font"
 Set FontSize 36
 Set Padding 14
@@ -13,7 +13,7 @@ Set Width 1200
 Set Height 800
 Set TypingSpeed 60ms
 Hide
-Type "./examples/timepicker/demo-bin"
+Type "./examples/snap_input/demo-bin timepicker"
 Enter
 Sleep 3s
 Show

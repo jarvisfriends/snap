@@ -1,16 +1,16 @@
 // Copyright (c) 2026 Jarvis Friends contributors
 // SPDX-License-Identifier: MIT
 
-// Command navigation is a script-usable page picker that shows all three
+// Package navigation implements the `snap_input navigation` subcommand: a script-usable page picker that shows all three
 // snap/navigation styles behind the one Navigator contract: n swaps between
 // Sidebar, Tabs, and MinimalTopNav at runtime (the swap the contract exists
 // for), arrows/clicks/wheel move between pages, and Enter writes the active
 // page's ID to stdout (the TUI itself renders on stderr):
 //
-//	page=$(go run ./examples/navigation)
+//	page=$(go run ./examples/snap_input navigation)
 //
 // --no-help hides the status bar. Quitting (q/esc) prints nothing, exit 1.
-package main
+package navigation
 
 import (
 	tea "charm.land/bubbletea/v2"
@@ -79,10 +79,13 @@ func (a *demoApp) nav() navigation.Navigator { return a.navs[a.style] }
 func (a *demoApp) Init() tea.Cmd { return a.nav().Init() }
 
 func (a *demoApp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if cmd, done := a.chrome.Update(msg); done {
+		return a, cmd
+	}
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		a.w, a.h = msg.Width, msg.Height
-		a.chrome.SetWidth(msg.Width)
+		a.chrome.SetSize(msg.Width, msg.Height)
 		return a, a.forwardSize()
 	case tea.MouseMsg:
 		// Pointer input arrives via the root view's OnMouse below.
@@ -123,7 +126,7 @@ func (a *demoApp) forwardSize() tea.Cmd {
 
 // body renders the fake page pane for the active page.
 func (a *demoApp) body(w, h int) string {
-	dim := lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
+	dim := exui.Dim()
 	pages := a.nav().GetPages()
 	title := ""
 	if i := a.nav().GetActiveIndex(); i >= 0 && i < len(pages) {
@@ -152,23 +155,22 @@ func (a *demoApp) View() tea.View {
 	}
 
 	v := tea.NewView(content)
-	a.chrome.Apply(&v, a.h)
-	v.AltScreen = true
-	v.MouseMode = tea.MouseModeCellMotion
+	a.chrome.Frame(&v, a.h)
 	// The navigator hit-tests its own rendered region; it sits at the frame
 	// origin for every dock, so coordinates pass through untranslated.
 	v.OnMouse = nv.OnMouse
 	return v
 }
 
-func main() {
+// Run is the snap_input subcommand entry point.
+func Run() {
 	exui.Init()
 	final, err := exui.Program(newDemo()).Run()
 	if err != nil {
 		exui.Fatal(err)
 	}
 	if a, ok := final.(*demoApp); ok && a.picked != "" {
-		exui.Finish(true, a.picked)
+		exui.FinishFields(true, exui.F("page", a.picked))
 	}
 	exui.Finish(false)
 }

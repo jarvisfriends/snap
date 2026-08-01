@@ -70,11 +70,17 @@ func (m *PieModel) View() tea.View {
 	return tea.NewView(m.record(PieChart(slices, radius)))
 }
 
-// radius fits the circle into the frame: height allows ~2r lines, width
-// ~4r cells (terminal cells are half as wide as tall).
+// radius fits the circle into the frame. The ASCII renderer draws ~2r lines
+// by ~4r cells; BraillePieChart packs 2x4 pixels per cell and draws r lines
+// by 2r cells, so it can use twice the radius in the same frame without
+// morphing out of a circle.
 func (m *PieModel) radius() int {
-	r := min(capOr(m.MaxHeight, 2*defaultPieRadius)/2, capOr(m.MaxWidth, 4*defaultPieRadius)/4)
-	return max(r, 1)
+	h := capOr(m.MaxHeight, 2*defaultPieRadius)
+	w := capOr(m.MaxWidth, 4*defaultPieRadius)
+	if m.Braille {
+		return max(min(h, w/2), 1)
+	}
+	return max(min(h/2, w/4), 1)
 }
 
 // visibleSlices folds slices thinner than MinSliceFrac of the total into a

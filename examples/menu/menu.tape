@@ -1,20 +1,27 @@
-# VHS demo for snap/charts (model wiring) — regenerate from the repo root:
+# VHS demo for snap/menu — regenerate from the repo root:
 #   go -C tools/rendertapes run .
 # (rendertapes cross-compiles the linux demo binary and runs this tape in the
 # official vhs container; gifs are build artifacts, not diffable sources)
 Set WindowBar Colorful
 Set WindowBarSize 40
-Output examples/charts/demo.gif
+Output examples/menu/menu.gif
 Set FontFamily "JetBrainsMono Nerd Font"
 Set FontSize 28
 Set Padding 14
 Set Width 1400
-Set Height 700
+Set Height 800
 Set TypingSpeed 60ms
 Hide
-Type "./examples/charts/demo-bin"
+Type "./examples/snap_input/demo-bin menu"
 Enter
-Sleep 1s
+Sleep 2s
 Show
-# live stream animates all five charts as one continuous feed
-Sleep 8s
+# open the context menu, walk it, choose: the item ID goes to stdout
+Type "m"
+Sleep 1200ms
+Down
+Sleep 700ms
+Down
+Sleep 700ms
+Enter
+Sleep 2500ms

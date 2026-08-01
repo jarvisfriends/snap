@@ -4,7 +4,7 @@
 # official vhs container; gifs are build artifacts, not diffable sources)
 Set WindowBar Colorful
 Set WindowBarSize 40
-Output examples/pills/demo.gif
+Output examples/pills/pills.gif
 # The bundled Nerd Font renders the Powerline shapes (Round/Arrow/Slant)
 # so the full nine-shape cycle shows in the gif.
 Set FontFamily "JetBrainsMono Nerd Font"
@@ -14,7 +14,7 @@ Set Width 1400
 Set Height 720
 Set TypingSpeed 60ms
 Hide
-Type "./examples/pills/demo-bin"
+Type "./examples/snap_input/demo-bin pills"
 Enter
 Sleep 2s
 Show

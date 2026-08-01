@@ -30,9 +30,9 @@ TUI on stderr and writes only the selected value to stdout, exiting 1 on
 cancel.
 
 ```bash
-date=$(go run ./examples/datepicker)   # -> 2026-07-12
-when=$(go run ./examples/timepicker)   # -> 08:30:45
-svc=$(go run ./examples/table)         # -> api
+date=$(go run ./examples/snap_input datepicker)   # -> 2026-07-12
+when=$(go run ./examples/snap_input timepicker)   # -> 08:30:45
+svc=$(go run ./examples/snap_input table)         # -> api
 ```
 
 Every example shows the same snap status bar with key bindings; pass
@@ -49,90 +49,90 @@ toolchain required to use one as a scripting tool. See
 Calendar date picker with click-to-confirm days, header month/year focus,
 and keyboard/wheel paging.
 
-![Date picker demo](examples/datepicker/demo.gif)
+![Date picker demo](examples/datepicker/datepicker.gif)
 
 ### Time picker
 
 `HH:MM(:SS)` time field with per-column dropdowns, type-ahead, and
 validation.
 
-![Time picker demo](examples/timepicker/demo.gif)
+![Time picker demo](examples/timepicker/timepicker.gif)
 
 ### Charts
 
 Sparklines, horizontal bars, pie, and sankey charts rendered as
 ID-routed tea models with stretch-to-fit sizing.
 
-![Charts demo](examples/charts/demo.gif)
+![Charts demo](examples/charts/charts.gif)
 
 ### Line chart
 
 Braille line chart showing rolling streams with compact terminal-cell
 rendering.
 
-![Line chart demo](examples/linechart/demo.gif)
+![Line chart demo](examples/linechart/linechart.gif)
 
 ### Cell canvas
 
 Whole-cell canvas and gradient helpers for animated truecolor effects.
 
-![Cell canvas demo](examples/cellcanvas/demo.gif)
+![Cell canvas demo](examples/cellcanvas/cellcanvas.gif)
 
 ### Pickers
 
 Drive-aware directory picker and related path-editing interactions.
 
-![Pickers demo](examples/pickers/demo.gif)
+![Pickers demo](examples/pickers/pickers.gif)
 
 ### Context menu
 
 Right-click menu with keyboard parity and terminal-edge clamping.
 
-![Context menu demo](examples/menu/demo.gif)
+![Context menu demo](examples/menu/menu.gif)
 
 ### Scrollbar
 
 Scrollbar presets with click/drag mapping through `OffsetAt`.
 
-![Scrollbar demo](examples/scrollbar/demo.gif)
+![Scrollbar demo](examples/scrollbar/scrollbar.gif)
 
 ### Table
 
 Sortable/filterable table with row activation and keyboard/mouse support.
 
-![Table demo](examples/table/demo.gif)
+![Table demo](examples/table/table.gif)
 
 ### Dependencies modal
 
 Build info and dependency reader rendered through the status info modal.
 
-![Dependencies demo](examples/dependencies/demo.gif)
+![Dependencies demo](examples/dependencies/dependencies.gif)
 
 ### Forms helpers
 
 Parser-backed form validation for required fields, durations, ISO dates,
 and list splitting.
 
-![Forms demo](examples/forms/demo.gif)
+![Forms demo](examples/forms/forms.gif)
 
 ### Pills and breadcrumbs
 
 Segmented pills, shape variants, and breadcrumb styling helpers from the
 shared style contract.
 
-![Pills demo](examples/pills/demo.gif)
+![Pills demo](examples/pills/pills.gif)
 
 ### Navigation
 
 Tabs, Sidebar, and MinimalTopNav behind one navigator contract.
 
-![Navigation demo](examples/navigation/demo.gif)
+![Navigation demo](examples/navigation/navigation.gif)
 
 ### Status and notifications
 
 Status bar surfaces plus notification toast/history flows.
 
-![Status demo](examples/status/demo.gif)
+![Status demo](examples/status/status.gif)
 
 ### Supporting packages (no standalone GIF)
 

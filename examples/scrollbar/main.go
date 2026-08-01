@@ -1,13 +1,13 @@
 // Copyright (c) 2026 Jarvis Friends contributors
 // SPDX-License-Identifier: MIT
 
-// Command scrollbar demos snap/scrollbar's three presets side by side over
+// Package scrollbar implements the `snap_input scrollbar` subcommand, demoing snap/scrollbar's three presets side by side over
 // the same scrolling text: Smooth (sub-cell glide), Line (thin default), and
 // Classic (retro blocks). Wheel or arrows scroll; clicking or dragging on
 // any bar jumps the view there (scrollbar.OffsetAt); q quits. It is a
 // display-only demo (no value is written to stdout); --no-help hides the
 // status bar.
-package main
+package scrollbar
 
 import (
 	"strconv"
@@ -35,10 +35,13 @@ func (a *demoApp) Init() tea.Cmd { return nil }
 func (a *demoApp) visible() int { return max(a.h-1-a.chrome.Height(), 4) }
 
 func (a *demoApp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if cmd, done := a.chrome.Update(msg); done {
+		return a, cmd
+	}
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		a.w, a.h = msg.Width, msg.Height
-		a.chrome.SetWidth(msg.Width)
+		a.chrome.SetSize(msg.Width, msg.Height)
 	case tea.KeyPressMsg:
 		switch msg.String() {
 		case "up":
@@ -86,7 +89,7 @@ func (a *demoApp) onMouse(mm tea.MouseMsg) tea.Cmd {
 
 func (a *demoApp) View() tea.View {
 	visible := a.visible()
-	dim := lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
+	dim := exui.Dim()
 
 	// Line numbers right-align in a fixed cell-width column via lipgloss —
 	// no printf byte padding.
@@ -122,14 +125,13 @@ func (a *demoApp) View() tea.View {
 	a.barCols = [3]int{contentW + 2, contentW + 5, contentW + 8}
 	labels := dim.Render("bars: smooth · line · classic")
 	v := tea.NewView(lipgloss.JoinVertical(lipgloss.Left, body, labels))
-	a.chrome.Apply(&v, a.h)
-	v.MouseMode = tea.MouseModeCellMotion
-	v.AltScreen = true
 	v.OnMouse = a.onMouse
+	a.chrome.Frame(&v, a.h)
 	return v
 }
 
-func main() {
+// Run is the snap_input subcommand entry point.
+func Run() {
 	exui.Init()
 	app := &demoApp{chrome: exui.NewChrome(
 		exui.Bind("wheel ↑↓", "move"),

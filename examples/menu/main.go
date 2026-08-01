@@ -1,14 +1,14 @@
 // Copyright (c) 2026 Jarvis Friends contributors
 // SPDX-License-Identifier: MIT
 
-// Command menu is a script-usable context-menu picker built on snap/menu:
+// Package menu implements the `snap_input menu` subcommand: a script-usable context-menu picker built on snap/menu:
 // right-click anywhere (or press m) to pop the menu, choose an item, and the
 // chosen item's ID is written to stdout (the TUI itself renders on stderr):
 //
-//	action=$(go run ./examples/menu)
+//	action=$(go run ./examples/snap_input menu)
 //
 // --no-help hides the status bar. Quitting (q/esc) prints nothing, exit 1.
-package main
+package menu
 
 import (
 	"strconv"
@@ -52,10 +52,13 @@ func items() []menu.Item {
 func (a *demoApp) Init() tea.Cmd { return nil }
 
 func (a *demoApp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if cmd, done := a.chrome.Update(msg); done {
+		return a, cmd
+	}
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		a.w, a.h = msg.Width, msg.Height
-		a.chrome.SetWidth(msg.Width)
+		a.chrome.SetSize(msg.Width, msg.Height)
 	case tea.KeyPressMsg:
 		switch {
 		case a.menu.IsOpen():
@@ -91,7 +94,7 @@ func (a *demoApp) onMouse(mm tea.MouseMsg) tea.Cmd {
 }
 
 func (a *demoApp) View() tea.View {
-	dim := lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
+	dim := exui.Dim()
 	line := dim.Render(strings.Repeat("·", max(a.w, 1)))
 	paneH := max(a.h-a.chrome.Height(), 1)
 	rows := make([]string, 0, paneH)
@@ -100,21 +103,20 @@ func (a *demoApp) View() tea.View {
 	}
 	base := lipgloss.JoinVertical(lipgloss.Left, rows...)
 	v := tea.NewView(a.menu.Composite(base, a.w, paneH))
-	a.chrome.Apply(&v, a.h)
-	v.MouseMode = tea.MouseModeCellMotion
-	v.AltScreen = true
 	v.OnMouse = a.onMouse
+	a.chrome.Frame(&v, a.h)
 	return v
 }
 
-func main() {
+// Run is the snap_input subcommand entry point.
+func Run() {
 	exui.Init()
 	final, err := exui.Program(newDemo()).Run()
 	if err != nil {
 		exui.Fatal(err)
 	}
 	if a, ok := final.(*demoApp); ok && a.picked != "" {
-		exui.Finish(true, a.picked)
+		exui.FinishFields(true, exui.F("action", a.picked))
 	}
 	exui.Finish(false)
 }

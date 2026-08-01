@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Jarvis Friends contributors
 // SPDX-License-Identifier: MIT
 
-package main
+package status
 
 import (
 	"strings"
@@ -34,7 +34,7 @@ func TestSeverityKeysAddNotifications(t *testing.T) {
 		m, _ = a.Update(tea.KeyPressMsg{Code: rune(k[0]), Text: k})
 		a = asDemo(t, m)
 	}
-	if got := a.mgr.Count(); got != 3 {
+	if got := a.chrome.Manager().Count(); got != 3 {
 		t.Fatalf("after i/w/e, notification count = %d, want 3", got)
 	}
 	frame := ansi.Strip(a.View().Content)
@@ -67,7 +67,7 @@ func TestProgressRunsToCompletion(t *testing.T) {
 		t.Fatal("progress never completed")
 	}
 	var done bool
-	for _, n := range a.mgr.All() {
+	for _, n := range a.chrome.Manager().All() {
 		if n.Content == "download complete" && n.Severity == notifications.SeverityInfo {
 			done = true
 		}
@@ -89,12 +89,12 @@ func TestHistoryToggle(t *testing.T) {
 
 	m, _ = a.Update(tea.KeyPressMsg{Code: 'n', Mod: tea.ModCtrl})
 	a = asDemo(t, m)
-	if !a.bar.IsHistoryVisible() {
+	if !a.chrome.Bar().IsHistoryVisible() {
 		t.Fatal("ctrl+n should open the history panel")
 	}
 	m, _ = a.Update(tea.KeyPressMsg{Code: 'n', Mod: tea.ModCtrl})
 	a = asDemo(t, m)
-	if a.bar.IsHistoryVisible() {
+	if a.chrome.Bar().IsHistoryVisible() {
 		t.Fatal("second ctrl+n should close the history panel")
 	}
 }

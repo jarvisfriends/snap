@@ -10,8 +10,8 @@
 dist/
 
 # built example binaries (tapes build/run/delete them)
-examples/*/datepicker
-examples/*/timepicker
+examples/snap_input/snap_input
+examples/*/demo-bin
 examples/*/*.exe
 
 .DS_Store
@@ -38,3 +38,7 @@ dist/
 *.prof
 *.pprof
 /gitleaks.tgz
+
+# demo gifs are published to Charm hosting (rendertapes -publish); not committed
+examples/*/*.gif
+!examples/*/*.gif.url

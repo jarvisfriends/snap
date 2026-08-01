@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Jarvis Friends contributors
 // SPDX-License-Identifier: MIT
 
-package main
+package navigation
 
 import (
 	"strings"

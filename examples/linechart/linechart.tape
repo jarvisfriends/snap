@@ -1,27 +1,21 @@
-# VHS demo for snap/menu — regenerate from the repo root:
+# VHS demo for snap/charts' braille line chart — regenerate from the repo
+# root:
 #   go -C tools/rendertapes run .
 # (rendertapes cross-compiles the linux demo binary and runs this tape in the
 # official vhs container; gifs are build artifacts, not diffable sources)
 Set WindowBar Colorful
 Set WindowBarSize 40
-Output examples/menu/demo.gif
+Output examples/linechart/linechart.gif
 Set FontFamily "JetBrainsMono Nerd Font"
 Set FontSize 28
 Set Padding 14
 Set Width 1400
-Set Height 800
+Set Height 850
 Set TypingSpeed 60ms
 Hide
-Type "./examples/menu/demo-bin"
+Type "./examples/snap_input/demo-bin linechart"
 Enter
-Sleep 2s
+Sleep 1s
 Show
-# open the context menu, walk it, choose: the item ID goes to stdout
-Type "m"
-Sleep 1200ms
-Down
-Sleep 700ms
-Down
-Sleep 700ms
-Enter
-Sleep 2500ms
+# two series sweep across the window and blend where they cross
+Sleep 10s

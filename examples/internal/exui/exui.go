@@ -24,12 +24,15 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"time"
 
 	"charm.land/bubbles/v2/help"
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 
+	"github.com/jarvisfriends/snap/keys"
+	"github.com/jarvisfriends/snap/notifications"
 	"github.com/jarvisfriends/snap/status"
 	"github.com/jarvisfriends/snap/styles"
 )
@@ -115,15 +118,27 @@ type Chrome struct {
 	bar    *status.BarModel
 	hidden bool
 	width  int
+
+	// shared shell surfaces (see shell.go): notifications history behind
+	// the bar's bell, the info modal behind ⓘ, and the ctrl+d debug overlay.
+	height int
+	mgr    *notifications.Manager
+	km     *keys.AppKeyMap
+	modal  *status.InfoModal
+	debug  bool
+	start  time.Time
 }
 
 // NewChrome builds the bar for the given bindings (shown left-to-right).
 // Call after Init so --no-help has been parsed.
 func NewChrome(bindings ...key.Binding) *Chrome {
 	t := Theme() // select the shared tint before the bar snapshots styles
-	c := &Chrome{bar: status.New(), hidden: *noHelp}
+	c := &Chrome{bar: status.New(), hidden: *noHelp, start: time.Now()}
+	c.mgr, c.km, c.modal = newShellParts(c.bar)
 	c.bar.SetColors(t)
-	c.bar.SetPageBindings(Bindings(bindings))
+	// Example bindings first, then the shell's shared surface chords.
+	c.bar.SetPageBindings(Bindings(append(bindings,
+		Bind("ctrl+n", "notifs"), Bind(infoKey, "info"), Bind("ctrl+d", "debug"))))
 	return c
 }
 
@@ -180,6 +195,30 @@ func (c *Chrome) Apply(v *tea.View, termH int) {
 	t := Theme()
 	v.BackgroundColor = t.Bg
 	v.ForegroundColor = t.Fg
+}
+
+// Dim is the shared caption/filler style examples use for de-emphasized
+// text (headers, rulers, line numbers), so every demo dims the same way.
+func Dim() lipgloss.Style {
+	return lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
+}
+
+// Frame is the one-call View finisher: it stacks the help bar and paints the
+// theme (Apply), composites any open shell surface (history, info, debug),
+// switches to the alt screen with mouse reporting on, and chains the shell's
+// pointer handling in front of any v.OnMouse the example set before calling.
+func (c *Chrome) Frame(v *tea.View, termH int) {
+	if c != nil {
+		c.height = termH
+	}
+	prev := v.OnMouse
+	c.Apply(v, termH)
+	if c != nil {
+		v.SetContent(c.overlays(v.Content))
+	}
+	v.AltScreen = true
+	v.MouseMode = tea.MouseModeCellMotion
+	v.OnMouse = c.wrapMouse(prev)
 }
 
 // Program builds the example's tea.Program rendering on stderr, keeping

@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Jarvis Friends contributors
 // SPDX-License-Identifier: MIT
 
-// Command charts is the canonical multi-chart wiring example: several chart
+// Package charts implements the `snap_input charts` subcommand: the canonical multi-chart wiring example: several chart
 // models of the same and different types live in one app, every data message
 // carries the ID of the chart it belongs to, and the window is split between
 // charts on resize via SetSize with layout driven by Used().
@@ -13,7 +13,7 @@
 //     so the host never demultiplexes by hand.
 //  4. On tea.WindowSizeMsg, divide the space and SetSize each chart; charts
 //     stretch to fill and report their actual footprint via Used().
-package main
+package charts
 
 import (
 	"math"
@@ -43,18 +43,29 @@ type demoApp struct {
 
 	chrome *exui.Chrome
 	height int
+	third  int // pie column width (left third of the window)
+	bodyH  int // rows available to the pie/sankey body
 	t      float64
 }
 
 func newDemo() demoApp {
+	t := exui.Theme()
 	pie := charts.NewPie("share")
 	pie.Braille = true
+	// Dual-color gradients from the shared theme: load-style metrics ramp
+	// success→error as they climb; memory ramps accent→warning.
+	cpu := charts.NewSparkline("cpu")
+	cpu.Opts.GradientFrom, cpu.Opts.GradientTo = t.Success, t.Error
+	mem := charts.NewSparkline("mem")
+	mem.Opts.GradientFrom, mem.Opts.GradientTo = t.Accent, t.Warning
+	disk := charts.NewHBar("disk")
+	disk.GradientFrom, disk.GradientTo = t.Success, t.Error
 	return demoApp{
-		cpu:    charts.NewSparkline("cpu"),
-		mem:    charts.NewSparkline("mem"),
+		cpu:    cpu,
+		mem:    mem,
 		pie:    pie,
 		sankey: charts.NewSankey("traffic"),
-		disk:   charts.NewHBar("disk"),
+		disk:   disk,
 		chrome: exui.NewChrome(exui.Bind("any key", "quit")),
 	}
 }
@@ -72,6 +83,9 @@ func (a demoApp) forward(msg tea.Msg) {
 }
 
 func (a demoApp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if cmd, done := a.chrome.Update(msg); done {
+		return a, cmd
+	}
 	switch msg := msg.(type) {
 	case tea.KeyPressMsg:
 		return a, tea.Quit
@@ -82,13 +96,15 @@ func (a demoApp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// space it is given; the pie/sankey body takes every row the fixed
 		// lines (2 sparklines, 1 legend, 1 hbar, the help bar) don't.
 		a.height = msg.Height
-		a.chrome.SetWidth(msg.Width)
-		half := max(msg.Width/2, 10)
+		a.chrome.SetSize(msg.Width, msg.Height)
+		// Pie owns the left third (centered vertically); sankey stretches
+		// over the remaining two-thirds at full body height.
+		a.third = max(msg.Width/3, 12)
+		a.bodyH = max(msg.Height-4-a.chrome.Height(), 8)
 		a.cpu.SetSize(msg.Width-8, 1)
 		a.mem.SetSize(msg.Width-8, 1)
-		bodyH := max(msg.Height-4-a.chrome.Height(), 8)
-		a.pie.SetSize(half-2, bodyH)
-		a.sankey.SetSize(msg.Width-half-2, bodyH)
+		a.pie.SetSize(a.third-2, a.bodyH-1) // -1: the always-present legend line
+		a.sankey.SetSize(msg.Width-a.third-2, a.bodyH)
 		a.disk.SetSize(msg.Width-8, 1)
 		return a, nil
 
@@ -122,12 +138,13 @@ func (a demoApp) View() tea.View {
 		return lipgloss.JoinHorizontal(lipgloss.Center, label.Render(name), frame)
 	}
 
-	// Legend for pie slices folded into "Other" (rendered after pie.View()).
-	// The legend line is padded to the pie column's full width so its text
-	// coming and going never changes the column width — otherwise the sankey
-	// next to it visibly jumps sideways whenever thin slices fold or unfold.
+	// Legend for pie slices folded into "Other". The line is ALWAYS there
+	// (an em dash when nothing folded) at a fixed width, so the pie column's
+	// height and width never change as thin slices fold or unfold — which
+	// keeps the vertically-centered pie from jumping and the sankey from
+	// shifting sideways.
 	pieFrame := a.pie.View().Content
-	legend := ""
+	legend := "Other: —"
 	if combined := a.pie.Combined(); len(combined) > 0 {
 		labels := make([]string, len(combined))
 		for i, s := range combined {
@@ -135,13 +152,17 @@ func (a demoApp) View() tea.View {
 		}
 		legend = "Other: " + strings.Join(labels, ", ")
 	}
-	pieW := max(lipgloss.Width(pieFrame), 1)
-	legendLine := lipgloss.NewStyle().Foreground(lipgloss.Color("240")).
+	pieW := max(a.third-2, 1)
+	legendLine := exui.Dim().
 		Width(pieW).MaxWidth(pieW).Render(legend)
 
+	// Left third: pie + legend centered vertically. Right two-thirds: the
+	// sankey at full body height.
+	pieCol := lipgloss.Place(a.third, max(a.bodyH, 1), lipgloss.Center, lipgloss.Center,
+		lipgloss.JoinVertical(lipgloss.Left, pieFrame, legendLine))
 	body := lipgloss.JoinHorizontal(
 		lipgloss.Top,
-		lipgloss.JoinVertical(lipgloss.Left, pieFrame, legendLine),
+		pieCol,
 		"  ",
 		a.sankey.View().Content,
 	)
@@ -153,12 +174,12 @@ func (a demoApp) View() tea.View {
 		body,
 		row("disk", a.disk.View().Content),
 	))
-	a.chrome.Apply(&v, a.height)
-	v.AltScreen = true
+	a.chrome.Frame(&v, a.height)
 	return v
 }
 
-func main() {
+// Run is the snap_input subcommand entry point.
+func Run() {
 	exui.Init()
 	if _, err := exui.Program(newDemo()).Run(); err != nil {
 		exui.Fatal(err)

@@ -1,14 +1,13 @@
 // Copyright (c) 2026 Jarvis Friends contributors
 // SPDX-License-Identifier: MIT
 
-// Command status demos snap/status + snap/notifications end to end: the
-// status bar (key help on the left, live segments and a summary on the
-// right) with notification toasts, a progress notification that fills as a
-// fake download runs, and the ctrl+n history panel with severity badges.
-// It is a display-only demo (no value is written to stdout); --no-help is
-// accepted for consistency but this demo IS the status bar, so it only
-// hides nothing extra.
-package main
+// Package status implements the `snap_input status` subcommand, demoing
+// snap/status + snap/notifications end to end through the shared example
+// shell: the status bar (key help left, live segments right), i/w/e emit
+// notifications, p runs a fake download whose progress notification fills,
+// and the shell provides ctrl+n history, ctrl+e info, and ctrl+d debug —
+// exactly what every other example gets for free. Display-only demo.
+package status
 
 import (
 	"fmt"
@@ -20,7 +19,6 @@ import (
 
 	"github.com/jarvisfriends/snap/examples/internal/exui"
 	"github.com/jarvisfriends/snap/notifications"
-	"github.com/jarvisfriends/snap/status"
 )
 
 // progressTickMsg advances the fake download's progress notification.
@@ -31,64 +29,50 @@ func progressTick() tea.Cmd {
 }
 
 type demoApp struct {
-	bar   *status.BarModel
-	mgr   *notifications.Manager
-	pct   float64
-	dlID  int64
-	w, h  int
-	start time.Time
+	chrome *exui.Chrome
+	pct    float64
+	dlID   int64
+	w, h   int
+	start  time.Time
 }
 
 func newDemo() *demoApp {
-	mgr := notifications.NewManager()
-	bar := status.New()
-	bar.SetNotifManager(mgr)
-	bar.SetPageBindings(exui.Bindings{
+	a := &demoApp{dlID: -1, start: time.Now()}
+	a.chrome = exui.NewChrome(
 		exui.Bind("i/w/e", "info/warn/error"),
 		exui.Bind("p", "progress"),
-		exui.Bind("ctrl+n", "history"),
 		exui.Bind("q", "quit"),
-	})
-	a := &demoApp{bar: bar, mgr: mgr, dlID: -1, start: time.Now()}
+	)
 	// Right-aligned segments re-evaluate every render — the consumer hook
 	// for live widgets like a git branch or connection state.
-	bar.SetSegment("branch", func() string { return " master" })
-	bar.SetSegment("uptime", func() string {
+	a.chrome.SetSegment("branch", func() string { return " master" })
+	a.chrome.SetSegment("uptime", func() string {
 		return time.Since(a.start).Truncate(time.Second).String()
 	})
 	return a
 }
 
-func (a *demoApp) Init() tea.Cmd { return a.bar.Init() }
-
-func (a *demoApp) notify(content string, sev notifications.Severity) tea.Cmd {
-	_, cmd := a.mgr.Add(content, sev, sev.DefaultTTL())
-	a.refresh()
-	return cmd
-}
-
-// refresh re-renders the bar (toasts live inside it) after manager changes.
-func (a *demoApp) refresh() { a.bar.SetWidth(a.w) }
+func (a *demoApp) Init() tea.Cmd { return nil }
 
 func (a *demoApp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if cmd, done := a.chrome.Update(msg); done {
+		return a, cmd
+	}
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		a.w, a.h = msg.Width, msg.Height
-		a.bar.SetWidth(msg.Width)
-		return a, nil
 
 	case progressTickMsg:
 		if a.dlID < 0 {
 			return a, nil
 		}
 		a.pct += 7
-		a.mgr.SetProgress(a.dlID, a.pct)
+		a.chrome.Manager().SetProgress(a.dlID, a.pct)
+		a.chrome.Refresh()
 		if a.pct >= 100 {
 			a.dlID = -1
-			cmd := a.notify("download complete", notifications.SeverityInfo)
-			return a, cmd
+			return a, a.chrome.Notify("download complete", notifications.SeverityInfo)
 		}
-		a.refresh()
 		return a, progressTick()
 
 	case tea.KeyPressMsg:
@@ -96,74 +80,43 @@ func (a *demoApp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "q", "esc", "ctrl+c":
 			return a, tea.Quit
 		case "i":
-			return a, a.notify("deploy finished cleanly", notifications.SeverityInfo)
+			return a, a.chrome.Notify("deploy finished cleanly", notifications.SeverityInfo)
 		case "w":
-			return a, a.notify("disk 82% full on /var", notifications.SeverityWarning)
+			return a, a.chrome.Notify("disk 82% full on /var", notifications.SeverityWarning)
 		case "e":
-			return a, a.notify("backup job failed (exit 3)", notifications.SeverityError)
+			return a, a.chrome.Notify("backup job failed (exit 3)", notifications.SeverityError)
 		case "p":
 			if a.dlID >= 0 {
 				return a, nil
 			}
 			a.pct = 0
 			zero := 0.0
-			n, cmd := a.mgr.AddWithOptions("downloading assets", notifications.SeverityInfo, 0,
+			n, cmd := a.chrome.Manager().AddWithOptions("downloading assets", notifications.SeverityInfo, 0,
 				notifications.AddOptions{Key: "download", Percent: &zero, RetainInHistory: true})
 			a.dlID = n.ID
-			a.refresh()
+			a.chrome.Refresh()
 			return a, tea.Batch(cmd, progressTick())
-		case "ctrl+n":
-			cmd := a.bar.ToggleNotifications()
-			a.refresh()
-			return a, cmd
-		case "up":
-			a.bar.NotifHistoryCursorUp()
-			return a, nil
-		case "down":
-			a.bar.NotifHistoryCursorDown(1)
-			return a, nil
 		}
 	}
-	// Everything else (toast TTL expiries, animation ticks) belongs to the
-	// bar's own machinery.
-	m, cmd := a.bar.Update(msg)
-	if b, ok := m.(*status.BarModel); ok {
-		a.bar = b
-	}
-	a.refresh()
-	return a, cmd
+	return a, nil
 }
 
 func (a *demoApp) View() tea.View {
-	dim := lipgloss.NewStyle().Foreground(lipgloss.Color("238"))
+	dim := exui.Dim()
 	line := dim.Render(strings.Repeat("·", max(a.w, 1)))
-	paneH := max(a.h-a.bar.Height(), 1)
-	rows := make([]string, 0, paneH+1)
-	rows = append(rows, dim.Render(fmt.Sprintf("notifications in history: %d", a.mgr.Count())))
+	paneH := max(a.h-a.chrome.Height(), 1)
+	rows := make([]string, 0, paneH)
+	rows = append(rows, dim.Render(fmt.Sprintf("notifications in history: %d", a.chrome.Manager().Count())))
 	for len(rows) < paneH {
 		rows = append(rows, line)
 	}
-	base := lipgloss.JoinVertical(lipgloss.Left, append(rows, a.bar.View().Content)...)
-
-	// The history panel composites above the page, anchored by the router in
-	// real apps; here the demo is the router.
-	if overlay := a.bar.RenderHistoryOverlay(a.w, a.h); overlay != "" {
-		base = lipgloss.NewCompositor(
-			lipgloss.NewLayer(base),
-			lipgloss.NewLayer(overlay).X(max(a.w-lipgloss.Width(overlay)-1, 0)).
-				Y(max(a.h-lipgloss.Height(overlay)-1, 0)).Z(5),
-		).Render()
-	}
-
-	v := tea.NewView(base)
-	t := exui.Theme()
-	v.BackgroundColor = t.Bg
-	v.ForegroundColor = t.Fg
-	v.AltScreen = true
+	v := tea.NewView(lipgloss.JoinVertical(lipgloss.Left, rows...))
+	a.chrome.Frame(&v, a.h)
 	return v
 }
 
-func main() {
+// Run is the snap_input subcommand entry point.
+func Run() {
 	exui.Init()
 	if _, err := exui.Program(newDemo()).Run(); err != nil {
 		exui.Fatal(err)

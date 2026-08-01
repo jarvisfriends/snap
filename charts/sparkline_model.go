@@ -52,7 +52,12 @@ func (m *SparklineModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	case SparklinePointMsg:
 		if msg.ID == m.ID {
-			m.history = AppendHistory(m.history, msg.Value)
+			// Keep at least the widest frame this sparkline has rendered
+			// at, so a wide terminal never sees a stretched/choppy line.
+			m.history = append(m.history, msg.Value)
+			if keep := max(HistoryLen, m.MaxWidth); len(m.history) > keep {
+				m.history = m.history[len(m.history)-keep:]
+			}
 		}
 	case tea.WindowSizeMsg:
 		m.SetSize(msg.Width, msg.Height)

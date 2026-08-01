@@ -1,15 +1,15 @@
 // Copyright (c) 2026 Jarvis Friends contributors
 // SPDX-License-Identifier: MIT
 
-// Command pickers is a script-usable directory prompt built on snap/pickers'
+// Package pickers implements the `snap_input pickers` subcommand: a script-usable directory prompt built on snap/pickers'
 // DirPicker: walk the tree, Space selects, Ctrl+S picks the browsed folder,
 // and the chosen path (relative to the demo tree) is written to stdout (the
 // TUI itself renders on stderr):
 //
-//	dir=$(go run ./examples/pickers)
+//	dir=$(go run ./examples/snap_input pickers)
 //
 // --no-help hides the status bar. Esc aborts: nothing printed, exit 1.
-package main
+package pickers
 
 import (
 	"os"
@@ -19,7 +19,7 @@ import (
 
 	"github.com/jarvisfriends/snap/examples/internal/exui"
 	"github.com/jarvisfriends/snap/pickers"
-	"github.com/jarvisfriends/snap/uifx"
+	"github.com/jarvisfriends/snap/styles"
 )
 
 type demoApp struct {
@@ -30,6 +30,9 @@ type demoApp struct {
 
 func newDemo(root string) demoApp {
 	dp := pickers.NewDirPicker(root)
+	// Theme the picker from the shared palette instead of its fixed ANSI
+	// defaults, so it follows tint changes like every other component.
+	dp.Styles = styles.PickerStyles(exui.Theme())
 	// The status bar below carries the key hints; the picker's own help
 	// line would show the same thing twice.
 	dp.HideHelp = true
@@ -48,10 +51,13 @@ func newDemo(root string) demoApp {
 func (a demoApp) Init() tea.Cmd { return a.dp.Init() }
 
 func (a demoApp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if cmd, done := a.chrome.Update(msg); done {
+		return a, cmd
+	}
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		a.height = msg.Height
-		a.chrome.SetWidth(msg.Width)
+		a.chrome.SetSize(msg.Width, msg.Height)
 	case tea.MouseMsg:
 		// Mouse arrives via the root view's OnMouse (the picker's); the
 		// runtime also delivers it here — ignore to avoid double handling.
@@ -69,9 +75,7 @@ func (a demoApp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (a demoApp) View() tea.View {
 	v := a.dp.View()
-	a.chrome.Apply(&v, a.height)
-	v.MouseMode = uifx.LevelMedium.MouseMode()
-	v.AltScreen = true
+	a.chrome.Frame(&v, a.height)
 	return v
 }
 
@@ -91,13 +95,14 @@ func makeTree() string {
 	return root
 }
 
-func main() {
+// Run is the snap_input subcommand entry point.
+func Run() {
 	exui.Init()
 	picked, ok, err := run()
 	if err != nil {
 		exui.Fatal(err)
 	}
-	exui.Finish(ok, picked)
+	exui.FinishFields(ok, exui.F("dir", picked))
 }
 
 // run holds the body so the temp-tree cleanup runs on every path (os.Exit

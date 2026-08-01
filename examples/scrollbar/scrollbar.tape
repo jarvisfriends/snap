@@ -4,7 +4,7 @@
 # official vhs container; gifs are build artifacts, not diffable sources)
 Set WindowBar Colorful
 Set WindowBarSize 40
-Output examples/scrollbar/demo.gif
+Output examples/scrollbar/scrollbar.gif
 Set FontFamily "JetBrainsMono Nerd Font"
 Set FontSize 28
 Set Padding 14
@@ -12,7 +12,7 @@ Set Width 1400
 Set Height 850
 Set TypingSpeed 60ms
 Hide
-Type "./examples/scrollbar/demo-bin"
+Type "./examples/snap_input/demo-bin scrollbar"
 Enter
 Sleep 2s
 Show

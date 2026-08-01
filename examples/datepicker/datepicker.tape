@@ -4,7 +4,7 @@
 # official vhs container; gifs are build artifacts, not diffable sources)
 Set WindowBar Colorful
 Set WindowBarSize 40
-Output examples/datepicker/demo.gif
+Output examples/datepicker/datepicker.gif
 Set FontFamily "JetBrainsMono Nerd Font"
 Set FontSize 36
 Set Padding 14
@@ -12,7 +12,7 @@ Set Width 1200
 Set Height 860
 Set TypingSpeed 60ms
 Hide
-Type "./examples/datepicker/demo-bin"
+Type "./examples/snap_input/demo-bin datepicker"
 Enter
 Sleep 3s
 Show

@@ -45,9 +45,11 @@ const doubleClickWindow = 450 * time.Millisecond
 // Column keys are decimal indices, so it can never collide.
 const rowDataKey = "__row"
 
-// chromeRows is the number of non-data lines View draws around the data rows:
-// the header line and the external footer line.
-const chromeRows = 2
+// headerRows is bubble-table's own chrome while borders and its footer are
+// disabled in New: exactly the single header line. The snap footer is
+// measured for real in chromeRows, so style or content changes (a wrapping
+// filter readout, a future border) can never desync the page-size math.
+const headerRows = 1
 
 // minColWidth is the narrowest a column may be squeezed to when the natural
 // widths exceed the available width (room for padding plus a few characters).
@@ -217,10 +219,17 @@ func (m *TableModel) SetRows(rows []Row) {
 func (m *TableModel) SetSize(w, h int) {
 	m.width = w
 	if !m.fixedPageSize {
-		m.pageSize = max(h-chromeRows, 3)
+		m.pageSize = max(h-m.chromeRows(), 3)
 	}
 	m.bt = m.bt.WithPageSize(m.pageSize)
 	m.syncColumns()
+}
+
+// chromeRows counts the non-data lines View draws around the data rows:
+// bubble-table's header plus however many lines the snap footer currently
+// occupies — measured, not assumed.
+func (m *TableModel) chromeRows() int {
+	return headerRows + lipgloss.Height(m.footer(styles.Active(), max(m.width, 1)))
 }
 
 // SelectedRow returns the highlighted row, if any.

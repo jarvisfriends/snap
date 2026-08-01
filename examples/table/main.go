@@ -1,21 +1,20 @@
 // Copyright (c) 2026 Jarvis Friends contributors
 // SPDX-License-Identifier: MIT
 
-// Command table is a script-usable row picker built on snap/table: browse,
+// Package table implements the `snap_input table` subcommand: a script-usable row picker built on snap/table: browse,
 // sort, and filter, then Enter (or double-click) writes the chosen row's key
 // to stdout (the TUI itself renders on stderr), so a shell can capture it:
 //
-//	service=$(go run ./examples/table)
+//	service=$(go run ./examples/snap_input table)
 //
 // --no-help hides the status bar. Quitting (q) prints nothing, exit 1.
-package main
+package table
 
 import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/jarvisfriends/snap/examples/internal/exui"
 	"github.com/jarvisfriends/snap/table"
-	"github.com/jarvisfriends/snap/uifx"
 )
 
 type demoApp struct {
@@ -57,10 +56,13 @@ func newDemo() *demoApp {
 func (a *demoApp) Init() tea.Cmd { return nil }
 
 func (a *demoApp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if cmd, done := a.chrome.Update(msg); done {
+		return a, cmd
+	}
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		a.w, a.h = msg.Width, msg.Height
-		a.chrome.SetWidth(msg.Width)
+		a.chrome.SetSize(msg.Width, msg.Height)
 		a.tbl.SetSize(msg.Width, msg.Height-a.chrome.Height())
 		return a, nil
 	case table.OpenDetailMsg:
@@ -99,21 +101,20 @@ func (a *demoApp) onMouse(mm tea.MouseMsg) tea.Cmd {
 
 func (a *demoApp) View() tea.View {
 	v := tea.NewView(a.tbl.View(exui.Theme(), 0))
-	a.chrome.Apply(&v, a.h)
-	v.MouseMode = uifx.LevelMedium.MouseMode()
-	v.AltScreen = true
 	v.OnMouse = a.onMouse
+	a.chrome.Frame(&v, a.h)
 	return v
 }
 
-func main() {
+// Run is the snap_input subcommand entry point.
+func Run() {
 	exui.Init()
 	final, err := exui.Program(newDemo()).Run()
 	if err != nil {
 		exui.Fatal(err)
 	}
 	if a, ok := final.(*demoApp); ok && a.picked != "" {
-		exui.Finish(true, a.picked)
+		exui.FinishFields(true, exui.F("service", a.picked))
 	}
 	exui.Finish(false)
 }

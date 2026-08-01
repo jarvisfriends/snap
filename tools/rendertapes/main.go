@@ -46,6 +46,7 @@ func run() error {
 		imageRef = flag.String("image", "ghcr.io/charmbracelet/vhs", "VHS container image")
 		workers  = flag.Int("workers", runtime.NumCPU(), "parallel renders (default: CPU count)")
 		repoRoot = flag.String("root", "", "snap repo root (default: two levels up from this tool)")
+		publish  = flag.Bool("publish", false, "vhs-publish each rendered gif and point markdown at the hosted URL")
 	)
 	flag.Parse()
 
@@ -114,6 +115,76 @@ func run() error {
 		return fmt.Errorf("%d of %d tape(s) failed", failures, len(tapes))
 	}
 	log.Printf("rendertapes: %d gif(s) rendered", len(tapes))
+	if *publish {
+		return publishGifs(ctx, *imageRef, root)
+	}
+	return nil
+}
+
+// publishGifs uploads every rendered gif to Charm's hosting via `vhs publish`
+// (gifs stay out of git — see .gitignore — keeping clones small), records
+// each URL in <gif>.url beside the tape, and rewrites markdown image links
+// from the repo-relative gif path to the hosted URL.
+func publishGifs(ctx context.Context, imageRef, root string) error {
+	gifs, err := filepath.Glob(filepath.Join(root, "examples", "*", "*.gif"))
+	if err != nil {
+		return err
+	}
+	urls := map[string]string{}
+	for _, gif := range gifs {
+		rel := filepath.ToSlash(mustRel(root, gif))
+		out, err := runDockerOutput(ctx,
+			"run", "--rm", "-v", root+":/vhs", imageRef, "publish", rel)
+		if err != nil {
+			return fmt.Errorf("vhs publish %s: %w\n%s", rel, err, strings.TrimSpace(out))
+		}
+		url := ""
+		for ln := range strings.FieldsSeq(out) {
+			if strings.HasPrefix(ln, "https://") {
+				url = ln
+			}
+		}
+		if url == "" {
+			return fmt.Errorf("vhs publish %s: no URL in output:\n%s", rel, strings.TrimSpace(out))
+		}
+		if err := os.WriteFile(gif+".url", []byte(url+"\n"), 0o600); err != nil {
+			return err
+		}
+		urls[rel] = url
+		log.Printf("published %s -> %s", rel, url)
+	}
+	return rewriteDocLinks(root, urls)
+}
+
+// rewriteDocLinks points markdown image references at the hosted URLs.
+func rewriteDocLinks(root string, urls map[string]string) error {
+	docs, _ := filepath.Glob(filepath.Join(root, "*.md"))
+	more, _ := filepath.Glob(filepath.Join(root, "docs", "*.md"))
+	docs = append(docs, more...)
+	docs = append(docs, filepath.Join(root, "examples", "USAGE.md"))
+	for _, doc := range docs {
+		//nolint:gosec // doc paths come from our own repo glob above.
+		b, err := os.ReadFile(doc)
+		if err != nil {
+			continue
+		}
+		s := string(b)
+		for rel, url := range urls {
+			s = strings.ReplaceAll(s, "("+rel+")", "("+url+")")
+		}
+		if s != string(b) {
+			// Write only inside the repo root (the globs above guarantee it;
+			// this check makes that explicit for taint analysis).
+			if rel, relErr := filepath.Rel(root, doc); relErr != nil || strings.HasPrefix(rel, "..") {
+				continue
+			}
+			//nolint:gosec // doc is validated to live inside the repo root.
+			if err := os.WriteFile(doc, []byte(s), 0o600); err != nil {
+				return err
+			}
+			log.Printf("updated links in %s", filepath.ToSlash(mustRel(root, doc)))
+		}
+	}
 	return nil
 }
 
@@ -203,42 +274,25 @@ func runDockerOutput(ctx context.Context, args ...string) (string, error) {
 	return string(out), err
 }
 
-// buildDemoBinaries cross-compiles every example for linux/amd64 into
-// examples/<name>/demo-bin — the vhs container has no Go toolchain, so the
-// tapes run prebuilt binaries (this is also what failed silently before:
-// `go build` inside the container left nothing to run).
+// buildDemoBinaries cross-compiles the single snap_input example binary for
+// linux/amd64 into examples/snap_input/demo-bin — the vhs container has no Go
+// toolchain, so the tapes run the prebuilt binary with the example name as
+// its subcommand (`demo-bin timepicker`).
 func buildDemoBinaries(root string) error {
-	examples, err := filepath.Glob(filepath.Join(root, "examples", "*"))
-	if err != nil {
-		return err
+	out := filepath.Join(root, "examples", "snap_input", "demo-bin")
+	cmd := exec.Command("go", "build", "-o", out, "./examples/snap_input")
+	cmd.Dir = root
+	cmd.Env = append(os.Environ(), "GOOS=linux", "GOARCH=amd64", "CGO_ENABLED=0")
+	if outb, err := cmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("build examples/snap_input: %w\n%s", err, outb)
 	}
-	for _, dir := range examples {
-		st, err := os.Stat(dir)
-		if err != nil || !st.IsDir() {
-			continue
-		}
-		// examples/internal holds the shared exui chrome, not a runnable demo.
-		if filepath.Base(dir) == "internal" {
-			continue
-		}
-		out := filepath.Join(dir, "demo-bin")
-		cmd := exec.Command("go", "build", "-o", out, "./"+filepath.ToSlash(mustRel(root, dir)))
-		cmd.Dir = root
-		cmd.Env = append(os.Environ(), "GOOS=linux", "GOARCH=amd64", "CGO_ENABLED=0")
-		if outb, err := cmd.CombinedOutput(); err != nil {
-			return fmt.Errorf("build %s: %w\n%s", dir, err, outb)
-		}
-		log.Printf("built %s", filepath.ToSlash(mustRel(root, out)))
-	}
+	log.Printf("built %s", filepath.ToSlash(mustRel(root, out)))
 	return nil
 }
 
-// cleanDemoBinaries removes the cross-compiled demo binaries after rendering.
+// cleanDemoBinaries removes the cross-compiled demo binary after rendering.
 func cleanDemoBinaries(root string) {
-	matches, _ := filepath.Glob(filepath.Join(root, "examples", "*", "demo-bin"))
-	for _, m := range matches {
-		_ = os.Remove(m)
-	}
+	_ = os.Remove(filepath.Join(root, "examples", "snap_input", "demo-bin"))
 }
 
 func mustRel(base, target string) string {

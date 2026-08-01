@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Jarvis Friends contributors
 // SPDX-License-Identifier: MIT
 
-// Command forms is a script-usable task form proving snap/forms extends huh
+// Package forms implements the `snap_input forms` subcommand: a script-usable task form proving snap/forms extends huh
 // rather than replacing it: a plain huh.Form whose fields validate through
 // forms.HuhValidate(ParseRequired/ParseDuration/ParseISODate), with
 // SplitAndClean cleaning the tags on submit. One form submit yields several
@@ -9,15 +9,13 @@
 // small YAML document (still machine-readable; the TUI itself renders on
 // stderr):
 //
-//	go run ./examples/forms | yq .duration
+//	go run ./examples/snap_input forms | yq .duration
 //
 // --no-help hides the status bar (huh's own help line is off — the bar shows
 // the keys instead). Ctrl+C cancels: nothing printed, exit 1.
-package main
+package forms
 
 import (
-	"fmt"
-	"os"
 	"strings"
 	"time"
 
@@ -79,9 +77,12 @@ func newDemo() *demoApp {
 func (a *demoApp) Init() tea.Cmd { return a.form.Init() }
 
 func (a *demoApp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if cmd, done := a.chrome.Update(msg); done {
+		return a, cmd
+	}
 	if msg, ok := msg.(tea.WindowSizeMsg); ok {
 		a.height = msg.Height
-		a.chrome.SetWidth(msg.Width)
+		a.chrome.SetSize(msg.Width, msg.Height)
 	}
 	model, cmd := a.form.Update(msg)
 	if f, ok := model.(*huh.Form); ok {
@@ -95,12 +96,12 @@ func (a *demoApp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (a *demoApp) View() tea.View {
 	v := tea.NewView(a.form.View())
-	a.chrome.Apply(&v, a.height)
-	v.AltScreen = true
+	a.chrome.Frame(&v, a.height)
 	return v
 }
 
-func main() {
+// Run is the snap_input subcommand entry point.
+func Run() {
 	exui.Init()
 	final, err := exui.Program(newDemo()).Run()
 	if err != nil {
@@ -116,13 +117,12 @@ func main() {
 	due, _ := forms.ParseISODate(a.form.GetString("due"), "due date")
 	tags := forms.SplitAndClean(a.form.GetString("tags"), ",")
 
-	// One submit, many values: emit them together as a small YAML document so
-	// the result reads as a single structured record rather than a bare column
-	// of lines — snap/forms collects multiple typed values from the user at once.
-	fmt.Println("# snap/forms — one submit, many typed values")
-	fmt.Printf("task: %s\n", strings.TrimSpace(a.form.GetString("task")))
-	fmt.Printf("duration: %s\n", d.String())
-	fmt.Printf("due: %s\n", due.Format(time.DateOnly))
-	fmt.Printf("tags: [%s]\n", strings.Join(tags, ", "))
-	os.Exit(0)
+	// One submit, many values: FinishFields renders them in the format the
+	// caller chose (--output pretty|values|json|yaml|xml).
+	exui.FinishFields(true,
+		exui.F("task", strings.TrimSpace(a.form.GetString("task"))),
+		exui.F("duration", d.String()),
+		exui.F("due", due.Format(time.DateOnly)),
+		exui.F("tags", strings.Join(tags, ", ")),
+	)
 }

@@ -1,14 +1,14 @@
 // Copyright (c) 2026 Jarvis Friends contributors
 // SPDX-License-Identifier: MIT
 
-// Command datepicker is a script-usable date prompt built on snap/datepicker:
+// Package datepicker implements the `snap_input datepicker` subcommand: a script-usable date prompt built on snap/datepicker:
 // pick a day and the ISO date is written to stdout (the TUI itself renders on
 // stderr), so a shell can capture it:
 //
-//	date=$(go run ./examples/datepicker)
+//	date=$(go run ./examples/snap_input datepicker)
 //
 // --no-help hides the status bar. Canceling (q/esc) prints nothing, exit 1.
-package main
+package datepicker
 
 import (
 	"time"
@@ -41,10 +41,13 @@ func newDemo(start time.Time) demoApp {
 func (a demoApp) Init() tea.Cmd { return a.dp.Init() }
 
 func (a demoApp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if cmd, done := a.chrome.Update(msg); done {
+		return a, cmd
+	}
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		a.height = msg.Height
-		a.chrome.SetWidth(msg.Width)
+		a.chrome.SetSize(msg.Width, msg.Height)
 		// Fall through to the component so it sizes itself to the window
 		// (minus the help bar) — otherwise its natural height can collide
 		// with the bar row on short terminals.
@@ -80,20 +83,30 @@ func (a demoApp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 // bar on the terminal's bottom line under the calendar.
 func (a demoApp) View() tea.View {
 	v := a.dp.View()
-	a.chrome.Apply(&v, a.height)
-	v.MouseMode = tea.MouseModeCellMotion
-	v.AltScreen = true
+	// A click on the already-selected day sets Selected inside the picker's
+	// own mouse handler; chain a quit so confirming by mouse ends the demo
+	// exactly like enter does.
+	prev := v.OnMouse
+	v.OnMouse = func(mm tea.MouseMsg) tea.Cmd {
+		cmd := prev(mm)
+		if a.dp.Selected {
+			return tea.Quit
+		}
+		return cmd
+	}
+	a.chrome.Frame(&v, a.height)
 	return v
 }
 
-func main() {
+// Run is the snap_input subcommand entry point.
+func Run() {
 	exui.Init()
 	final, err := exui.Program(newDemo(time.Now())).Run()
 	if err != nil {
 		exui.Fatal(err)
 	}
 	if a, ok := final.(demoApp); ok && a.dp.Selected {
-		exui.Finish(true, a.dp.Time.Format("2006-01-02"))
+		exui.FinishFields(true, exui.F("date", a.dp.Time.Format("2006-01-02")))
 	}
 	exui.Finish(false)
 }
