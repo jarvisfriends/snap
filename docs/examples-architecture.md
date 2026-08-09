@@ -19,6 +19,54 @@ supplies behavior. In tui-base the same data arrives from APIs/OS/async
 messages — the display path is identical. Overlays allocate nothing while
 closed; the bar re-renders only via `refresh()` after actual state changes.
 
+## One page, one host (examples/snap_input/tour.go)
+
+Each example package exports `New() exui.Page` — a `tea.Model` plus
+`Result() []exui.Field` — and no longer owns a `Run()`, a quit key, or its own
+output plumbing. One host drives both `snap_input <name>` (a single page) and
+`snap_input` (all of them), so there is no second code path to drift.
+
+Three pieces make that work:
+
+1. **Quit is shell-owned.** `Chrome.Update` claims `q`/`ctrl+c`, so no
+   component or click can quit on its own. Pages whose component eats
+   keystrokes — the table filter, a huh form, an open context menu — register
+   `chrome.SetCapture(pred)`, and while it reports true only `ctrl+c` quits.
+   Without that guard, typing "q" into a filter box would end the program.
+2. **Confirming means different things per host.** `exui.Confirm()` returns
+   `tea.Quit` for a single page (keeping `date=$(snap_input datepicker)` one
+   action) and nil in a tour, where the value is recorded and the page stays
+   up. Results are namespaced (`datepicker.date`) only when more than one page
+   is in play.
+3. **Pages are recreated on entry, not kept alive.** Components snapshot
+   styles at construction, so recreation is what makes `ctrl+t` theme cycling
+   reach the page you are looking at. Because a model is dropped on exit, the
+   host copies `Result()` out first, and pages that allocate (the pickers temp
+   tree) implement `exui.Cleaner` so every instance is torn down.
+
+The tab strip stacks a `navigation.Tabs` above the page and shifts pointer
+coordinates back into page space — Bubble Tea hands the root view absolute
+coordinates and never translates for children (see the README input contract).
+
+Two things the original design (ROADMAP, 2026-08-01) called differently, and
+why the shipped version deviates:
+
+- **Page nav is `alt+←/→` as well as `tab`/`shift+tab`.** Tab alone could not
+  be the contract: the forms page is a huh form that needs tab for its own
+  fields. The tour yields tab whenever the page reports capturing, so the
+  alt chords are the always-available escape hatch. `pills` lost its
+  tab/shift+tab shape binding to free the chord — arrows and the wheel still
+  cycle shapes.
+- **Single-page runs confirm and exit.** Inverting quit uniformly would have
+  made `date=$(snap_input datepicker)` a two-keystroke operation, regressing
+  the scripting contract that README, USAGE.md, architecture.md, and
+  getting-started.md all document.
+
+`styles.TintIDs()` was not needed — `styles.BuiltinTintIDs()` already existed.
+The `ctrl+t` ring is the demo default plus the seven built-ins, deliberately
+not the full registry (bubbletint registers 349 tints; browsing those is a
+theme picker's job, not a cycle key's).
+
 ## Decisions from the review
 
 **pickers**: fixed ANSI colors (245/212/252/240) replaced through a new

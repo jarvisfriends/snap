@@ -3,44 +3,16 @@
 Completed work is pruned from this file (see git history and
 `docs/examples-architecture.md` for the record). Items below are open.
 
-## NEXT: snap_input tour mode (pages + theme cycling) — designed 2026-08-01
+## NEXT: finish the tour's expanded help
 
-One program, one code path — kills the current split brain where each
-example owns its own Run/quit/output logic.
+The tour itself shipped 2026-08-01 (design and deviations recorded in
+`docs/examples-architecture.md`, "One page, one host"). One piece of that
+design is still open:
 
-Contract changes (a major rev; breaking the examples' API is fine):
-
-- Each example package exports `New() tea.Model` (its current `newDemo`
-  with the fixed demo args) and a `Result() []exui.Field` method returning
-  the value(s) the user has confirmed so far (empty until confirmed).
-  Per-package `Run()` is deleted.
-- `snap_input` with no args runs the tour over ALL examples;
-  `snap_input <name>` runs the same tour with a single page. Same logic,
-  page count 1..N.
-- Quit semantics invert: ONLY `q`/`ctrl+c` (shell-owned, in
-  `exui.Chrome.Update`) quits the whole app. Selection actions (enter,
-  click-confirm, second-click on a date) record the page's result and stay
-  running — no component or click ever quits.
-- Tab / Shift+Tab move between pages. Page models are recreated on entry
-  (recreation is the sanctioned pattern here; tui-base instead re-themes
-  live via messages — that stays out of scope for the examples).
-- A `navigation.Tabs` strip above the content shows the pages; HIDDEN by
-  default, toggled with `keys.ToggleNav` (ctrl+b).
-- Theme cycling on a key: needs `styles.TintIDs()` (new accessor over the
-  tint registry) and `exui` theme cache made mutable (`sync.Once` →
-  guarded rebuild). Chrome + current page rebuild on cycle since
-  components snapshot styles at construction.
-- Expanded help (ctrl+h) grows rows for the less-common actions: toggle
-  tabs, toggle status bar (`keys.ToggleStatus`), theme cycle showing the
-  CURRENT TINT NAME, notifications (ctrl+n), info (ctrl+e), debug (ctrl+d).
-- On exit, emit `Result()` from every VISITED page (in visit order,
-  skipping unvisited and empty pages) through the existing `--output`
-  formatter (pretty/values/json/yaml/xml), namespaced per page — e.g.
-  `datepicker.date` in pretty, nested objects in json/yaml/xml.
-
-Estimated shape: 14 small per-package edits (New/Result, drop Run), one
-new `examples/snap_input/tour.go`, ~40 lines in `exui` chrome, the styles
-accessor, and USAGE.md/README updates.
+- [ ] Expanded help (ctrl+h) does not yet grow rows for the tour chords:
+      page nav (tab/shift+tab, alt+←/→), the ctrl+b page strip, and a
+      ctrl+t theme row naming the CURRENT tint. `exui.TintID()` already
+      exposes the name; the bar's full-help rows are the missing part.
 
 ## Cross-cutting conflicts queued for the same major rev
 
@@ -58,12 +30,22 @@ remain); deriving tool version pins from go.mod in CI.
 Gifs are no longer committed anywhere: `tools/rendertapes -publish`
 renders every tape, uploads via `vhs publish`, writes `<name>.gif.url`
 beside each tape, and rewrites markdown image links to the hosted URLs.
-Open items:
+Gif paths come from each tape's own `Output` directive, and a re-publish
+repoints links from the previously published URL, so the rewrite is
+repeatable rather than one-shot. `-relink` replays the recorded URLs into
+markdown with no Docker and no network.
 
-- [ ] Run `-publish` once on a Docker-equipped machine so README image
-      links point at live hosted URLs (they reference removed files until
-      then). Same one-time publish needed in inspector and tui-base.
-- [ ] Port the `-publish` flow into tui-base's rendertapes copy.
+`.github/workflows/demos.yml` owns the pipeline: PRs touching tapes or
+example sources render every tape in the vhs container (artifact only, no
+upload); merges to the default branch render, publish, and open a PR with
+the refreshed `.gif.url` files and rewritten links. Open items:
+
+- [ ] Land the demos workflow on the default branch, then run it via
+      `workflow_dispatch` against any branch whose README still names local
+      `dist/` gif paths. Those paths are placeholders the publish step
+      rewrites, so `.lycheeignore` skips them until the real URLs land.
+- [ ] Same publish flow still needed in inspector and tui-base.
+- [ ] Port the `-publish`/`-relink` flow into tui-base's rendertapes copy.
 
 ## Ports & adoption still open
 

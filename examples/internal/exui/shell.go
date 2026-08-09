@@ -96,6 +96,31 @@ func (c *Chrome) SetSize(w, h int) {
 	c.SetWidth(w)
 }
 
+// SetCapture registers the predicate the shell consults before claiming
+// plain-letter chords: while it reports true the page is capturing keystrokes
+// (a filter box, a path editor, a form field) and only ctrl+c quits. Examples
+// whose component can capture text call this once, from their constructor.
+func (c *Chrome) SetCapture(fn func() bool) {
+	if c == nil {
+		return
+	}
+	c.capture = fn
+}
+
+// Capturing reports whether the hosted page is currently eating keystrokes.
+// The tour consults it before claiming tab, for the same reason the shell
+// consults it before claiming "q".
+func (c *Chrome) Capturing() bool {
+	return c != nil && c.capture != nil && c.capture()
+}
+
+// OverlayOpen reports whether any shell surface (info modal, notifications
+// history, debug overlay) is currently up. While one is, it owns the
+// keyboard and the tour leaves its own chords alone.
+func (c *Chrome) OverlayOpen() bool {
+	return c != nil && (c.modal.IsVisible() || c.debug || c.bar.IsHistoryVisible())
+}
+
 // Refresh re-renders the bar; call after mutating state through Manager()
 // directly (Notify and the shell's own paths refresh automatically).
 func (c *Chrome) Refresh() {
@@ -148,41 +173,60 @@ func (c *Chrome) Update(msg tea.Msg) (cmd tea.Cmd, done bool) {
 		return cmd, true
 
 	case tea.KeyPressMsg:
-		// Modal-first: an open overlay owns the keyboard.
-		if c.modal.IsVisible() {
-			m, cmd := c.modal.Update(msg)
-			if im, ok := m.(*status.InfoModal); ok {
-				c.modal = im
-			}
-			return cmd, true
+		return c.keyPress(msg)
+	}
+	return nil, false
+}
+
+// keyPress resolves a key against the shell's own bindings in priority order:
+// an open overlay owns the keyboard, then the debug pane, then the
+// notification history, then quit, then the global chords. done=false lets the
+// key fall through to the example's own component.
+func (c *Chrome) keyPress(msg tea.KeyPressMsg) (cmd tea.Cmd, done bool) {
+	// Modal-first: an open overlay owns the keyboard.
+	if c.modal.IsVisible() {
+		m, cmd := c.modal.Update(msg)
+		if im, ok := m.(*status.InfoModal); ok {
+			c.modal = im
 		}
-		if c.debug {
-			if key.Matches(msg, c.km.Debug, c.km.Dismiss) {
-				c.debug = false
-			}
-			return nil, true
+		return cmd, true
+	}
+	if c.debug {
+		if key.Matches(msg, c.km.Debug, c.km.Dismiss) {
+			c.debug = false
 		}
-		if c.bar.IsHistoryVisible() {
-			c.historyKey(msg)
-			return nil, true
-		}
-		// Global chords, chosen to never collide with typing components.
-		switch {
-		case key.Matches(msg, c.km.ToggleHistory):
-			cmd := c.bar.ToggleNotifications()
-			c.refresh()
-			return cmd, true
-		case key.Matches(msg, c.km.Debug):
-			c.debug = !c.debug
-			return nil, true
-		case key.Matches(msg, c.km.ToggleFullHelp):
-			c.bar.ToggleFullHelpVisible()
-			c.refresh()
-			return nil, true
-		case msg.String() == infoKey:
-			c.modal.Toggle(c.width, c.height)
-			return nil, true
-		}
+		return nil, true
+	}
+	if c.bar.IsHistoryVisible() {
+		c.historyKey(msg)
+		return nil, true
+	}
+	// Quit is shell-owned so every example ends the same way and no
+	// component or click can quit on its own. ctrl+c always wins; plain
+	// "q" defers to a page that is capturing keystrokes, otherwise it
+	// would be swallowed by (or swallow) a filter box or form field.
+	switch s := msg.String(); {
+	case s == "ctrl+c":
+		return tea.Quit, true
+	case s == "q" && !c.Capturing():
+		return tea.Quit, true
+	}
+	// Global chords, chosen to never collide with typing components.
+	switch {
+	case key.Matches(msg, c.km.ToggleHistory):
+		cmd := c.bar.ToggleNotifications()
+		c.refresh()
+		return cmd, true
+	case key.Matches(msg, c.km.Debug):
+		c.debug = !c.debug
+		return nil, true
+	case key.Matches(msg, c.km.ToggleFullHelp):
+		c.bar.ToggleFullHelpVisible()
+		c.refresh()
+		return nil, true
+	case msg.String() == infoKey:
+		c.modal.Toggle(c.width, c.height)
+		return nil, true
 	}
 	return nil, false
 }
@@ -324,7 +368,7 @@ func (c *Chrome) debugView() string {
 	body := fmt.Sprintf(
 		"version   %s\ngo        %s %s/%s\nterm      %d×%d\ntint      %s\nnotifs    %d active / %d pending\nuptime    %s\n\nctrl+d/esc close",
 		ver, runtime.Version(), runtime.GOOS, runtime.GOARCH,
-		c.width, c.height, themeTint,
+		c.width, c.height, TintID(),
 		len(c.mgr.Active()), c.mgr.PendingCount(),
 		time.Since(c.start).Truncate(time.Second),
 	)

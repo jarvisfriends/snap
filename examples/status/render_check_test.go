@@ -98,3 +98,17 @@ func TestHistoryToggle(t *testing.T) {
 		t.Fatal("second ctrl+n should close the history panel")
 	}
 }
+
+func TestViewSetsThemeCanvasColors(t *testing.T) {
+	t.Parallel()
+
+	a := newDemo()
+	_, _ = a.Update(tea.WindowSizeMsg{Width: 100, Height: 30})
+	v := a.View()
+	if v.BackgroundColor == nil {
+		t.Fatal("status demo view missing BackgroundColor")
+	}
+	if v.ForegroundColor == nil {
+		t.Fatal("status demo view missing ForegroundColor")
+	}
+}

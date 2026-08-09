@@ -1,7 +1,7 @@
 # Verifying releases
 
-Every release of snap ships per-example demo binaries (one archive per example), a `checksums.txt` covering all
-archives, an SPDX SBOM per
+Every release of snap ships the `snap_input` demo binary (one archive per
+OS/architecture), a `checksums.txt` covering all archives, an SPDX SBOM per
 archive, and a Sigstore bundle `checksums.txt.sigstore.json` produced by keyless cosign signing in the
 release workflow.
 

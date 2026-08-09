@@ -92,14 +92,12 @@ func (a *demoApp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return a, nil
 	case tea.KeyPressMsg:
 		switch msg.String() {
-		case "q", "esc", "ctrl+c":
-			return a, tea.Quit
 		case "enter":
 			pages := a.nav().GetPages()
 			if i := a.nav().GetActiveIndex(); i >= 0 && i < len(pages) {
 				a.picked = pages[i].ID
 			}
-			return a, tea.Quit
+			return a, exui.Confirm()
 		case "n":
 			active := a.nav().GetActiveIndex()
 			a.style = (a.style + 1) % len(a.navs)
@@ -162,15 +160,16 @@ func (a *demoApp) View() tea.View {
 	return v
 }
 
-// Run is the snap_input subcommand entry point.
-func Run() {
-	exui.Init()
-	final, err := exui.Program(newDemo()).Run()
-	if err != nil {
-		exui.Fatal(err)
+// New builds the navigation page.
+func New() exui.Page { return newDemo() }
+
+// Result reports the activated page ID, and nothing until one is chosen.
+func (a *demoApp) Result() []exui.Field {
+	if a.picked == "" {
+		return nil
 	}
-	if a, ok := final.(*demoApp); ok && a.picked != "" {
-		exui.FinishFields(true, exui.F("page", a.picked))
-	}
-	exui.Finish(false)
+	return []exui.Field{exui.F("page", a.picked)}
 }
+
+// Shell exposes this page's chrome to the tour host.
+func (a *demoApp) Shell() *exui.Chrome { return a.chrome }

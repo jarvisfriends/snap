@@ -1,18 +1,22 @@
 # VHS demo for snap/table — regenerate from the repo root:
 #   go -C tools/rendertapes run .
-# (rendertapes cross-compiles the linux demo binary and runs this tape in the
-# official vhs container; gifs are build artifacts, not diffable sources)
+# (rendertapes cross-compiles ./dist/snap_input and runs this tape in the
+# official vhs container; gifs land in gitignored dist/). To run one tape by
+# hand, build that binary first — the Require line below fails fast without it.
 Set WindowBar Colorful
 Set WindowBarSize 40
-Output examples/table/table.gif
+Set Framerate 30
+Set Theme "Catppuccin Macchiato"
+Require ./dist/snap_input
+Output ./dist/table.gif
 Set FontFamily "JetBrainsMono Nerd Font"
 Set FontSize 28
-Set Padding 14
-Set Width 1400
-Set Height 560
+Set Padding 5
+Set Width 1300
+Set Height 700
 Set TypingSpeed 60ms
 Hide
-Type "./examples/snap_input/demo-bin table"
+Type "./dist/snap_input table"
 Enter
 Sleep 2s
 Show
@@ -44,3 +48,4 @@ Sleep 800ms
 # enter opens the selected row; its key is written to stdout
 Enter
 Sleep 2500ms
+Type "Ctrl+C"

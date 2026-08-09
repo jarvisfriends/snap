@@ -49,16 +49,16 @@ func (a *demoApp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.w, a.h = msg.Width, msg.Height
 		a.chrome.SetSize(msg.Width, msg.Height)
 	case tea.KeyPressMsg:
+		// Arrows and the wheel drive the shape cycle; tab is deliberately not
+		// bound here, so the tour can use it to change page.
 		switch msg.String() {
-		case "left", "shift+tab", "up":
+		case "left", "up":
 			a.sel = (a.sel + len(a.shapes) - 1) % len(a.shapes)
-		case "right", "tab", "down":
+		case "right", "down":
 			a.sel = (a.sel + 1) % len(a.shapes)
 		case "enter":
 			a.picked = true
-			return a, tea.Quit
-		case "q", "esc", "ctrl+c":
-			return a, tea.Quit
+			return a, exui.Confirm()
 		}
 	}
 	return a, nil
@@ -156,10 +156,11 @@ func (a *demoApp) View() tea.View {
 	return v
 }
 
-// Run is the snap_input subcommand entry point.
-func Run() {
-	exui.Init()
-	app := &demoApp{
+// New builds the pills page.
+func New() exui.Page { return newDemo() }
+
+func newDemo() *demoApp {
+	a := &demoApp{
 		shapes: styles.PillShapes(),
 		chrome: exui.NewChrome(
 			exui.Bind("←→ wheel", "shape (* needs Nerd Font)"),
@@ -170,18 +171,22 @@ func Run() {
 	// Start on the first pure-Unicode shape so the demo (and its rendered
 	// gif, whose font has no Powerline glyphs) opens on caps that show
 	// everywhere; the Nerd Font shapes are still in the cycle.
-	for i, s := range app.shapes {
+	for i, s := range a.shapes {
 		if !s.NeedsNerdFont() {
-			app.sel = i
+			a.sel = i
 			break
 		}
 	}
-	final, err := exui.Program(app).Run()
-	if err != nil {
-		exui.Fatal(err)
-	}
-	if a, ok := final.(*demoApp); ok && a.picked {
-		exui.FinishFields(true, exui.F("shape", string(a.shapes[a.sel])))
-	}
-	exui.Finish(false)
+	return a
 }
+
+// Result reports the chosen shape's config value, and nothing until picked.
+func (a *demoApp) Result() []exui.Field {
+	if !a.picked {
+		return nil
+	}
+	return []exui.Field{exui.F("shape", string(a.shapes[a.sel]))}
+}
+
+// Shell exposes this page's chrome to the tour host.
+func (a *demoApp) Shell() *exui.Chrome { return a.chrome }

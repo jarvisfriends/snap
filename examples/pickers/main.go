@@ -26,6 +26,9 @@ type demoApp struct {
 	dp     *pickers.DirPicker
 	chrome *exui.Chrome
 	height int
+
+	// root is the temp tree this page browses; Cleanup removes it.
+	root string
 }
 
 func newDemo(root string) demoApp {
@@ -37,7 +40,8 @@ func newDemo(root string) demoApp {
 	// line would show the same thing twice.
 	dp.HideHelp = true
 	return demoApp{
-		dp: dp,
+		dp:   dp,
+		root: root,
 		chrome: exui.NewChrome(
 			exui.Bind("↑↓", "move"),
 			exui.Bind("←→", "open back"),
@@ -68,7 +72,7 @@ func (a demoApp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.dp = dp
 	}
 	if a.dp.Done || a.dp.Aborted {
-		return a, tea.Quit
+		return a, exui.Confirm()
 	}
 	return a, cmd
 }
@@ -95,32 +99,25 @@ func makeTree() string {
 	return root
 }
 
-// Run is the snap_input subcommand entry point.
-func Run() {
-	exui.Init()
-	picked, ok, err := run()
-	if err != nil {
-		exui.Fatal(err)
+// New builds the pickers page over a freshly created demo tree. The tree is
+// removed by Cleanup, which the host calls once the program ends.
+func New() exui.Page { return newDemo(makeTree()) }
+
+// Result reports the chosen directory relative to the demo tree, and nothing
+// until one is confirmed.
+func (a demoApp) Result() []exui.Field {
+	if !a.dp.Done {
+		return nil
 	}
-	exui.FinishFields(ok, exui.F("dir", picked))
+	rel, err := filepath.Rel(a.root, a.dp.Value())
+	if err != nil {
+		rel = a.dp.Value()
+	}
+	return []exui.Field{exui.F("dir", rel)}
 }
 
-// run holds the body so the temp-tree cleanup runs on every path (os.Exit
-// in exui.Finish would skip a defer in main).
-func run() (picked string, ok bool, err error) {
-	root := makeTree()
-	defer os.RemoveAll(root) //nolint:errcheck // temp demo tree
+// Shell exposes this page's chrome to the tour host.
+func (a demoApp) Shell() *exui.Chrome { return a.chrome }
 
-	final, err := exui.Program(newDemo(root)).Run()
-	if err != nil {
-		return "", false, err
-	}
-	if a, ok := final.(demoApp); ok && a.dp.Done {
-		rel, relErr := filepath.Rel(root, a.dp.Value())
-		if relErr != nil {
-			rel = a.dp.Value()
-		}
-		return rel, true, nil
-	}
-	return "", false, nil
-}
+// Cleanup removes the temp tree this page browsed.
+func (a demoApp) Cleanup() { _ = os.RemoveAll(a.root) }

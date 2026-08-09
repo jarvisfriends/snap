@@ -29,7 +29,7 @@ type demoApp struct {
 }
 
 func newDemo() *demoApp {
-	return &demoApp{
+	a := &demoApp{
 		chrome: exui.NewChrome(
 			exui.Bind("right-click m", "open"),
 			exui.Bind("↑↓", "move"),
@@ -38,6 +38,10 @@ func newDemo() *demoApp {
 			exui.Bind("q", "quit"),
 		),
 	}
+	// An open menu owns the keyboard, the same way the shell's own overlays
+	// do — esc dismisses it, and only then does "q" quit again.
+	a.chrome.SetCapture(a.Capturing)
+	return a
 }
 
 func items() []menu.Item {
@@ -65,12 +69,10 @@ func (a *demoApp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			// HandleKey mirrors HandleMouse: the open menu owns the keyboard.
 			if chosen, _ := a.menu.HandleKey(msg); chosen != nil {
 				a.picked = chosen.ID
-				return a, tea.Quit
+				return a, exui.Confirm()
 			}
 		case msg.String() == "m":
 			a.menu.Open(a.w/2, a.h/2, items(), "keyboard")
-		case msg.String() == "q" || msg.String() == "esc" || msg.String() == "ctrl+c":
-			return a, tea.Quit
 		}
 	}
 	return a, nil
@@ -82,7 +84,7 @@ func (a *demoApp) onMouse(mm tea.MouseMsg) tea.Cmd {
 	if a.menu.IsOpen() {
 		if chosen, _ := a.menu.HandleMouse(mm, a.w, a.h); chosen != nil {
 			a.picked = chosen.ID
-			return tea.Quit
+			return exui.Confirm()
 		}
 		return nil
 	}
@@ -108,15 +110,19 @@ func (a *demoApp) View() tea.View {
 	return v
 }
 
-// Run is the snap_input subcommand entry point.
-func Run() {
-	exui.Init()
-	final, err := exui.Program(newDemo()).Run()
-	if err != nil {
-		exui.Fatal(err)
+// New builds the menu page.
+func New() exui.Page { return newDemo() }
+
+// Result reports the chosen menu item, and nothing until one is selected.
+func (a *demoApp) Result() []exui.Field {
+	if a.picked == "" {
+		return nil
 	}
-	if a, ok := final.(*demoApp); ok && a.picked != "" {
-		exui.FinishFields(true, exui.F("action", a.picked))
-	}
-	exui.Finish(false)
+	return []exui.Field{exui.F("action", a.picked)}
 }
+
+// Shell exposes this page's chrome to the tour host.
+func (a *demoApp) Shell() *exui.Chrome { return a.chrome }
+
+// Capturing reports whether the context menu is open and owning the keyboard.
+func (a *demoApp) Capturing() bool { return a.menu.IsOpen() }

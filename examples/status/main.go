@@ -77,8 +77,6 @@ func (a *demoApp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tea.KeyPressMsg:
 		switch msg.String() {
-		case "q", "esc", "ctrl+c":
-			return a, tea.Quit
 		case "i":
 			return a, a.chrome.Notify("deploy finished cleanly", notifications.SeverityInfo)
 		case "w":
@@ -115,10 +113,12 @@ func (a *demoApp) View() tea.View {
 	return v
 }
 
-// Run is the snap_input subcommand entry point.
-func Run() {
-	exui.Init()
-	if _, err := exui.Program(newDemo()).Run(); err != nil {
-		exui.Fatal(err)
-	}
-}
+// New builds the status page.
+func New() exui.Page { return newDemo() }
+
+// Result is always empty: this page demonstrates notification surfaces
+// rather than producing a value.
+func (a *demoApp) Result() []exui.Field { return nil }
+
+// Shell exposes this page's chrome to the tour host.
+func (a *demoApp) Shell() *exui.Chrome { return a.chrome }

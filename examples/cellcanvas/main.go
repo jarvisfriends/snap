@@ -86,8 +86,6 @@ func (a *demoApp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			a.redraw()
 		}
 		return a, tick()
-	case tea.KeyPressMsg:
-		return a, tea.Quit
 	}
 	return a, nil
 }
@@ -106,11 +104,13 @@ func (a *demoApp) View() tea.View {
 	return v
 }
 
-// Run is the snap_input subcommand entry point.
-func Run() {
-	exui.Init()
-	app := &demoApp{colors: palette(), chrome: exui.NewChrome(exui.Bind("any key", "quit"))}
-	if _, err := exui.Program(app).Run(); err != nil {
-		exui.Fatal(err)
-	}
+// New builds the cellcanvas page.
+func New() exui.Page {
+	return &demoApp{colors: palette(), chrome: exui.NewChrome(exui.Bind("q", "quit"))}
 }
+
+// Result is always empty: this page is an animation, not a prompt.
+func (a *demoApp) Result() []exui.Field { return nil }
+
+// Shell exposes this page's chrome to the tour host.
+func (a *demoApp) Shell() *exui.Chrome { return a.chrome }

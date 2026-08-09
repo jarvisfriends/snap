@@ -38,8 +38,7 @@ func newDemo(start time.Time) demoApp {
 	return demoApp{
 		tf: tf,
 		chrome: exui.NewChrome(
-			exui.Bind("←→", "column"),
-			exui.Bind("↑↓", "move"),
+			exui.Bind("←→↑↓", "move"),
 			exui.Bind("0-9", "type"),
 			exui.Bind("space", "dropdown"),
 			exui.Bind("enter", "confirm"),
@@ -70,7 +69,7 @@ func (a demoApp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.tf = tf
 	}
 	if a.tf.Done || a.tf.Aborted {
-		return a, tea.Quit
+		return a, exui.Confirm()
 	}
 	return a, cmd
 }
@@ -91,7 +90,7 @@ func (a demoApp) View() tea.View {
 		if click, ok := mm.(tea.MouseClickMsg); ok {
 			if m := click.Mouse(); m.Y == fieldH+1 && m.X < btnW {
 				a.tf.Done = true
-				return tea.Quit
+				return exui.Confirm()
 			}
 		}
 		if prev != nil {
@@ -103,15 +102,20 @@ func (a demoApp) View() tea.View {
 	return v
 }
 
-// Run is the snap_input subcommand entry point.
-func Run() {
-	exui.Init()
-	final, err := exui.Program(newDemo(time.Date(2026, 7, 10, 8, 30, 45, 0, time.Local))).Run()
-	if err != nil {
-		exui.Fatal(err)
-	}
-	if a, ok := final.(demoApp); ok && a.tf.Done {
-		exui.FinishFields(true, exui.F("time", a.tf.Time().Format("15:04:05")))
-	}
-	exui.Finish(false)
+// New builds the timepicker page on a fixed demo time, so the tape and the
+// golden tests see the same starting value on every run.
+func New() exui.Page {
+	return newDemo(time.Date(2026, 7, 10, 8, 30, 45, 0, time.Local))
 }
+
+// Result reports the confirmed time, and nothing until the field is done.
+func (a demoApp) Result() []exui.Field {
+	if !a.tf.Done {
+		return nil
+	}
+	return []exui.Field{exui.F("time", a.tf.Time().Format("15:04:05"))}
+}
+
+// Shell exposes this page's chrome to the tour host.
+// The field's type-ahead only takes digits, so it never needs to claim "q".
+func (a demoApp) Shell() *exui.Chrome { return a.chrome }

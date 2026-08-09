@@ -9,8 +9,10 @@
 .history/
 dist/
 
-# built example binaries (tapes build/run/delete them)
-examples/snap_input/snap_input
+# The demo binary and the gifs the tapes render both land in dist/, which is
+# already ignored above. The published gif URLs are recorded beside the tapes
+# as examples/*.gif.url and ARE committed: dist/ does not survive a clone, and
+# `goreleaser release --clean` wipes it.
 examples/*/demo-bin
 examples/*/*.exe
 
@@ -39,6 +41,5 @@ dist/
 *.pprof
 /gitleaks.tgz
 
-# demo gifs are published to Charm hosting (rendertapes -publish); not committed
-examples/*/*.gif
-!examples/*/*.gif.url
+# Stray gifs anywhere outside dist/ are still build artifacts, never sources.
+*.gif

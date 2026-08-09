@@ -7,7 +7,7 @@
 //
 //	date=$(go run ./examples/snap_input datepicker)
 //
-// --no-help hides the status bar. Canceling (q/esc) prints nothing, exit 1.
+// --no-help hides the status bar. Canceling (q) prints nothing, exit 1.
 package datepicker
 
 import (
@@ -64,17 +64,13 @@ func (a demoApp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// (Bubble Tea delivers the raw event to BOTH OnMouse and Update);
 		// forwarding them here too would double-process every click.
 		return a, nil
-	case tea.KeyPressMsg:
-		if s := msg.String(); s == "q" || s == "esc" || s == "ctrl+c" {
-			return a, tea.Quit
-		}
 	}
 	m, cmd := a.dp.Update(msg)
 	if dp, ok := m.(*datepicker.DatePickerModel); ok {
 		a.dp = dp
 	}
 	if a.dp.Selected {
-		return a, tea.Quit
+		return a, exui.Confirm()
 	}
 	return a, cmd
 }
@@ -90,7 +86,7 @@ func (a demoApp) View() tea.View {
 	v.OnMouse = func(mm tea.MouseMsg) tea.Cmd {
 		cmd := prev(mm)
 		if a.dp.Selected {
-			return tea.Quit
+			return exui.Confirm()
 		}
 		return cmd
 	}
@@ -98,15 +94,16 @@ func (a demoApp) View() tea.View {
 	return v
 }
 
-// Run is the snap_input subcommand entry point.
-func Run() {
-	exui.Init()
-	final, err := exui.Program(newDemo(time.Now())).Run()
-	if err != nil {
-		exui.Fatal(err)
+// New builds the datepicker page, opened on today.
+func New() exui.Page { return newDemo(time.Now()) }
+
+// Result reports the confirmed date, and nothing until a day is picked.
+func (a demoApp) Result() []exui.Field {
+	if !a.dp.Selected {
+		return nil
 	}
-	if a, ok := final.(demoApp); ok && a.dp.Selected {
-		exui.FinishFields(true, exui.F("date", a.dp.Time.Format("2006-01-02")))
-	}
-	exui.Finish(false)
+	return []exui.Field{exui.F("date", a.dp.Time.Format("2006-01-02"))}
 }
+
+// Shell exposes this page's chrome to the tour host.
+func (a demoApp) Shell() *exui.Chrome { return a.chrome }

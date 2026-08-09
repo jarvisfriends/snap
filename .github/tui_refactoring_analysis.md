@@ -1,5 +1,13 @@
 # TUI Codebase Reduction Analysis
 
+> **Superseded in part.** This was an early external survey. Where it
+> conflicts with `docs/examples-architecture.md`, that document wins — it
+> records the decisions actually taken after reviewing the code. Notably:
+> `table` is **kept** (snap/table already delegates to evertras/bubble-table
+> and owns the sorting, mouse, and theming btable lacks), and rebuilding
+> `menu` on `bubbles/list` is **not recommended** (list has no disabled-item
+> support). Treat the sections below as options considered, not a plan.
+
 Based on an analysis of your core TUI libraries (`tui-base`, `snap`) and your expanding ecosystem of applications (`accel`, `brick-breaker`, `dash`, `inspector`, `multi`, `network-vis`, `snake`), here is a breakdown of what you can safely replace with standard open-source libraries to reduce your maintenance burden, and what you should keep as your own intellectual property.
 
 ## 1. Components to Replace with Open Source Alternatives

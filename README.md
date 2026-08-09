@@ -22,8 +22,15 @@ surface to its users at runtime.
 
 Every demo below lives in `examples/` and is a VHS tape rendered in the
 official vhs container. Regenerate them all with
-`go -C tools/rendertapes run .` (Docker or Podman; the tool cross-compiles
-each example, runs every `*.tape` in parallel, and drops gifs next to tapes).
+`go -C tools/rendertapes run .` (Docker or Podman; the tool cross-compiles the
+`snap_input` binary once, runs every `examples/*.tape` in parallel, and writes
+the gifs to `dist/`). Add `-verbose` to stream the container's own output.
+
+Gifs are build artifacts, not committed files, so the gallery below links to
+copies hosted by Charm. `.github/workflows/demos.yml` keeps those links fresh:
+it re-renders tapes on PRs that touch them, and on merge it publishes each gif
+and opens a PR with the updated URLs. To do it by hand on a machine with
+Docker or Podman, run `go -C tools/rendertapes run . -publish`.
 
 The examples also work as script-friendly input tools: each one renders its
 TUI on stderr and writes only the selected value to stdout, exiting 1 on
@@ -35,104 +42,114 @@ when=$(go run ./examples/snap_input timepicker)   # -> 08:30:45
 svc=$(go run ./examples/snap_input table)         # -> api
 ```
 
+Run it with no command to tour every example in one program instead: tab and
+shift+tab (or alt+←/→) change page, ctrl+b shows the page strip, ctrl+t cycles
+the theme, and q ends the tour, printing each visited page's confirmed value.
+
 Every example shows the same snap status bar with key bindings; pass
 `--no-help` to hide it.
 
-Prebuilt binaries for every example ship as their own signed, per-OS/arch
-release archive (`snap_<example>_<os>_<arch>`) on the
+Every example is a subcommand of one prebuilt binary, shipped as a signed
+per-OS/arch archive (`snap_snap_input_<os>_<arch>`) on the
 [Releases page](https://github.com/jarvisfriends/snap/releases) — no Go
-toolchain required to use one as a scripting tool. See
+toolchain required to use it as a scripting tool. See
 [`examples/USAGE.md`](examples/USAGE.md) for the full calling convention.
 
-### Date picker
+### Pickers
+
+These allow user input and when exited will output what the user picked in stdout.
+
+#### Date
 
 Calendar date picker with click-to-confirm days, header month/year focus,
 and keyboard/wheel paging.
 
-![Date picker demo](examples/datepicker/datepicker.gif)
+![Date picker demo](https://vhs.charm.sh/vhs-3ZJmDUnpesbrtxhVN5gSm1.gif)
 
-### Time picker
+#### Time
 
 `HH:MM(:SS)` time field with per-column dropdowns, type-ahead, and
 validation.
 
-![Time picker demo](examples/timepicker/timepicker.gif)
+![Time picker demo](https://vhs.charm.sh/vhs-44aMOFdpDYucWehiOOY9GU.gif)
 
-### Charts
-
-Sparklines, horizontal bars, pie, and sankey charts rendered as
-ID-routed tea models with stretch-to-fit sizing.
-
-![Charts demo](examples/charts/charts.gif)
-
-### Line chart
-
-Braille line chart showing rolling streams with compact terminal-cell
-rendering.
-
-![Line chart demo](examples/linechart/linechart.gif)
-
-### Cell canvas
-
-Whole-cell canvas and gradient helpers for animated truecolor effects.
-
-![Cell canvas demo](examples/cellcanvas/cellcanvas.gif)
-
-### Pickers
+#### Directory
 
 Drive-aware directory picker and related path-editing interactions.
 
-![Pickers demo](examples/pickers/pickers.gif)
-
-### Context menu
-
-Right-click menu with keyboard parity and terminal-edge clamping.
-
-![Context menu demo](examples/menu/menu.gif)
-
-### Scrollbar
-
-Scrollbar presets with click/drag mapping through `OffsetAt`.
-
-![Scrollbar demo](examples/scrollbar/scrollbar.gif)
+![Pickers demo](https://vhs.charm.sh/vhs-1W3jutKoXmndJvu8jGZb3l.gif)
 
 ### Table
 
 Sortable/filterable table with row activation and keyboard/mouse support.
 
-![Table demo](examples/table/table.gif)
-
-### Dependencies modal
-
-Build info and dependency reader rendered through the status info modal.
-
-![Dependencies demo](examples/dependencies/dependencies.gif)
-
-### Forms helpers
-
-Parser-backed form validation for required fields, durations, ISO dates,
-and list splitting.
-
-![Forms demo](examples/forms/forms.gif)
+![Table demo](https://vhs.charm.sh/vhs-4Jl4q5CFtxbhNLpyWGLdQB.gif)
 
 ### Pills and breadcrumbs
 
 Segmented pills, shape variants, and breadcrumb styling helpers from the
 shared style contract.
 
-![Pills demo](examples/pills/pills.gif)
+![Pills demo](https://vhs.charm.sh/vhs-6DJjCDpQBE6MO3kWSFTv6.gif)
 
-### Navigation
+### Forms helpers
+
+Parser-backed form validation for required fields, durations, ISO dates,
+and list splitting.
+
+![Forms demo](https://vhs.charm.sh/vhs-6f4Uim9rDinkKcxvgyVlsR.gif)
+
+#### Context menu
+
+Right-click menu with keyboard parity and terminal-edge clamping.
+
+![Context menu demo](https://vhs.charm.sh/vhs-15e5MHRX2uZyxTQqsEcLKk.gif)
+
+### Full Screen helpers
+
+#### Navigation
 
 Tabs, Sidebar, and MinimalTopNav behind one navigator contract.
 
-![Navigation demo](examples/navigation/navigation.gif)
+![Navigation demo](https://vhs.charm.sh/vhs-4bDiplJUoDynmfj87ArnmV.gif)
 
-### Status and notifications
+#### Status and notifications
 
 Status bar surfaces plus notification toast/history flows.
 
-![Status demo](examples/status/status.gif)
+![Status demo](https://vhs.charm.sh/vhs-5DT59S12JGsaD68YC42Cqs.gif)
+
+#### Scrollbar
+
+Scrollbar presets with click/drag mapping through `OffsetAt`.
+
+![Scrollbar demo](https://vhs.charm.sh/vhs-3ReBGHQwqCCQX98jDL7bcO.gif)
+
+#### Dependencies modal
+
+Build info and dependency reader rendered through the status info modal.
+
+![Dependencies demo](https://vhs.charm.sh/vhs-3Q60UYLi5BRuWl0nasFnRz.gif)
+
+#### Charts
+
+Sparklines, horizontal bars, pie, and sankey charts rendered as
+ID-routed tea models with stretch-to-fit sizing.
+
+![Charts demo](https://vhs.charm.sh/vhs-1Aqwbp6nSo9Gabqskw2x1X.gif)
+
+#### Line chart
+
+Braille line chart showing rolling streams with compact terminal-cell
+rendering.
+
+![Line chart demo](https://vhs.charm.sh/vhs-2TOyaoNCEsnG2ACAIwouNM.gif)
+
+#### Cell canvas
+
+Whole-cell canvas and gradient helpers for animated truecolor effects.
+
+![Cell canvas demo](https://vhs.charm.sh/vhs-4mNTJD2hRfxCLE5RxbHWSr.gif)
 
 ### Supporting packages (no standalone GIF)
 

@@ -43,6 +43,8 @@ func (a *demoApp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.w, a.h = msg.Width, msg.Height
 		a.chrome.SetSize(msg.Width, msg.Height)
 	case tea.KeyPressMsg:
+		// Unhandled keys are ignored: quit is the shell's (q/ctrl+c), and in
+		// the tour any other key would otherwise end the whole run.
 		switch msg.String() {
 		case "up":
 			a.offset--
@@ -52,8 +54,6 @@ func (a *demoApp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			a.offset -= a.visible()
 		case "pgdown":
 			a.offset += a.visible()
-		default:
-			return a, tea.Quit
 		}
 		a.offset = scrollbar.ClampOffset(a.offset, totalLines, a.visible())
 	}
@@ -130,16 +130,19 @@ func (a *demoApp) View() tea.View {
 	return v
 }
 
-// Run is the snap_input subcommand entry point.
-func Run() {
-	exui.Init()
-	app := &demoApp{chrome: exui.NewChrome(
+// New builds the scrollbar page.
+func New() exui.Page {
+	return &demoApp{chrome: exui.NewChrome(
 		exui.Bind("wheel ↑↓", "move"),
 		exui.Bind("pgup pgdn", "page"),
 		exui.Bind("click drag bar", "jump"),
 		exui.Bind("q", "quit"),
 	)}
-	if _, err := exui.Program(app).Run(); err != nil {
-		exui.Fatal(err)
-	}
 }
+
+// Result is always empty: this page demonstrates scrolling rather than
+// producing a value.
+func (a *demoApp) Result() []exui.Field { return nil }
+
+// Shell exposes this page's chrome to the tour host.
+func (a *demoApp) Shell() *exui.Chrome { return a.chrome }

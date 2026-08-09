@@ -64,7 +64,7 @@ type demoApp struct {
 }
 
 func newDemo() *demoApp {
-	return &demoApp{
+	a := &demoApp{
 		form: newTaskForm(),
 		chrome: exui.NewChrome(
 			exui.Bind("tab shift+tab", "move"),
@@ -72,6 +72,10 @@ func newDemo() *demoApp {
 			exui.Bind("ctrl+c", "cancel"),
 		),
 	}
+	// Every keystroke belongs to the form's inputs while it is running, so
+	// the shell must not claim "q" and the tour must not claim tab.
+	a.chrome.SetCapture(a.Capturing)
+	return a
 }
 
 func (a *demoApp) Init() tea.Cmd { return a.form.Init() }
@@ -89,7 +93,7 @@ func (a *demoApp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.form = f
 	}
 	if a.form.State != huh.StateNormal {
-		return a, tea.Quit
+		return a, exui.Confirm()
 	}
 	return a, cmd
 }
@@ -100,29 +104,30 @@ func (a *demoApp) View() tea.View {
 	return v
 }
 
-// Run is the snap_input subcommand entry point.
-func Run() {
-	exui.Init()
-	final, err := exui.Program(newDemo()).Run()
-	if err != nil {
-		exui.Fatal(err)
-	}
-	a, ok := final.(*demoApp)
-	if !ok || a.form.State != huh.StateCompleted {
-		exui.Finish(false)
+// New builds the forms page.
+func New() exui.Page { return newDemo() }
+
+// Result reports the submitted task, and nothing until the form completes.
+// One submit yields several values at once.
+func (a *demoApp) Result() []exui.Field {
+	if a.form.State != huh.StateCompleted {
+		return nil
 	}
 	// The same parsers that validated the fields now produce the typed
 	// values, so output can never disagree with what validation accepted.
 	d, _ := forms.ParseDuration(a.form.GetString("duration"), "duration")
 	due, _ := forms.ParseISODate(a.form.GetString("due"), "due date")
 	tags := forms.SplitAndClean(a.form.GetString("tags"), ",")
-
-	// One submit, many values: FinishFields renders them in the format the
-	// caller chose (--output pretty|values|json|yaml|xml).
-	exui.FinishFields(true,
+	return []exui.Field{
 		exui.F("task", strings.TrimSpace(a.form.GetString("task"))),
 		exui.F("duration", d.String()),
 		exui.F("due", due.Format(time.DateOnly)),
 		exui.F("tags", strings.Join(tags, ", ")),
-	)
+	}
 }
+
+// Shell exposes this page's chrome to the tour host.
+func (a *demoApp) Shell() *exui.Chrome { return a.chrome }
+
+// Capturing reports whether the form is still taking input.
+func (a *demoApp) Capturing() bool { return a.form.State == huh.StateNormal }

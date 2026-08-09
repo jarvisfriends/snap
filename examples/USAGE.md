@@ -25,7 +25,34 @@ dir=$(snap_input pickers)        # -> /home/me/projects/snap
   (pretty is the default; `values` is the old bare-lines behavior).
 - `snap_input --version` prints the release tag this binary was built from —
   useful for confirming which build a downloaded archive contains.
-- `snap_input help` (or no arguments) lists all commands.
+- `snap_input help` lists all commands.
+
+## Tour mode
+
+Running `snap_input` with **no command** tours every example in one program
+instead of printing usage:
+
+| key | action |
+| --- | --- |
+| `tab` / `shift+tab` | next / previous page (a page that is capturing text, like `forms`, keeps tab for itself) |
+| `alt+→` / `alt+←` | next / previous page, always available |
+| `ctrl+b` | show or hide the page strip |
+| `ctrl+t` | cycle the theme |
+| `q` | end the tour and print what was confirmed |
+
+Confirming on a page records its value and leaves the tour running, so one
+pass can collect several. On exit each visited page's result is printed,
+namespaced by page and in visit order:
+
+```console
+$ snap_input
+datepicker.date     2026-07-12
+table.service       api
+```
+
+Single-command runs are unchanged: they confirm and exit immediately, and
+their keys are **not** namespaced, so `date=$(snap_input datepicker)` still
+returns a bare date.
 
 ## All commands
 
@@ -51,5 +78,7 @@ this file.
 
 Full source, the Go library these commands are built from, and rendered demo
 GIFs live at <https://github.com/jarvisfriends/snap>. Each command's source is
-`examples/<command>/`, with its VHS tape (`<command>.tape`) and rendered gif
-(`<command>.gif`) beside it.
+`examples/<command>/`, and its VHS tape is `examples/<command>.tape`. Gifs are
+build artifacts rather than committed files: rendering writes
+`dist/<command>.gif` locally, and the published copy the docs link to is
+recorded in `examples/<command>.gif.url`.

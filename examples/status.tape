@@ -1,18 +1,22 @@
 # VHS demo for examples/status — regenerate from the repo root:
 #   go -C tools/rendertapes run .
-# (rendertapes cross-compiles the linux demo binary and runs this tape in the
-# official vhs container; gifs are build artifacts, not diffable sources)
+# (rendertapes cross-compiles ./dist/snap_input and runs this tape in the
+# official vhs container; gifs land in gitignored dist/). To run one tape by
+# hand, build that binary first — the Require line below fails fast without it.
 Set WindowBar Colorful
 Set WindowBarSize 40
-Output examples/status/status.gif
+Set Framerate 30
+Set Theme "Catppuccin Macchiato"
+Require ./dist/snap_input
+Output ./dist/status.gif
 Set FontFamily "JetBrainsMono Nerd Font"
 Set FontSize 28
-Set Padding 14
-Set Width 1400
-Set Height 800
+Set Padding 5
+Set Width 1300
+Set Height 700
 Set TypingSpeed 60ms
 Hide
-Type "./examples/snap_input/demo-bin status"
+Type "./dist/snap_input status"
 Enter
 Sleep 2s
 Show
@@ -34,3 +38,4 @@ Type "d"
 Sleep 1000ms
 Ctrl+n
 Sleep 1500ms
+Type "Ctrl+C"

@@ -46,11 +46,8 @@ func (a *demoApp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			a.chrome.OpenInfo()
 		}
 	case tea.KeyPressMsg:
-		switch msg.String() {
-		case "i":
+		if msg.String() == "i" {
 			a.chrome.OpenInfo()
-		case "q", "ctrl+c":
-			return a, tea.Quit
 		}
 	}
 	return a, nil
@@ -68,10 +65,11 @@ func (a *demoApp) View() tea.View {
 	return v
 }
 
-// Run is the snap_input subcommand entry point.
-func Run() {
-	exui.Init()
-	if _, err := exui.Program(newDemo()).Run(); err != nil {
-		exui.Fatal(err)
-	}
-}
+// New builds the dependencies page.
+func New() exui.Page { return newDemo() }
+
+// Result is always empty: this page is a reader, not a prompt.
+func (a *demoApp) Result() []exui.Field { return nil }
+
+// Shell exposes this page's chrome to the tour host.
+func (a *demoApp) Shell() *exui.Chrome { return a.chrome }
