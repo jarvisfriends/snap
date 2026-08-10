@@ -20,11 +20,19 @@
 // container is otherwise silent unless it fails, which hides the reason a
 // render produced a bad gif rather than no gif at all.
 //
+// Publishing is paced, because Charm's hosting accepts a short burst and then
+// refuses (the client prints a bare "EOF") and rejects gifs past a size cap.
+// Neither limit is documented, so -publish-batch/-publish-pause/-max-gif-bytes
+// expose them as flags. Oversized gifs are caught before anything is uploaded,
+// refusals are retried with doubling backoff, and a gif whose bytes match the
+// hash recorded next to its URL is skipped entirely — after the first run most
+// publishes upload nothing.
+//
 // Usage, from the snap repo root:
 //
 //	go -C tools/rendertapes run . [-image ghcr.io/charmbracelet/vhs] [-workers N]
 //	go -C tools/rendertapes run . -verbose   # stream container output live
-//	go -C tools/rendertapes run . -publish   # render, upload, repoint docs
+//	go -C tools/rendertapes run . -publish   # render, upload changed, repoint docs
 //	go -C tools/rendertapes run . -relink    # repoint docs from <gif>.url only
 //
 // This is a standalone module so tool-only dependencies never enter snap's
@@ -34,6 +42,8 @@ package main
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"flag"
 	"fmt"
 	"io"
@@ -46,6 +56,7 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+	"time"
 )
 
 // verbose mirrors the -verbose flag. Container and toolchain output is
@@ -76,6 +87,15 @@ func run() error {
 		repoRoot = flag.String("root", "", "snap repo root (default: two levels up from this tool)")
 		publish  = flag.Bool("publish", false, "vhs-publish each rendered gif and point markdown at the hosted URL")
 		relink   = flag.Bool("relink", false, "point markdown at the URLs a previous -publish recorded, without rendering")
+
+		// Charm's hosting neither documents its rate limit nor its size cap,
+		// so these are tunable observations rather than a known contract.
+		batch    = flag.Int("publish-batch", 4, "uploads before pausing (0 disables pacing)")
+		pause    = flag.Duration("publish-pause", time.Minute, "wait between upload batches")
+		attempts = flag.Int("publish-attempts", 4, "tries per gif, including the first")
+		backoff  = flag.Duration("publish-backoff", 20*time.Second, "wait before the first retry; doubles each retry")
+		maxGif   = flag.Int64("max-gif-bytes", 10<<20, "reject gifs larger than this before uploading (0 disables)")
+		force    = flag.Bool("force-publish", false, "re-upload gifs whose bytes are unchanged since their recorded URL")
 	)
 	flag.BoolVar(&verbose, "verbose", false, "stream container/toolchain output and echo every command")
 	flag.BoolVar(&verbose, "v", false, "shorthand for -verbose")
@@ -154,7 +174,14 @@ func run() error {
 	}
 	log.Printf("rendertapes: %d gif(s) rendered", len(tapes))
 	if *publish {
-		return publishGifs(ctx, *imageRef, root, tapes)
+		return publishGifs(ctx, *imageRef, root, tapes, publishPolicy{
+			batch:    *batch,
+			pause:    *pause,
+			attempts: *attempts,
+			backoff:  *backoff,
+			maxBytes: *maxGif,
+			force:    *force,
+		})
 	}
 	return nil
 }
@@ -166,44 +193,185 @@ func run() error {
 // mention the local path.
 type gifLink struct{ rel, url, prev string }
 
+// publishPolicy bounds how hard the publisher leans on Charm's hosting. The
+// service accepts a short burst and then starts refusing (the client prints a
+// bare "EOF" and exits non-zero), and it rejects gifs past a size ceiling.
+// Neither limit is documented, so every knob is a flag: these defaults match
+// what the endpoint was observed to allow, not a published contract.
+type publishPolicy struct {
+	batch    int           // uploads before pausing
+	pause    time.Duration // wait once a batch is done
+	attempts int           // total tries per gif, including the first
+	backoff  time.Duration // wait before retry 1; doubles each retry
+	maxBytes int64         // per-gif ceiling the endpoint enforces
+	force    bool          // re-upload even when the gif is byte-identical
+}
+
 // publishGifs uploads every rendered gif to Charm's hosting via `vhs publish`
 // (gifs stay out of git — see .gitignore — keeping clones small), records
 // each URL in <name>.gif.url beside the tape, and repoints markdown links.
-func publishGifs(ctx context.Context, imageRef, root string, tapes []string) error {
+//
+// Uploads are paced rather than fired off back to back, and gifs whose bytes
+// have not changed since their recorded upload are skipped: the rate limit is
+// the scarce resource here, so the cheapest request is the one not made.
+func publishGifs(ctx context.Context, imageRef, root string, tapes []string, pol publishPolicy) error {
 	gifs, err := tapeGifs(root, tapes)
 	if err != nil {
 		return err
 	}
-	links := make([]gifLink, 0, len(gifs))
-	for _, tg := range gifs {
-		abs := filepath.Join(root, filepath.FromSlash(tg.gif))
-		if _, statErr := os.Stat(abs); statErr != nil {
-			return fmt.Errorf("publish %s: gif was not rendered: %w", tg.gif, statErr)
-		}
-		// Read the old URL before overwriting it — it is the only handle on
-		// links that a previous run already rewrote away from the local path.
-		urlFile := urlPath(root, tg)
-		prev := recordedURL(urlFile)
 
-		stream, flush := streamFor("publish " + tg.gif)
-		out, err := runContainerOutput(ctx, stream,
-			"run", "--rm", "-v", root+":/vhs", imageRef, "publish", tg.gif)
-		flush()
+	pending, links, err := planPublish(root, gifs, pol)
+	if err != nil {
+		return err
+	}
+	if len(pending) == 0 {
+		log.Printf("all %d gif(s) already published and unchanged", len(gifs))
+		return rewriteDocLinks(root, links)
+	}
+	log.Printf("publishing %d of %d gif(s); %d unchanged",
+		len(pending), len(gifs), len(gifs)-len(pending))
+
+	for i, job := range pending {
+		// Pace between batches, not before the first upload.
+		if i > 0 && pol.batch > 0 && i%pol.batch == 0 {
+			log.Printf("uploaded %d; pausing %s before the next batch", i, pol.pause)
+			if err := sleepCtx(ctx, pol.pause); err != nil {
+				return err
+			}
+		}
+		url, err := publishOne(ctx, imageRef, root, job.tg.gif, pol)
 		if err != nil {
-			return fmt.Errorf("vhs publish %s: %w\n%s", tg.gif, err, strings.TrimSpace(out))
+			return fmt.Errorf("%w\n\n%d of %d uploaded; recorded URLs are on disk, so "+
+				"re-running resumes from here", err, i, len(pending))
 		}
-		url := publishedURL(out)
-		if url == "" {
-			return fmt.Errorf("vhs publish %s: no gif URL in output:\n%s",
-				tg.gif, strings.TrimSpace(out))
-		}
-		if err := os.WriteFile(urlFile, []byte(url+"\n"), 0o600); err != nil {
+		if err := writeRecord(job.urlFile, url, job.hash); err != nil {
 			return err
 		}
-		links = append(links, gifLink{rel: tg.gif, url: url, prev: prev})
-		log.Printf("published %s -> %s", tg.gif, url)
+		links = append(links, gifLink{rel: job.tg.gif, url: url, prev: job.prev})
+		log.Printf("published %s -> %s", job.tg.gif, url)
 	}
 	return rewriteDocLinks(root, links)
+}
+
+// publishJob is one gif that needs uploading, with the record fields resolved
+// up front so the upload loop only does I/O that can fail transiently.
+type publishJob struct {
+	tg      tapeGif
+	urlFile string
+	hash    string // sha256 of the gif about to be uploaded
+	prev    string // URL the last upload recorded, "" on a first run
+}
+
+// planPublish splits the gifs into those needing an upload and those already
+// published unchanged, and validates every one before a single byte is sent —
+// a missing or oversized gif midway through would otherwise burn rate limit
+// and leave the docs half rewritten.
+func planPublish(root string, gifs []tapeGif, pol publishPolicy) (pending []publishJob, links []gifLink, err error) {
+	var missing, oversized []string
+	for _, tg := range gifs {
+		abs := filepath.Join(root, filepath.FromSlash(tg.gif))
+		info, statErr := os.Stat(abs)
+		if statErr != nil {
+			missing = append(missing, tg.gif)
+			continue
+		}
+		if pol.maxBytes > 0 && info.Size() > pol.maxBytes {
+			oversized = append(oversized, fmt.Sprintf("%s (%.2f MiB, limit %.2f MiB)",
+				tg.gif, mib(info.Size()), mib(pol.maxBytes)))
+			continue
+		}
+		hash, hashErr := fileHash(abs)
+		if hashErr != nil {
+			return nil, nil, hashErr
+		}
+		urlFile := urlPath(root, tg)
+		prevURL, prevHash := readRecord(urlFile)
+
+		// Unchanged and already hosted: keep the URL, skip the upload, but
+		// still feed the link into the rewrite so a doc that lost it recovers.
+		if !pol.force && prevURL != "" && prevHash == hash {
+			links = append(links, gifLink{rel: tg.gif, url: prevURL, prev: prevURL})
+			continue
+		}
+		pending = append(pending, publishJob{tg: tg, urlFile: urlFile, hash: hash, prev: prevURL})
+	}
+	if len(missing) > 0 {
+		return nil, nil, fmt.Errorf("gif(s) not rendered — run without -publish first:\n  %s",
+			strings.Join(missing, "\n  "))
+	}
+	if len(oversized) > 0 {
+		return nil, nil, fmt.Errorf("gif(s) over the hosting size limit; shrink the tape "+
+			"(smaller Set Width/Height/FontSize, fewer or shorter Sleep steps):\n  %s",
+			strings.Join(oversized, "\n  "))
+	}
+	return pending, links, nil
+}
+
+// publishOne uploads a single gif, retrying on the transient refusals the
+// endpoint answers a burst with. A run that produces no URL is treated as a
+// failure even when the client exits 0, because that is how a refused upload
+// presents: the "EOF" line is printed where the link should be.
+func publishOne(ctx context.Context, imageRef, root, gif string, pol publishPolicy) (string, error) {
+	wait := pol.backoff
+	var last error
+	for attempt := 1; attempt <= max(pol.attempts, 1); attempt++ {
+		if attempt > 1 {
+			log.Printf("retry %d/%d for %s in %s (%v)", attempt-1, pol.attempts-1, gif, wait, last)
+			if err := sleepCtx(ctx, wait); err != nil {
+				return "", err
+			}
+			wait *= 2
+		}
+		stream, flush := streamFor("publish " + gif)
+		out, err := runContainerOutput(ctx, stream,
+			"run", "--rm", "-v", root+":/vhs", imageRef, "publish", gif)
+		flush()
+
+		if url := publishedURL(out); url != "" {
+			return url, nil
+		}
+		if err != nil {
+			last = fmt.Errorf("vhs publish %s: %w: %s", gif, err, firstLine([]byte(out)))
+		} else {
+			last = fmt.Errorf("vhs publish %s: no gif URL in output: %s", gif, firstLine([]byte(out)))
+		}
+		if ctx.Err() != nil {
+			return "", ctx.Err()
+		}
+	}
+	return "", fmt.Errorf("%w (gave up after %d attempts)", last, max(pol.attempts, 1))
+}
+
+// sleepCtx waits for d unless the context is canceled first.
+func sleepCtx(ctx context.Context, d time.Duration) error {
+	if d <= 0 {
+		return nil
+	}
+	t := time.NewTimer(d)
+	defer t.Stop()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-t.C:
+		return nil
+	}
+}
+
+func mib(n int64) float64 { return float64(n) / (1 << 20) }
+
+// fileHash is the gif's sha256, recorded alongside its URL so an unchanged
+// gif can be recognized and skipped on the next publish.
+func fileHash(gif string) (string, error) {
+	f, err := os.Open(filepath.Clean(gif))
+	if err != nil {
+		return "", err
+	}
+	defer func() { _ = f.Close() }()
+	h := sha256.New()
+	if _, err := io.Copy(h, f); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(h.Sum(nil)), nil
 }
 
 // publishedURL extracts the hosted gif URL from `vhs publish` output, which
@@ -252,7 +420,7 @@ func relinkDocs(root string, tapes []string) error {
 	links := make([]gifLink, 0, len(gifs))
 	var missing []string
 	for _, tg := range gifs {
-		url := recordedURL(urlPath(root, tg))
+		url, _ := readRecord(urlPath(root, tg))
 		if url == "" {
 			missing = append(missing, tg.gif)
 			continue
@@ -266,15 +434,32 @@ func relinkDocs(root string, tapes []string) error {
 	return rewriteDocLinks(root, links)
 }
 
-// recordedURL reads the hosted URL a previous publish wrote to urlFile,
-// returning "" when there is none yet.
-func recordedURL(urlFile string) string {
+// readRecord parses a <name>.gif.url file. Line one is the hosted URL and is
+// the only line docs or a human need; an optional `sha256:<hex>` line records
+// which bytes were uploaded, letting the next publish skip an unchanged gif.
+// Both are "" when the file is absent, so a first run just publishes.
+func readRecord(urlFile string) (url, hash string) {
 	//nolint:gosec // url paths are derived from tape paths inside the repo.
 	b, err := os.ReadFile(urlFile)
 	if err != nil {
-		return ""
+		return "", ""
 	}
-	return strings.TrimSpace(string(b))
+	for line := range strings.Lines(string(b)) {
+		line = strings.TrimSpace(line)
+		switch {
+		case line == "":
+		case strings.HasPrefix(line, "sha256:"):
+			hash = strings.TrimPrefix(line, "sha256:")
+		case url == "":
+			url = line
+		}
+	}
+	return url, hash
+}
+
+// writeRecord stores the hosted URL and the hash of the bytes behind it.
+func writeRecord(urlFile, url, hash string) error {
+	return os.WriteFile(urlFile, []byte(url+"\nsha256:"+hash+"\n"), 0o600)
 }
 
 // rewriteDocLinks points markdown image references at the hosted URLs,

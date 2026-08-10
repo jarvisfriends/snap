@@ -37,6 +37,10 @@ on the [GitHub releases page](https://github.com/jarvisfriends/snap/releases).
   and repoints the markdown gallery; `.github/workflows/demos.yml` keeps that
   current. `-relink` replays recorded URLs with no Docker and no network, and
   `-verbose` streams the container's own output plus every command it runs.
+  Each record also stores the sha256 of the uploaded bytes, so `-publish`
+  skips gifs that have not changed; uploads are batched with a pause and
+  retried with backoff against Charm's undocumented rate limit, and gifs over
+  `-max-gif-bytes` are reported before any upload starts.
 - `keys.AppKeyMap.BindingDefs()` now returns only the app-global, mutually
   exclusive shortcuts intended for a key-rebinding settings UI. The
   component-level widget keys (Sort, Filter, Open, Cancel, Save, Delete,

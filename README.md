@@ -32,6 +32,15 @@ it re-renders tapes on PRs that touch them, and on merge it publishes each gif
 and opens a PR with the updated URLs. To do it by hand on a machine with
 Docker or Podman, run `go -C tools/rendertapes run . -publish`.
 
+Each hosted URL is recorded in `examples/<command>.gif.url` alongside the
+sha256 of the bytes uploaded, so `-publish` only re-uploads gifs that actually
+changed and `-relink` can repoint the docs with no network at all. Charm's
+hosting rate-limits bursts and caps gif size, so uploads are batched with a
+pause between them and retried with backoff; oversized gifs are reported
+before anything is sent. Tune with `-publish-batch`, `-publish-pause`,
+`-publish-attempts`, `-publish-backoff`, and `-max-gif-bytes`, or re-send an
+unchanged gif with `-force-publish`.
+
 The examples also work as script-friendly input tools: each one renders its
 TUI on stderr and writes only the selected value to stdout, exiting 1 on
 cancel.
