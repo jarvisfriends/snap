@@ -1,15 +1,15 @@
 // Copyright (c) 2026 Jarvis Friends contributors
 // SPDX-License-Identifier: MIT
 
-// Command pills is a script-usable PillShape picker built on snap/styles:
+// Package pills implements the `snap_input pills` subcommand: a script-usable PillShape picker built on snap/styles:
 // every shape is previewed as pills, a segmented pill, a nav strip, and
 // breadcrumbs; Enter writes the selected shape's config value to stdout (the
 // TUI itself renders on stderr):
 //
-//	shape=$(go run ./examples/pills)
+//	shape=$(go run ./examples/snap_input pills)
 //
 // --no-help hides the status bar. Quitting (q/esc) prints nothing, exit 1.
-package main
+package pills
 
 import (
 	tea "charm.land/bubbletea/v2"
@@ -41,21 +41,24 @@ type demoApp struct {
 func (a *demoApp) Init() tea.Cmd { return nil }
 
 func (a *demoApp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if cmd, done := a.chrome.Update(msg); done {
+		return a, cmd
+	}
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		a.w, a.h = msg.Width, msg.Height
-		a.chrome.SetWidth(msg.Width)
+		a.chrome.SetSize(msg.Width, msg.Height)
 	case tea.KeyPressMsg:
+		// Arrows and the wheel drive the shape cycle; tab is deliberately not
+		// bound here, so the tour can use it to change page.
 		switch msg.String() {
-		case "left", "shift+tab", "up":
+		case "left", "up":
 			a.sel = (a.sel + len(a.shapes) - 1) % len(a.shapes)
-		case "right", "tab", "down":
+		case "right", "down":
 			a.sel = (a.sel + 1) % len(a.shapes)
 		case "enter":
 			a.picked = true
-			return a, tea.Quit
-		case "q", "esc", "ctrl+c":
-			return a, tea.Quit
+			return a, exui.Confirm()
 		}
 	}
 	return a, nil
@@ -117,7 +120,7 @@ func (a *demoApp) shapeRow(shape styles.PillShape, selected bool) string {
 }
 
 func (a *demoApp) View() tea.View {
-	dim := lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
+	dim := exui.Dim()
 
 	rows := make([]string, 0, len(a.shapes)+6)
 	for i, shape := range a.shapes {
@@ -148,16 +151,16 @@ func (a *demoApp) View() tea.View {
 	)
 
 	v := tea.NewView(lipgloss.JoinVertical(lipgloss.Left, rows...))
-	a.chrome.Apply(&v, a.h)
-	v.MouseMode = tea.MouseModeCellMotion
-	v.AltScreen = true
 	v.OnMouse = a.onMouse
+	a.chrome.Frame(&v, a.h)
 	return v
 }
 
-func main() {
-	exui.Init()
-	app := &demoApp{
+// New builds the pills page.
+func New() exui.Page { return newDemo() }
+
+func newDemo() *demoApp {
+	a := &demoApp{
 		shapes: styles.PillShapes(),
 		chrome: exui.NewChrome(
 			exui.Bind("←→ wheel", "shape (* needs Nerd Font)"),
@@ -168,18 +171,22 @@ func main() {
 	// Start on the first pure-Unicode shape so the demo (and its rendered
 	// gif, whose font has no Powerline glyphs) opens on caps that show
 	// everywhere; the Nerd Font shapes are still in the cycle.
-	for i, s := range app.shapes {
+	for i, s := range a.shapes {
 		if !s.NeedsNerdFont() {
-			app.sel = i
+			a.sel = i
 			break
 		}
 	}
-	final, err := exui.Program(app).Run()
-	if err != nil {
-		exui.Fatal(err)
-	}
-	if a, ok := final.(*demoApp); ok && a.picked {
-		exui.Finish(true, string(a.shapes[a.sel]))
-	}
-	exui.Finish(false)
+	return a
 }
+
+// Result reports the chosen shape's config value, and nothing until picked.
+func (a *demoApp) Result() []exui.Field {
+	if !a.picked {
+		return nil
+	}
+	return []exui.Field{exui.F("shape", string(a.shapes[a.sel]))}
+}
+
+// Shell exposes this page's chrome to the tour host.
+func (a *demoApp) Shell() *exui.Chrome { return a.chrome }

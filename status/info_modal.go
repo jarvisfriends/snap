@@ -296,6 +296,10 @@ func (m *InfoModal) buildInfoLines(
 	)
 	sepLen := min(vpW-2, 72)
 	lines = append(lines, mutedStyle.Render("  "+strings.Repeat("─", sepLen)))
+	if len(info.Dependencies) == 0 {
+		lines = append(lines, dimStyle.Render(
+			"  (no dependency data in this build — go test and some dev builds omit it)"))
+	}
 	for _, dep := range info.Dependencies {
 		path := dep.Path
 		if w := ansi.StringWidth(path); w > pkgColW {

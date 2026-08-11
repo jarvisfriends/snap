@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Jarvis Friends contributors
 // SPDX-License-Identifier: MIT
 
-// Command forms is a script-usable task form proving snap/forms extends huh
+// Package forms implements the `snap_input forms` subcommand: a script-usable task form proving snap/forms extends huh
 // rather than replacing it: a plain huh.Form whose fields validate through
 // forms.HuhValidate(ParseRequired/ParseDuration/ParseISODate), with
 // SplitAndClean cleaning the tags on submit. One form submit yields several
@@ -9,15 +9,13 @@
 // small YAML document (still machine-readable; the TUI itself renders on
 // stderr):
 //
-//	go run ./examples/forms | yq .duration
+//	go run ./examples/snap_input forms | yq .duration
 //
 // --no-help hides the status bar (huh's own help line is off — the bar shows
 // the keys instead). Ctrl+C cancels: nothing printed, exit 1.
-package main
+package forms
 
 import (
-	"fmt"
-	"os"
 	"strings"
 	"time"
 
@@ -66,7 +64,7 @@ type demoApp struct {
 }
 
 func newDemo() *demoApp {
-	return &demoApp{
+	a := &demoApp{
 		form: newTaskForm(),
 		chrome: exui.NewChrome(
 			exui.Bind("tab shift+tab", "move"),
@@ -74,55 +72,62 @@ func newDemo() *demoApp {
 			exui.Bind("ctrl+c", "cancel"),
 		),
 	}
+	// Every keystroke belongs to the form's inputs while it is running, so
+	// the shell must not claim "q" and the tour must not claim tab.
+	a.chrome.SetCapture(a.Capturing)
+	return a
 }
 
 func (a *demoApp) Init() tea.Cmd { return a.form.Init() }
 
 func (a *demoApp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if cmd, done := a.chrome.Update(msg); done {
+		return a, cmd
+	}
 	if msg, ok := msg.(tea.WindowSizeMsg); ok {
 		a.height = msg.Height
-		a.chrome.SetWidth(msg.Width)
+		a.chrome.SetSize(msg.Width, msg.Height)
 	}
 	model, cmd := a.form.Update(msg)
 	if f, ok := model.(*huh.Form); ok {
 		a.form = f
 	}
 	if a.form.State != huh.StateNormal {
-		return a, tea.Quit
+		return a, exui.Confirm()
 	}
 	return a, cmd
 }
 
 func (a *demoApp) View() tea.View {
 	v := tea.NewView(a.form.View())
-	a.chrome.Apply(&v, a.height)
-	v.AltScreen = true
+	a.chrome.Frame(&v, a.height)
 	return v
 }
 
-func main() {
-	exui.Init()
-	final, err := exui.Program(newDemo()).Run()
-	if err != nil {
-		exui.Fatal(err)
-	}
-	a, ok := final.(*demoApp)
-	if !ok || a.form.State != huh.StateCompleted {
-		exui.Finish(false)
+// New builds the forms page.
+func New() exui.Page { return newDemo() }
+
+// Result reports the submitted task, and nothing until the form completes.
+// One submit yields several values at once.
+func (a *demoApp) Result() []exui.Field {
+	if a.form.State != huh.StateCompleted {
+		return nil
 	}
 	// The same parsers that validated the fields now produce the typed
 	// values, so output can never disagree with what validation accepted.
 	d, _ := forms.ParseDuration(a.form.GetString("duration"), "duration")
 	due, _ := forms.ParseISODate(a.form.GetString("due"), "due date")
 	tags := forms.SplitAndClean(a.form.GetString("tags"), ",")
-
-	// One submit, many values: emit them together as a small YAML document so
-	// the result reads as a single structured record rather than a bare column
-	// of lines — snap/forms collects multiple typed values from the user at once.
-	fmt.Println("# snap/forms — one submit, many typed values")
-	fmt.Printf("task: %s\n", strings.TrimSpace(a.form.GetString("task")))
-	fmt.Printf("duration: %s\n", d.String())
-	fmt.Printf("due: %s\n", due.Format(time.DateOnly))
-	fmt.Printf("tags: [%s]\n", strings.Join(tags, ", "))
-	os.Exit(0)
+	return []exui.Field{
+		exui.F("task", strings.TrimSpace(a.form.GetString("task"))),
+		exui.F("duration", d.String()),
+		exui.F("due", due.Format(time.DateOnly)),
+		exui.F("tags", strings.Join(tags, ", ")),
+	}
 }
+
+// Shell exposes this page's chrome to the tour host.
+func (a *demoApp) Shell() *exui.Chrome { return a.chrome }
+
+// Capturing reports whether the form is still taking input.
+func (a *demoApp) Capturing() bool { return a.form.State == huh.StateNormal }

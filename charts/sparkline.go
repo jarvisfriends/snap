@@ -4,6 +4,7 @@
 package charts
 
 import (
+	"image/color"
 	"strings"
 
 	"charm.land/lipgloss/v2"
@@ -12,8 +13,9 @@ import (
 )
 
 // HistoryLen is the default number of samples kept for a sparkline ring
-// buffer (AppendHistory trims to it). Came along from dash's widget config.
-const HistoryLen = 120
+// buffer (AppendHistory trims to it). 500 keeps very wide terminals smooth;
+// SparklineModel additionally keeps at least its rendered width.
+const HistoryLen = 500
 
 // SparklineStyle selects the glyph set and rendering mode for a sparkline.
 type SparklineStyle int
@@ -61,6 +63,11 @@ type SparklineOpts struct {
 	// Colors, when non-nil, enables per-glyph ANSI coloring for braille styles.
 	// Block styles always return plain text regardless of this field.
 	Colors *styles.AppStyle
+	// GradientFrom/GradientTo, when both non-nil, color block-style glyphs
+	// along a two-color gradient by value level (low → GradientFrom,
+	// high → GradientTo) via the shared Gradient helper.
+	GradientFrom color.Color
+	GradientTo   color.Color
 }
 
 // IsBrailleStyle reports whether s is a directional braille style. When true,
@@ -94,16 +101,16 @@ func Sparkline(history []float64, width int, opts SparklineOpts) string {
 		}
 	}
 
-	// Sample the most recent `width` values (or pad with lo if shorter).
+	// Sample the most recent `width` values; a shorter history is stretched
+	// across the full width so the chart always spans the row instead of
+	// showing a flat lead-in while the buffer fills.
 	samples := make([]float64, width)
 	if len(history) >= width {
 		copy(samples, history[len(history)-width:])
 	} else {
 		for i := range samples {
-			samples[i] = lo
+			samples[i] = history[i*len(history)/width]
 		}
-		offset := width - len(history)
-		copy(samples[offset:], history)
 	}
 
 	rng := hi - lo
@@ -112,12 +119,20 @@ func Sparkline(history []float64, width int, opts SparklineOpts) string {
 	if IsBrailleStyle(opts.Style) {
 		return renderBraille(samples, rng, lo, glyphs, opts.Style, opts.Colors)
 	}
-	return renderBlocks(samples, rng, lo, glyphs)
+	return renderBlocks(samples, rng, lo, glyphs, opts.GradientFrom, opts.GradientTo)
 }
 
-// renderBlocks renders a plain-text sparkline using a linear block glyph set.
-func renderBlocks(samples []float64, rng, lo float64, glyphs []rune) string {
+// renderBlocks renders a sparkline using a linear block glyph set — plain
+// text, or per-glyph gradient-colored when both gradient ends are set.
+func renderBlocks(samples []float64, rng, lo float64, glyphs []rune, from, to color.Color) string {
 	n := len(glyphs)
+	var levelStyles []lipgloss.Style
+	if from != nil && to != nil {
+		levelStyles = make([]lipgloss.Style, n)
+		for i, c := range Gradient(from, to, n) {
+			levelStyles[i] = lipgloss.NewStyle().Foreground(c)
+		}
+	}
 	var sb strings.Builder
 	for _, v := range samples {
 		var idx int
@@ -128,7 +143,11 @@ func renderBlocks(samples []float64, rng, lo float64, glyphs []rune) string {
 				idx = n - 1
 			}
 		}
-		sb.WriteRune(glyphs[idx])
+		if levelStyles != nil {
+			sb.WriteString(levelStyles[idx].Render(string(glyphs[idx])))
+		} else {
+			sb.WriteRune(glyphs[idx])
+		}
 	}
 	return sb.String()
 }

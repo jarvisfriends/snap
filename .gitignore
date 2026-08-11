@@ -9,9 +9,10 @@
 .history/
 dist/
 
-# built example binaries (tapes build/run/delete them)
-examples/*/datepicker
-examples/*/timepicker
+# The demo binary and the gifs the tapes render both land in dist/, which is
+# already ignored above. The gifs reach readers as release assets, attached by
+# .github/workflows/demos.yml — nothing about them is tracked in the repo.
+examples/*/demo-bin
 examples/*/*.exe
 
 .DS_Store
@@ -38,3 +39,6 @@ dist/
 *.prof
 *.pprof
 /gitleaks.tgz
+
+# Stray gifs anywhere outside dist/ are still build artifacts, never sources.
+*.gif

@@ -1,14 +1,14 @@
 // Copyright (c) 2026 Jarvis Friends contributors
 // SPDX-License-Identifier: MIT
 
-// Command menu is a script-usable context-menu picker built on snap/menu:
+// Package menu implements the `snap_input menu` subcommand: a script-usable context-menu picker built on snap/menu:
 // right-click anywhere (or press m) to pop the menu, choose an item, and the
 // chosen item's ID is written to stdout (the TUI itself renders on stderr):
 //
-//	action=$(go run ./examples/menu)
+//	action=$(go run ./examples/snap_input menu)
 //
 // --no-help hides the status bar. Quitting (q/esc) prints nothing, exit 1.
-package main
+package menu
 
 import (
 	"strconv"
@@ -29,7 +29,7 @@ type demoApp struct {
 }
 
 func newDemo() *demoApp {
-	return &demoApp{
+	a := &demoApp{
 		chrome: exui.NewChrome(
 			exui.Bind("right-click m", "open"),
 			exui.Bind("↑↓", "move"),
@@ -38,6 +38,10 @@ func newDemo() *demoApp {
 			exui.Bind("q", "quit"),
 		),
 	}
+	// An open menu owns the keyboard, the same way the shell's own overlays
+	// do — esc dismisses it, and only then does "q" quit again.
+	a.chrome.SetCapture(a.Capturing)
+	return a
 }
 
 func items() []menu.Item {
@@ -52,22 +56,23 @@ func items() []menu.Item {
 func (a *demoApp) Init() tea.Cmd { return nil }
 
 func (a *demoApp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if cmd, done := a.chrome.Update(msg); done {
+		return a, cmd
+	}
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		a.w, a.h = msg.Width, msg.Height
-		a.chrome.SetWidth(msg.Width)
+		a.chrome.SetSize(msg.Width, msg.Height)
 	case tea.KeyPressMsg:
 		switch {
 		case a.menu.IsOpen():
 			// HandleKey mirrors HandleMouse: the open menu owns the keyboard.
 			if chosen, _ := a.menu.HandleKey(msg); chosen != nil {
 				a.picked = chosen.ID
-				return a, tea.Quit
+				return a, exui.Confirm()
 			}
 		case msg.String() == "m":
 			a.menu.Open(a.w/2, a.h/2, items(), "keyboard")
-		case msg.String() == "q" || msg.String() == "esc" || msg.String() == "ctrl+c":
-			return a, tea.Quit
 		}
 	}
 	return a, nil
@@ -79,7 +84,7 @@ func (a *demoApp) onMouse(mm tea.MouseMsg) tea.Cmd {
 	if a.menu.IsOpen() {
 		if chosen, _ := a.menu.HandleMouse(mm, a.w, a.h); chosen != nil {
 			a.picked = chosen.ID
-			return tea.Quit
+			return exui.Confirm()
 		}
 		return nil
 	}
@@ -91,7 +96,7 @@ func (a *demoApp) onMouse(mm tea.MouseMsg) tea.Cmd {
 }
 
 func (a *demoApp) View() tea.View {
-	dim := lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
+	dim := exui.Dim()
 	line := dim.Render(strings.Repeat("·", max(a.w, 1)))
 	paneH := max(a.h-a.chrome.Height(), 1)
 	rows := make([]string, 0, paneH)
@@ -100,21 +105,24 @@ func (a *demoApp) View() tea.View {
 	}
 	base := lipgloss.JoinVertical(lipgloss.Left, rows...)
 	v := tea.NewView(a.menu.Composite(base, a.w, paneH))
-	a.chrome.Apply(&v, a.h)
-	v.MouseMode = tea.MouseModeCellMotion
-	v.AltScreen = true
 	v.OnMouse = a.onMouse
+	a.chrome.Frame(&v, a.h)
 	return v
 }
 
-func main() {
-	exui.Init()
-	final, err := exui.Program(newDemo()).Run()
-	if err != nil {
-		exui.Fatal(err)
+// New builds the menu page.
+func New() exui.Page { return newDemo() }
+
+// Result reports the chosen menu item, and nothing until one is selected.
+func (a *demoApp) Result() []exui.Field {
+	if a.picked == "" {
+		return nil
 	}
-	if a, ok := final.(*demoApp); ok && a.picked != "" {
-		exui.Finish(true, a.picked)
-	}
-	exui.Finish(false)
+	return []exui.Field{exui.F("action", a.picked)}
 }
+
+// Shell exposes this page's chrome to the tour host.
+func (a *demoApp) Shell() *exui.Chrome { return a.chrome }
+
+// Capturing reports whether the context menu is open and owning the keyboard.
+func (a *demoApp) Capturing() bool { return a.menu.IsOpen() }

@@ -16,7 +16,7 @@ import (
 	"charm.land/lipgloss/v2"
 )
 
-// Bar is the bar at the bottom of our App that displays helpful info like key combos
+// BarModel is the bar at the bottom of our App that displays helpful info like key combos
 // available for the current view. This implementation wraps the more featureful
 // statusbar model (animation, overlay, click regions) and exposes the same
 // tea.Model surface used elsewhere in the app.

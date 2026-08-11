@@ -1,13 +1,13 @@
 // Copyright (c) 2026 Jarvis Friends contributors
 // SPDX-License-Identifier: MIT
 
-// Command dependencies demos snap/dependencies rendered by snap/status's
-// InfoModal: the running binary's build info (Go version, OS, VCS revision)
+// Package dependencies implements the `snap_input dependencies` subcommand,
+// demoing snap/dependencies rendered by snap/status's InfoModal — the same
+// modal every example opens from the bar's ⓘ icon (or ctrl+e); this demo
+// just starts with it open. Build info (Go version, OS, VCS revision) sits
 // above a scrollable dependency list read via dependencies.ExpandedBuildInfo.
-// The wheel or ↑/↓/PgUp/PgDn scroll the list (mouse arrives through the
-// modal's HandleMouse — one call, no host hit-testing), Esc or a click
-// outside closes the modal, i reopens it, q quits.
-package main
+// Wheel or ↑/↓/PgUp/PgDn scroll, Esc or an outside click closes, q quits.
+package dependencies
 
 import (
 	"strings"
@@ -15,25 +15,17 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 
-	"github.com/jarvisfriends/snap/dependencies"
 	"github.com/jarvisfriends/snap/examples/internal/exui"
-	"github.com/jarvisfriends/snap/status"
 )
 
 type demoApp struct {
-	modal  *status.InfoModal
 	chrome *exui.Chrome
 	w, h   int
+	opened bool
 }
 
 func newDemo() *demoApp {
-	m := status.NewInfoModal()
-	m.SetAppName("snap dependencies demo")
-	if info := dependencies.ExpandedBuildInfo(); info != nil && info.App.Version != "" {
-		m.SetVersion(info.App.Version)
-	}
-	return &demoApp{modal: m, chrome: exui.NewChrome(
-		exui.Bind("i", "info modal"),
+	return &demoApp{chrome: exui.NewChrome(
 		exui.Bind("wheel ↑↓", "move"),
 		exui.Bind("esc outside-click", "close"),
 		exui.Bind("q", "quit"),
@@ -43,72 +35,41 @@ func newDemo() *demoApp {
 func (a *demoApp) Init() tea.Cmd { return nil }
 
 func (a *demoApp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if cmd, done := a.chrome.Update(msg); done {
+		return a, cmd
+	}
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		a.w, a.h = msg.Width, msg.Height
-		a.chrome.SetWidth(msg.Width)
-		if !a.modal.IsVisible() {
-			a.modal.Open(a.w, a.h)
+		if !a.opened { // this demo IS the info modal: open on first size
+			a.opened = true
+			a.chrome.OpenInfo()
 		}
-	case status.CloseInfoModalMsg:
-		return a, nil
 	case tea.KeyPressMsg:
-		if a.modal.IsVisible() {
-			// The open modal owns the keyboard (↑/↓, PgUp/PgDn, Home/End,
-			// Esc); everything else falls through to it harmlessly.
-			m, cmd := a.modal.Update(msg)
-			if im, ok := m.(*status.InfoModal); ok {
-				a.modal = im
-			}
-			return a, cmd
-		}
-		switch msg.String() {
-		case "i":
-			a.modal.Open(a.w, a.h)
-		case "q", "ctrl+c":
-			return a, tea.Quit
+		if msg.String() == "i" {
+			a.chrome.OpenInfo()
 		}
 	}
 	return a, nil
 }
 
-// onMouse forwards pointer input to the modal's HandleMouse: the wheel
-// scrolls the dependency list, a click outside closes.
-func (a *demoApp) onMouse(mm tea.MouseMsg) tea.Cmd {
-	cmd, _ := a.modal.HandleMouse(mm)
-	return cmd
-}
-
 func (a *demoApp) View() tea.View {
-	dim := lipgloss.NewStyle().Foreground(lipgloss.Color("238"))
-	line := dim.Render(strings.Repeat("·", max(a.w, 1)))
+	line := exui.Dim().Render(strings.Repeat("·", max(a.w, 1)))
 	paneH := max(a.h-a.chrome.Height(), 1)
 	rows := make([]string, 0, paneH)
 	for range paneH {
 		rows = append(rows, line)
 	}
-	base := lipgloss.JoinVertical(lipgloss.Left, rows...)
-
-	content := base
-	if a.modal.IsVisible() {
-		bx, by, _, _ := a.modal.Bounds()
-		content = lipgloss.NewCompositor(
-			lipgloss.NewLayer(base),
-			lipgloss.NewLayer(a.modal.View().Content).X(bx).Y(by).Z(10),
-		).Render()
-	}
-
-	v := tea.NewView(content)
-	a.chrome.Apply(&v, a.h)
-	v.AltScreen = true
-	v.MouseMode = tea.MouseModeCellMotion
-	v.OnMouse = a.onMouse
+	v := tea.NewView(lipgloss.JoinVertical(lipgloss.Left, rows...))
+	a.chrome.Frame(&v, a.h)
 	return v
 }
 
-func main() {
-	exui.Init()
-	if _, err := exui.Program(newDemo()).Run(); err != nil {
-		exui.Fatal(err)
-	}
-}
+// New builds the dependencies page.
+func New() exui.Page { return newDemo() }
+
+// Result is always empty: this page is a reader, not a prompt.
+func (a *demoApp) Result() []exui.Field { return nil }
+
+// Shell exposes this page's chrome to the tour host.
+func (a *demoApp) Shell() *exui.Chrome { return a.chrome }

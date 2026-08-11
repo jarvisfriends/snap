@@ -1,13 +1,13 @@
 // Copyright (c) 2026 Jarvis Friends contributors
 // SPDX-License-Identifier: MIT
 
-// Command cellcanvas demos snap/charts' whole-cell canvas and color
+// Package cellcanvas implements the `snap_input cellcanvas` subcommand, demoing snap/charts' whole-cell canvas and color
 // gradients: a classic plasma field animates over a truecolor palette built
 // from chained charts.Gradient blends. Each cell renders '▀' with an
 // independent foreground (top pixel) and background (bottom pixel), doubling
 // the vertical resolution, and CellCanvas.String() batches the escapes so
 // colors are re-emitted only when they change. q (any key) quits.
-package main
+package cellcanvas
 
 import (
 	"image/color"
@@ -69,10 +69,13 @@ func (a *demoApp) redraw() {
 }
 
 func (a *demoApp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if cmd, done := a.chrome.Update(msg); done {
+		return a, cmd
+	}
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		a.termH = msg.Height
-		a.chrome.SetWidth(msg.Width)
+		a.chrome.SetSize(msg.Width, msg.Height)
 		a.w, a.h = max(msg.Width, 1), max(msg.Height-1-a.chrome.Height(), 1)
 		a.canvas = charts.NewCellCanvas(a.w, a.h, nil, nil)
 		a.redraw()
@@ -83,8 +86,6 @@ func (a *demoApp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			a.redraw()
 		}
 		return a, tick()
-	case tea.KeyPressMsg:
-		return a, tea.Quit
 	}
 	return a, nil
 }
@@ -92,22 +93,24 @@ func (a *demoApp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (a *demoApp) View() tea.View {
 	// MaxWidth truncates the header on narrow windows so it can never pad
 	// the joined frame wider than the canvas.
-	dim := lipgloss.NewStyle().Foreground(lipgloss.Color("240")).MaxWidth(max(a.w, 1))
+	dim := exui.Dim().MaxWidth(max(a.w, 1))
 	header := dim.Render("charts.CellCanvas + charts.Gradient — truecolor plasma, 2 pixels per cell")
 	body := ""
 	if a.canvas != nil {
 		body = a.canvas.String()
 	}
 	v := tea.NewView(lipgloss.JoinVertical(lipgloss.Left, header, body))
-	a.chrome.Apply(&v, a.termH)
-	v.AltScreen = true
+	a.chrome.Frame(&v, a.termH)
 	return v
 }
 
-func main() {
-	exui.Init()
-	app := &demoApp{colors: palette(), chrome: exui.NewChrome(exui.Bind("any key", "quit"))}
-	if _, err := exui.Program(app).Run(); err != nil {
-		exui.Fatal(err)
-	}
+// New builds the cellcanvas page.
+func New() exui.Page {
+	return &demoApp{colors: palette(), chrome: exui.NewChrome(exui.Bind("q", "quit"))}
 }
+
+// Result is always empty: this page is an animation, not a prompt.
+func (a *demoApp) Result() []exui.Field { return nil }
+
+// Shell exposes this page's chrome to the tour host.
+func (a *demoApp) Shell() *exui.Chrome { return a.chrome }

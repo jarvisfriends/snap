@@ -1,12 +1,12 @@
 // Copyright (c) 2026 Jarvis Friends contributors
 // SPDX-License-Identifier: MIT
 
-// Command linechart demos snap/charts' braille line chart model: two live
+// Package linechart implements the `snap_input linechart` subcommand, demoing snap/charts' braille line chart model: two live
 // series (a sine sweep and its noisy echo) stream through ID-routed
 // LineDataMsgs into a LineChartModel that stretches to fill the window —
 // braille dots give 2x4 sub-cell resolution, and overlapping series blend
 // their colors per cell. q quits.
-package main
+package linechart
 
 import (
 	"math"
@@ -68,12 +68,15 @@ func (a *demoApp) step() []charts.LineSeries {
 }
 
 func (a *demoApp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if cmd, done := a.chrome.Update(msg); done {
+		return a, cmd
+	}
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		// Reserve one line for the header (and one for the help bar); the
 		// chart fills the rest.
 		a.w, a.h = msg.Width, msg.Height
-		a.chrome.SetWidth(msg.Width)
+		a.chrome.SetSize(msg.Width, msg.Height)
 		a.chart.SetSize(msg.Width, max(msg.Height-1-a.chrome.Height(), 4))
 		return a, nil
 	case tickMsg:
@@ -84,8 +87,6 @@ func (a *demoApp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			a.chart = c
 		}
 		return a, tick()
-	case tea.KeyPressMsg:
-		return a, tea.Quit
 	}
 	return a, nil
 }
@@ -93,17 +94,18 @@ func (a *demoApp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (a *demoApp) View() tea.View {
 	// MaxWidth truncates the header on narrow windows so it can never pad
 	// the joined frame wider than the chart.
-	dim := lipgloss.NewStyle().Foreground(lipgloss.Color("240")).MaxWidth(max(a.w, 1))
+	dim := exui.Dim().MaxWidth(max(a.w, 1))
 	header := dim.Render("braille line chart — 2x4 dots per cell, blended overlaps")
 	v := tea.NewView(lipgloss.JoinVertical(lipgloss.Left, header, a.chart.View().Content))
-	a.chrome.Apply(&v, a.h)
-	v.AltScreen = true
+	a.chrome.Frame(&v, a.h)
 	return v
 }
 
-func main() {
-	exui.Init()
-	if _, err := exui.Program(newDemo()).Run(); err != nil {
-		exui.Fatal(err)
-	}
-}
+// New builds the linechart page.
+func New() exui.Page { return newDemo() }
+
+// Result is always empty: this page is a live stream, not a prompt.
+func (a *demoApp) Result() []exui.Field { return nil }
+
+// Shell exposes this page's chrome to the tour host.
+func (a *demoApp) Shell() *exui.Chrome { return a.chrome }

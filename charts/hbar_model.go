@@ -4,6 +4,8 @@
 package charts
 
 import (
+	"image/color"
+
 	tea "charm.land/bubbletea/v2"
 )
 
@@ -20,6 +22,11 @@ type HBarModel struct {
 	Frame
 
 	pct float64
+
+	// GradientFrom/GradientTo, when both non-nil, render the bar via
+	// HBarGradient instead of the plain two-glyph HBar.
+	GradientFrom color.Color
+	GradientTo   color.Color
 }
 
 // NewHBar returns a horizontal bar model consuming messages with the given ID.
@@ -46,6 +53,9 @@ func (m *HBarModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m *HBarModel) View() tea.View {
 	width := capOr(m.MaxWidth, defaultHBarWidth)
+	if m.GradientFrom != nil && m.GradientTo != nil {
+		return tea.NewView(m.record(HBarGradient(m.pct, width, m.GradientFrom, m.GradientTo)))
+	}
 	return tea.NewView(m.record(HBar(m.pct, width)))
 }
 

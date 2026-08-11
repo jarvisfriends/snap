@@ -22,117 +22,141 @@ surface to its users at runtime.
 
 Every demo below lives in `examples/` and is a VHS tape rendered in the
 official vhs container. Regenerate them all with
-`go -C tools/rendertapes run .` (Docker or Podman; the tool cross-compiles
-each example, runs every `*.tape` in parallel, and drops gifs next to tapes).
+`go -C tools/rendertapes run .` (Docker or Podman; the tool cross-compiles the
+`snap_input` binary once, runs every `examples/*.tape` in parallel, and writes
+the gifs to `dist/`). Add `-verbose` to stream the container's own output.
+
+Gifs are build artifacts, not committed files, so the gallery below links to
+release assets: `releases/latest/download/<command>.gif`. That URL is fixed
+per demo, so the markdown never needs rewriting when a gif changes.
+`.github/workflows/demos.yml` attaches the rendered gifs to a release — on
+publish for a new tag, and on merge to the default branch to refresh the
+latest one. It also renders (without attaching) on PRs that touch tapes, to
+prove they still record.
+
+So the gallery always shows the newest release's assets, which the default
+branch keeps current; superseded tags keep the gifs they were last built
+with, which is where the history lives. GitHub's image proxy may serve a
+cached frame for a while after a refresh.
 
 The examples also work as script-friendly input tools: each one renders its
 TUI on stderr and writes only the selected value to stdout, exiting 1 on
 cancel.
 
 ```bash
-date=$(go run ./examples/datepicker)   # -> 2026-07-12
-when=$(go run ./examples/timepicker)   # -> 08:30:45
-svc=$(go run ./examples/table)         # -> api
+date=$(go run ./examples/snap_input datepicker)   # -> 2026-07-12
+when=$(go run ./examples/snap_input timepicker)   # -> 08:30:45
+svc=$(go run ./examples/snap_input table)         # -> api
 ```
+
+Run it with no command to tour every example in one program instead: tab and
+shift+tab (or alt+←/→) change page, ctrl+b shows the page strip, ctrl+t cycles
+the theme, and q ends the tour, printing each visited page's confirmed value.
 
 Every example shows the same snap status bar with key bindings; pass
 `--no-help` to hide it.
 
-Prebuilt binaries for every example ship as their own signed, per-OS/arch
-release archive (`snap_<example>_<os>_<arch>`) on the
+Every example is a subcommand of one prebuilt binary, shipped as a signed
+per-OS/arch archive (`snap_snap_input_<os>_<arch>`) on the
 [Releases page](https://github.com/jarvisfriends/snap/releases) — no Go
-toolchain required to use one as a scripting tool. See
+toolchain required to use it as a scripting tool. See
 [`examples/USAGE.md`](examples/USAGE.md) for the full calling convention.
 
-### Date picker
+### Pickers
+
+These allow user input and when exited will output what the user picked in stdout.
+
+#### Date
 
 Calendar date picker with click-to-confirm days, header month/year focus,
 and keyboard/wheel paging.
 
-![Date picker demo](examples/datepicker/demo.gif)
+![Date picker demo](https://github.com/jarvisfriends/snap/releases/latest/download/datepicker.gif)
 
-### Time picker
+#### Time
 
 `HH:MM(:SS)` time field with per-column dropdowns, type-ahead, and
 validation.
 
-![Time picker demo](examples/timepicker/demo.gif)
+![Time picker demo](https://github.com/jarvisfriends/snap/releases/latest/download/timepicker.gif)
 
-### Charts
-
-Sparklines, horizontal bars, pie, and sankey charts rendered as
-ID-routed tea models with stretch-to-fit sizing.
-
-![Charts demo](examples/charts/demo.gif)
-
-### Line chart
-
-Braille line chart showing rolling streams with compact terminal-cell
-rendering.
-
-![Line chart demo](examples/linechart/demo.gif)
-
-### Cell canvas
-
-Whole-cell canvas and gradient helpers for animated truecolor effects.
-
-![Cell canvas demo](examples/cellcanvas/demo.gif)
-
-### Pickers
+#### Directory
 
 Drive-aware directory picker and related path-editing interactions.
 
-![Pickers demo](examples/pickers/demo.gif)
-
-### Context menu
-
-Right-click menu with keyboard parity and terminal-edge clamping.
-
-![Context menu demo](examples/menu/demo.gif)
-
-### Scrollbar
-
-Scrollbar presets with click/drag mapping through `OffsetAt`.
-
-![Scrollbar demo](examples/scrollbar/demo.gif)
+![Pickers demo](https://github.com/jarvisfriends/snap/releases/latest/download/pickers.gif)
 
 ### Table
 
 Sortable/filterable table with row activation and keyboard/mouse support.
 
-![Table demo](examples/table/demo.gif)
-
-### Dependencies modal
-
-Build info and dependency reader rendered through the status info modal.
-
-![Dependencies demo](examples/dependencies/demo.gif)
-
-### Forms helpers
-
-Parser-backed form validation for required fields, durations, ISO dates,
-and list splitting.
-
-![Forms demo](examples/forms/demo.gif)
+![Table demo](https://github.com/jarvisfriends/snap/releases/latest/download/table.gif)
 
 ### Pills and breadcrumbs
 
 Segmented pills, shape variants, and breadcrumb styling helpers from the
 shared style contract.
 
-![Pills demo](examples/pills/demo.gif)
+![Pills demo](https://github.com/jarvisfriends/snap/releases/latest/download/pills.gif)
 
-### Navigation
+### Forms helpers
+
+Parser-backed form validation for required fields, durations, ISO dates,
+and list splitting.
+
+![Forms demo](https://github.com/jarvisfriends/snap/releases/latest/download/forms.gif)
+
+#### Context menu
+
+Right-click menu with keyboard parity and terminal-edge clamping.
+
+![Context menu demo](https://github.com/jarvisfriends/snap/releases/latest/download/menu.gif)
+
+### Full Screen helpers
+
+#### Navigation
 
 Tabs, Sidebar, and MinimalTopNav behind one navigator contract.
 
-![Navigation demo](examples/navigation/demo.gif)
+![Navigation demo](https://github.com/jarvisfriends/snap/releases/latest/download/navigation.gif)
 
-### Status and notifications
+#### Status and notifications
 
 Status bar surfaces plus notification toast/history flows.
 
-![Status demo](examples/status/demo.gif)
+![Status demo](https://github.com/jarvisfriends/snap/releases/latest/download/status.gif)
+
+#### Scrollbar
+
+Scrollbar presets with click/drag mapping through `OffsetAt`.
+
+![Scrollbar demo](https://github.com/jarvisfriends/snap/releases/latest/download/scrollbar.gif)
+
+#### Dependencies modal
+
+Build info and dependency reader rendered through the status info modal.
+
+![Dependencies demo](https://github.com/jarvisfriends/snap/releases/latest/download/dependencies.gif)
+
+#### Charts
+
+Sparklines, horizontal bars, pie, and sankey charts rendered as
+ID-routed tea models with stretch-to-fit sizing.
+
+![Charts demo](https://github.com/jarvisfriends/snap/releases/latest/download/charts.gif)
+
+#### Line chart
+
+Braille line chart showing rolling streams with compact terminal-cell
+rendering.
+
+![Line chart demo](https://github.com/jarvisfriends/snap/releases/latest/download/linechart.gif)
+
+#### Cell canvas
+
+Whole-cell canvas and gradient helpers for animated truecolor effects.
+
+![Cell canvas demo](https://github.com/jarvisfriends/snap/releases/latest/download/cellcanvas.gif)
 
 ### Supporting packages (no standalone GIF)
 

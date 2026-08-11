@@ -42,20 +42,26 @@ func BrailleLineChart(series []LineSeries, charW, charH int, maxVal float64) (ch
 	}
 	pixelW := charW * 2 // braille cells are 2 dots wide
 
-	// Sample each series into the pixel window: last pixelW values,
-	// right-aligned, NaN where there's no data yet.
+	// Sample each series into the pixel window: the last pixelW values, or
+	// a shorter history stretched across the full width so the chart always
+	// spans the frame instead of huddling right while the buffer fills.
 	sampled := make([][]float64, len(series))
 	peak := 0.0
 	for si, s := range series {
 		samples := make([]float64, pixelW)
-		for i := range samples {
-			samples[i] = math.NaN()
-		}
 		data := s.Data
-		if len(data) > pixelW {
-			data = data[len(data)-pixelW:]
+		switch {
+		case len(data) >= pixelW:
+			copy(samples, data[len(data)-pixelW:])
+		case len(data) > 0:
+			for i := range samples {
+				samples[i] = data[i*len(data)/pixelW]
+			}
+		default:
+			for i := range samples {
+				samples[i] = math.NaN()
+			}
 		}
-		copy(samples[pixelW-len(data):], data)
 		for _, v := range data {
 			if v > peak {
 				peak = v

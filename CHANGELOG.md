@@ -9,8 +9,35 @@ on the [GitHub releases page](https://github.com/jarvisfriends/snap/releases).
 
 ## [Unreleased]
 
+### Added
+
+- Running `snap_input` with no command tours every example in one program:
+  tab/shift+tab (or alt+←/→) change page, ctrl+b shows the page strip, ctrl+t
+  cycles the theme, and q prints each visited page's confirmed value,
+  namespaced by page. Single-command runs are unchanged — they confirm and
+  exit, with un-namespaced keys.
+- `styles.PickerStyles(*AppStyle)` and `styles.ApplyTimeFieldTheme(...)` map an
+  app palette onto `pickers` and `timepicker`, replacing the fixed ANSI colors
+  those components used to hardcode.
+- `charts.HBarGradient` renders a horizontal bar as a two-color gradient;
+  sparklines gained gradient rendering and stretch-to-fit for short series.
+
 ### Changed
 
+- **Breaking (examples):** every example is now a subcommand of a single
+  `examples/snap_input` binary rather than its own `main` package. Where you
+  ran `go run ./examples/datepicker`, now run
+  `go run ./examples/snap_input datepicker`. Releases ship one `snap_input`
+  archive per OS/architecture in place of the previous fourteen per-example
+  archives.
+- Example selections can be formatted with `--output pretty|values|json|yaml|xml`.
+- Demo GIFs are no longer committed. Tapes live at `examples/<command>.tape`
+  and `tools/rendertapes` renders them into `dist/`; `-verbose` streams the
+  container's own output plus every command it runs. The README gallery links
+  to release assets (`releases/latest/download/<command>.gif`), so the URL is
+  fixed per demo, the markdown never needs rewriting, and every tag keeps the
+  demo it was cut with. `.github/workflows/demos.yml` attaches the gifs on
+  release publish and refreshes the latest release on merge.
 - `keys.AppKeyMap.BindingDefs()` now returns only the app-global, mutually
   exclusive shortcuts intended for a key-rebinding settings UI. The
   component-level widget keys (Sort, Filter, Open, Cancel, Save, Delete,

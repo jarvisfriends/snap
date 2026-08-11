@@ -1,19 +1,23 @@
 # VHS demo for snap/timepicker (TimeFieldModel) — regenerate from the repo
 # root with:
 #   go -C tools/rendertapes run .
-# (rendertapes cross-compiles the linux demo binary and runs this tape in the
-# official vhs container; gifs are build artifacts, not diffable sources)
+# (rendertapes cross-compiles ./dist/snap_input and runs this tape in the
+# official vhs container; gifs land in gitignored dist/). To run one tape by
+# hand, build that binary first — the Require line below fails fast without it.
 Set WindowBar Colorful
 Set WindowBarSize 40
-Output examples/timepicker/demo.gif
+Set Framerate 30
+Set Theme "Catppuccin Macchiato"
+Require ./dist/snap_input
+Output ./dist/timepicker.gif
 Set FontFamily "JetBrainsMono Nerd Font"
-Set FontSize 36
-Set Padding 14
-Set Width 1200
-Set Height 800
+Set FontSize 28
+Set Padding 5
+Set Width 1300
+Set Height 700
 Set TypingSpeed 60ms
 Hide
-Type "./examples/timepicker/demo-bin"
+Type "./dist/snap_input timepicker"
 Enter
 Sleep 3s
 Show
@@ -37,3 +41,4 @@ Sleep 800ms
 # enter confirms the field: the time is written to stdout
 Enter
 Sleep 2500ms
+Type "Ctrl+C"
