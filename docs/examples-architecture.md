@@ -123,9 +123,10 @@ disabled-item support, so it buys little; not recommended now.
    above). Fix: adapters + AppKeyMap.
 7. **Per-repo demo pipelines diverged** — inspector rendered at release time
    (dirty-tree failure), snap committed gifs, tui-base committed gifs with a
-   stale GIF_COVERAGE doc. Now unified: gifs are never committed; `vhs
-   publish` hosts them and markdown links point at the hosted URLs
-   (`rendertapes -publish` automates render→publish→rewrite for snap).
+   stale GIF_COVERAGE doc. Now unified: gifs are never committed; `rendertapes`
+   renders them into `dist/` and CI attaches them to a release, so markdown
+   links at `releases/latest/download/<name>.gif` stay fixed while each tag
+   keeps its own copy.
 8. **Version pin drift** — stringer was pinned at v0.47.0 while go.mod moved
    to x/tools v0.48.0; Renovate annotations now bump pins, but the pin should
    be derived from go.mod in CI to make drift impossible.

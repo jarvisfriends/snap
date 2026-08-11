@@ -10,254 +10,144 @@ import (
 	"testing"
 )
 
-// vhsPublishOutput is the tail of a real successful `vhs publish` run. The
-// hosted link appears four times in three shapes, so the parser has to pick
-// the bare one and ignore the badge.
-const vhsPublishOutput = `Creating ./dist/timepicker.gif...
-Publishing ./dist/timepicker.gif...
-Done!
+// writeTape drops a tape into <root>/examples and returns its absolute path,
+// matching what findTapes hands to tapeGifs.
+func writeTape(t *testing.T, root, name, body string) string {
+	t.Helper()
+	dir := filepath.Join(root, "examples")
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	p := filepath.Join(dir, name+".tape")
+	if err := os.WriteFile(p, []byte(body), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	return p
+}
 
-  Share your GIF with Markdown:
-  ![Made with VHS](https://vhs.charm.sh/vhs-3ojYKOtCdS5WoeeQwaqizs.gif)
-
-  Or HTML (with badge):
-  <img src="https://vhs.charm.sh/vhs-3ojYKOtCdS5WoeeQwaqizs.gif" alt="Made with VHS">
-  <a href="https://vhs.charm.sh">
-    <img src="https://stuff.charm.sh/vhs/badge.svg">
-  </a>
-
-  Or link to it:
-  https://vhs.charm.sh/vhs-3ojYKOtCdS5WoeeQwaqizs.gif
-`
-
-func TestPublishedURL(t *testing.T) {
+// TestTapeGifsReadsOutput: the gif path comes from the tape's own Output
+// directive, so moving where gifs land needs no change here. The "./" prefix
+// the tapes use is normalised away so the path matches the repo-relative form
+// everything else speaks.
+func TestTapeGifsReadsOutput(t *testing.T) {
 	t.Parallel()
 
-	const want = "https://vhs.charm.sh/vhs-3ojYKOtCdS5WoeeQwaqizs.gif"
-	if got := publishedURL(vhsPublishOutput); got != want {
-		t.Errorf("publishedURL() = %q; want %q", got, want)
+	root := t.TempDir()
+	tape := writeTape(t, root, "table", "Set Width 1300\nOutput ./dist/table.gif\nType \"hi\"\n")
+
+	gifs, err := tapeGifs(root, []string{tape})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(gifs) != 1 {
+		t.Fatalf("got %d gifs; want 1", len(gifs))
+	}
+	if gifs[0].gif != "dist/table.gif" {
+		t.Errorf("gif = %q; want %q", gifs[0].gif, "dist/table.gif")
+	}
+	if gifs[0].tape != "examples/table.tape" {
+		t.Errorf("tape = %q; want %q", gifs[0].tape, "examples/table.tape")
 	}
 }
 
-// TestPublishedURLRejectsNonGif pins the two near-misses in that output: the
-// badge svg and the bare hosting root behind the badge anchor.
-func TestPublishedURLRejectsNonGif(t *testing.T) {
+// TestTapeGifsIgnoresNonGifOutput: VHS can also emit mp4/webm/frame dirs, and
+// only gifs are shown in the docs.
+func TestTapeGifsIgnoresNonGifOutput(t *testing.T) {
+	t.Parallel()
+
+	root := t.TempDir()
+	tape := writeTape(t, root, "table", "Output ./dist/table.mp4\nOutput ./dist/table.gif\n")
+
+	gifs, err := tapeGifs(root, []string{tape})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(gifs) != 1 || gifs[0].gif != "dist/table.gif" {
+		t.Errorf("gifs = %+v; want only the gif Output", gifs)
+	}
+}
+
+// TestTapeGifsRequiresOutput: a tape with no gif Output renders nothing the
+// gallery can show, which is a mistake worth catching before a render.
+func TestTapeGifsRequiresOutput(t *testing.T) {
+	t.Parallel()
+
+	root := t.TempDir()
+	tape := writeTape(t, root, "table", "Set Width 1300\nType \"hi\"\n")
+
+	if _, err := tapeGifs(root, []string{tape}); err == nil {
+		t.Fatal("a tape with no gif Output should fail")
+	}
+}
+
+// TestTapeGifsRejectsEscapingOutput: Output is relative to the container
+// mount, i.e. the repo root, so a path climbing out of it would write
+// somewhere the repo does not own.
+func TestTapeGifsRejectsEscapingOutput(t *testing.T) {
 	t.Parallel()
 
 	for name, out := range map[string]string{
-		"badge only":   `<img src="https://stuff.charm.sh/vhs/badge.svg">`,
-		"anchor only":  `https://vhs.charm.sh`,
-		"upload error": "Creating ./dist/timepicker.gif...\nEOF\n",
-		"empty":        "",
+		"parent":   "../evil.gif",
+		"absolute": "/tmp/evil.gif",
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
-			if got := publishedURL(out); got != "" {
-				t.Errorf("publishedURL(%q) = %q; want \"\"", out, got)
+			root := t.TempDir()
+			tape := writeTape(t, root, "table", "Output "+out+"\n")
+			_, err := tapeGifs(root, []string{tape})
+			if err == nil {
+				t.Fatalf("Output %q should be rejected", out)
+			}
+			if !strings.Contains(err.Error(), "escapes the repo root") {
+				t.Errorf("error = %v; want an escape complaint", err)
 			}
 		})
 	}
 }
 
-// TestURLPath: the recorded URL lands beside the tape, named after the gif,
-// never in dist/ where goreleaser --clean would delete it.
-func TestURLPath(t *testing.T) {
+// TestTapeGifsDedupes: several tapes writing the same gif yield one entry, so
+// a release upload does not attach the same asset twice.
+func TestTapeGifsDedupes(t *testing.T) {
 	t.Parallel()
 
-	root := filepath.FromSlash("/repo")
-	got := urlPath(root, tapeGif{tape: "examples/timepicker.tape", gif: "dist/timepicker.gif"})
-	want := filepath.Join(root, "examples", "timepicker.gif.url")
-	if got != want {
-		t.Errorf("urlPath() = %q; want %q", got, want)
-	}
-}
+	root := t.TempDir()
+	a := writeTape(t, root, "a", "Output ./dist/shared.gif\n")
+	b := writeTape(t, root, "b", "Output ./dist/shared.gif\n")
 
-// newPublishRoot builds a repo-shaped temp dir: tapes under examples/, gifs
-// under dist/, and returns the root plus a helper to write a URL record.
-func newPublishRoot(t *testing.T) (root string, writeGif func(name string, size int), writeRec func(name, url, hash string)) {
-	t.Helper()
-	root = t.TempDir()
-	for _, d := range []string{"examples", "dist"} {
-		if err := os.MkdirAll(filepath.Join(root, d), 0o700); err != nil {
-			t.Fatal(err)
-		}
-	}
-	writeGif = func(name string, size int) {
-		t.Helper()
-		p := filepath.Join(root, "dist", name+".gif")
-		if err := os.WriteFile(p, []byte(strings.Repeat("g", size)), 0o600); err != nil {
-			t.Fatal(err)
-		}
-	}
-	writeRec = func(name, url, hash string) {
-		t.Helper()
-		if err := writeRecord(filepath.Join(root, "examples", name+".gif.url"), url, hash); err != nil {
-			t.Fatal(err)
-		}
-	}
-	return root, writeGif, writeRec
-}
-
-func tg(name string) tapeGif {
-	return tapeGif{tape: "examples/" + name + ".tape", gif: "dist/" + name + ".gif"}
-}
-
-// TestPlanPublishSkipsUnchanged: a gif whose bytes match its recorded upload
-// costs no request, but still feeds its URL into the doc rewrite so a link
-// deleted from the markdown comes back.
-func TestPlanPublishSkipsUnchanged(t *testing.T) {
-	t.Parallel()
-
-	root, writeGif, writeRec := newPublishRoot(t)
-	writeGif("table", 128)
-	hash, err := fileHash(filepath.Join(root, "dist", "table.gif"))
+	gifs, err := tapeGifs(root, []string{a, b})
 	if err != nil {
 		t.Fatal(err)
 	}
-	writeRec("table", "https://vhs.charm.sh/vhs-abc.gif", hash)
+	if len(gifs) != 1 {
+		t.Errorf("gifs = %+v; want one entry for the shared output", gifs)
+	}
+}
 
-	pending, links, err := planPublish(root, []tapeGif{tg("table")}, publishPolicy{maxBytes: 10 << 20})
-	if err != nil {
+// TestReportGifSizesFailsOnMissingGif: a tape that declared an Output but
+// wrote nothing is a silent-failure case worth surfacing.
+func TestReportGifSizesFailsOnMissingGif(t *testing.T) {
+	t.Parallel()
+
+	root := t.TempDir()
+	tape := writeTape(t, root, "table", "Output ./dist/table.gif\n")
+
+	if err := reportGifSizes(root, []string{tape}, 0); err == nil {
+		t.Fatal("a declared-but-unwritten gif should fail")
+	}
+}
+
+func TestReportGifSizesPasses(t *testing.T) {
+	t.Parallel()
+
+	root := t.TempDir()
+	tape := writeTape(t, root, "table", "Output ./dist/table.gif\n")
+	if err := os.MkdirAll(filepath.Join(root, "dist"), 0o700); err != nil {
 		t.Fatal(err)
 	}
-	if len(pending) != 0 {
-		t.Errorf("pending = %d; want 0 (gif is unchanged)", len(pending))
-	}
-	if len(links) != 1 || links[0].url != "https://vhs.charm.sh/vhs-abc.gif" {
-		t.Errorf("links = %+v; want the recorded URL carried through", links)
-	}
-}
-
-// TestPlanPublishForce re-uploads an unchanged gif when asked.
-func TestPlanPublishForce(t *testing.T) {
-	t.Parallel()
-
-	root, writeGif, writeRec := newPublishRoot(t)
-	writeGif("table", 128)
-	hash, err := fileHash(filepath.Join(root, "dist", "table.gif"))
-	if err != nil {
+	if err := os.WriteFile(filepath.Join(root, "dist", "table.gif"), []byte("gif"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	writeRec("table", "https://vhs.charm.sh/vhs-abc.gif", hash)
-
-	pending, _, err := planPublish(root, []tapeGif{tg("table")}, publishPolicy{maxBytes: 10 << 20, force: true})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(pending) != 1 {
-		t.Errorf("pending = %d; want 1 under -force-publish", len(pending))
-	}
-}
-
-// TestPlanPublishChangedAndUnrecorded: a re-rendered gif and a never-published
-// one both queue, and the re-rendered one keeps its old URL as the rewrite's
-// "from" side so docs already pointing at the hosted copy still get updated.
-func TestPlanPublishChangedAndUnrecorded(t *testing.T) {
-	t.Parallel()
-
-	root, writeGif, writeRec := newPublishRoot(t)
-	writeGif("table", 128)
-	writeGif("menu", 64)
-	writeRec("table", "https://vhs.charm.sh/vhs-old.gif", "stalehash")
-
-	pending, links, err := planPublish(root, []tapeGif{tg("table"), tg("menu")}, publishPolicy{maxBytes: 10 << 20})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(pending) != 2 {
-		t.Fatalf("pending = %d; want 2", len(pending))
-	}
-	if len(links) != 0 {
-		t.Errorf("links = %+v; want none until the uploads land", links)
-	}
-	for _, j := range pending {
-		switch j.tg.gif {
-		case "dist/table.gif":
-			if j.prev != "https://vhs.charm.sh/vhs-old.gif" {
-				t.Errorf("table prev = %q; want the superseded URL", j.prev)
-			}
-		case "dist/menu.gif":
-			if j.prev != "" {
-				t.Errorf("menu prev = %q; want empty on a first publish", j.prev)
-			}
-		}
-	}
-}
-
-// TestPlanPublishRejectsOversized names every offender at once, before any
-// upload spends the rate limit.
-func TestPlanPublishRejectsOversized(t *testing.T) {
-	t.Parallel()
-
-	root, writeGif, _ := newPublishRoot(t)
-	writeGif("cellcanvas", 4096)
-	writeGif("linechart", 4096)
-	writeGif("menu", 16)
-
-	_, _, err := planPublish(root, []tapeGif{tg("cellcanvas"), tg("linechart"), tg("menu")},
-		publishPolicy{maxBytes: 1024})
-	if err == nil {
-		t.Fatal("oversized gifs should fail the plan")
-	}
-	for _, want := range []string{"cellcanvas", "linechart"} {
-		if !strings.Contains(err.Error(), want) {
-			t.Errorf("error %q missing %q", err, want)
-		}
-	}
-	if strings.Contains(err.Error(), "menu") {
-		t.Errorf("error %q should not name the in-limit gif", err)
-	}
-}
-
-// TestPlanPublishRejectsUnrendered: publishing without rendering first is a
-// setup mistake, not something to discover mid-upload.
-func TestPlanPublishRejectsUnrendered(t *testing.T) {
-	t.Parallel()
-
-	root, _, _ := newPublishRoot(t)
-	if _, _, err := planPublish(root, []tapeGif{tg("table")}, publishPolicy{maxBytes: 10 << 20}); err == nil {
-		t.Fatal("a missing gif should fail the plan")
-	}
-}
-
-func TestRecordRoundTrip(t *testing.T) {
-	t.Parallel()
-
-	dir := t.TempDir()
-	p := filepath.Join(dir, "table.gif.url")
-	if err := writeRecord(p, "https://vhs.charm.sh/vhs-abc.gif", "deadbeef"); err != nil {
-		t.Fatal(err)
-	}
-	url, hash := readRecord(p)
-	if url != "https://vhs.charm.sh/vhs-abc.gif" || hash != "deadbeef" {
-		t.Errorf("readRecord = (%q, %q); want the written pair", url, hash)
-	}
-}
-
-// TestReadRecordURLOnly: a record written before hashes existed (or seeded by
-// hand) still yields its URL, and the empty hash forces one re-upload.
-func TestReadRecordURLOnly(t *testing.T) {
-	t.Parallel()
-
-	dir := t.TempDir()
-	p := filepath.Join(dir, "table.gif.url")
-	if err := os.WriteFile(p, []byte("https://vhs.charm.sh/vhs-abc.gif\n"), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	url, hash := readRecord(p)
-	if url != "https://vhs.charm.sh/vhs-abc.gif" {
-		t.Errorf("url = %q; want the recorded URL", url)
-	}
-	if hash != "" {
-		t.Errorf("hash = %q; want empty", hash)
-	}
-}
-
-func TestReadRecordMissing(t *testing.T) {
-	t.Parallel()
-
-	url, hash := readRecord(filepath.Join(t.TempDir(), "nope.gif.url"))
-	if url != "" || hash != "" {
-		t.Errorf("readRecord(missing) = (%q, %q); want empty", url, hash)
+	if err := reportGifSizes(root, []string{tape}, 5<<20); err != nil {
+		t.Errorf("reportGifSizes() = %v; want nil", err)
 	}
 }

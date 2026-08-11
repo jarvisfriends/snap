@@ -1,21 +1,30 @@
 name: Demos
 
 # The demo gifs are build artifacts rendered into dist/, not committed sources
-# (.gitignore), so the README gallery has to point at hosted copies. This
-# workflow owns that pipeline, because rendering needs Docker and a
-# maintainer's laptop is not a reliable place to keep 14 hosted URLs fresh:
+# (.gitignore), so the README gallery points at release assets instead:
+# releases/latest/download/<name>.gif. That URL is fixed per demo, so nothing
+# ever has to rewrite the markdown — this workflow only has to make sure the
+# assets exist on the right release.
 #
-#   - On a PR that touches tapes or example sources, render every tape in the
-#     vhs container and upload the gifs as an artifact. Nothing is published:
+#   - On a PR that touches tapes or example sources, render every tape and
+#     upload the gifs as a build artifact. Nothing is attached to a release:
 #     this only proves the tapes still record.
-#   - On merge to the default branch (or on demand), render, `vhs publish`
-#     each gif, and open a PR carrying the refreshed examples/*.gif.url files
-#     and the rewritten markdown links.
+#   - On a published release, render and attach the gifs to that tag, which
+#     is what gives each version its own copy.
+#   - On merge to the default branch, refresh the gifs on the latest release
+#     so the README gallery follows the default branch without a new tag.
 #
-# rendertapes does the work in both cases; see tools/rendertapes/main.go.
+# rendertapes does the rendering in every case; see tools/rendertapes/main.go.
 
 on:
   workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag to attach gifs to (default: latest release)'
+        required: false
+        type: string
+  release:
+    types: [published]
   pull_request:
     branches: [ "main", "master" ]
     paths:
@@ -24,8 +33,6 @@ on:
       - '.github/workflows/demos.yml'
   push:
     branches: [ "main", "master" ]
-    # Deliberately excludes *.gif.url and *.md so this workflow's own PR,
-    # once merged, cannot retrigger it.
     paths:
       - 'examples/*.tape'
       - 'examples/**/*.go'
@@ -33,8 +40,8 @@ on:
 
 concurrency:
   group: demos-${{ github.ref }}
-  # Superseded PR renders are worth cancelling; a publish in flight is not —
-  # it would leave some <gif>.url files updated and the rest stale.
+  # Superseded PR renders are worth cancelling; an upload in flight is not —
+  # it would leave a release carrying some new gifs and some stale ones.
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
@@ -42,7 +49,7 @@ permissions:
 
 jobs:
   render:
-    name: Render tapes (no publish)
+    name: Render tapes (no upload)
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-24.04
     # 14 tapes with multi-second Sleep directives, rendered on a worker pool.
@@ -54,7 +61,7 @@ jobs:
         with:
           go-version: '1.26.x'
       - name: Render every tape
-        run: go -C tools/rendertapes run .
+        run: go -C tools/rendertapes run . -verbose
       - name: Upload rendered gifs
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
@@ -62,65 +69,52 @@ jobs:
           path: dist/*.gif
           if-no-files-found: error
 
-  publish:
-    name: Publish gifs and refresh doc links
+  attach:
+    name: Attach gifs to a release
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     permissions:
       contents: write
-      pull-requests: write
-    env:
-      # secrets can't be tested directly in step `if:`; hoist to env
-      HAS_RELEASE_PAT: ${{ secrets.RELEASE_PAT != '' }}
-      BRANCH: demos/refresh-gif-links
     steps:
-      # A PR opened with the default GITHUB_TOKEN does not trigger workflow
-      # runs, so its checks would sit empty. RELEASE_PAT (already used by
-      # auto-release) avoids that; without it the PR still opens, but a
-      # maintainer has to nudge CI.
-      - name: Checkout with PAT
-        if: env.HAS_RELEASE_PAT == 'true'
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          token: ${{ secrets.RELEASE_PAT }}
-      - name: Checkout with default token
-        if: env.HAS_RELEASE_PAT != 'true'
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: Set up Go
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         with:
           go-version: '1.26.x'
-      - name: Render and publish every tape
-        run: go -C tools/rendertapes run . -publish
-      - name: Open a PR with the refreshed links
+      - name: Render every tape
+        run: go -C tools/rendertapes run . -verbose
+      - name: Resolve the target release
+        id: target
         env:
-          GH_TOKEN: ${{ secrets.RELEASE_PAT || github.token }}
+          GH_TOKEN: ${{ github.token }}
+          EVENT: ${{ github.event_name }}
+          INPUT_TAG: ${{ inputs.tag }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
         run: |
           set -euo pipefail
-          if git diff --quiet && [ -z "$(git status --porcelain -- '*.gif.url')" ]; then
-            echo "Hosted links already current — nothing to open."
-            exit 0
+          if [ "$EVENT" = 'release' ]; then
+            tag="$RELEASE_TAG"
+          elif [ -n "$INPUT_TAG" ]; then
+            tag="$INPUT_TAG"
+          else
+            # No release yet means nothing to attach to; the gallery stays
+            # broken until the first tag, which is not worth failing over.
+            tag="$(gh release view --json tagName --jq .tagName 2>/dev/null || true)"
           fi
-          git config user.name 'github-actions[bot]'
-          git config user.email 'github-actions[bot]@users.noreply.github.com'
-          git switch -c "$BRANCH"
-          git add -A -- '*.md' '*.gif.url'
-          git commit -m 'demos: refresh hosted gif links'
-          git push --force origin "$BRANCH"
-          if [ -n "$(gh pr list --head "$BRANCH" --state open --json number --jq '.[].number')" ]; then
-            echo "Existing PR for $BRANCH updated with a new push."
-            exit 0
+          if [ -z "$tag" ]; then
+            echo "No release to attach gifs to — skipping." >&2
           fi
-          cat > "$RUNNER_TEMP/pr-body.md" <<'EOF'
-          Rendered every VHS tape in the vhs container, published each gif to
-          Charm hosting, and repointed the markdown gallery at the new URLs.
-
-          Generated by `.github/workflows/demos.yml`; the rendering, uploading,
-          and link rewriting all live in `tools/rendertapes`.
-          EOF
-          gh pr create \
-            --base "${GITHUB_REF_NAME}" \
-            --head "$BRANCH" \
-            --title 'demos: refresh hosted gif links' \
-            --body-file "$RUNNER_TEMP/pr-body.md"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+      - name: Attach gifs
+        if: steps.target.outputs.tag != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.target.outputs.tag }}
+        run: |
+          set -euo pipefail
+          # --clobber so refreshing the latest release replaces the previous
+          # gifs rather than failing on a name collision.
+          gh release upload "$TAG" dist/*.gif --clobber
+          count=$(find dist -maxdepth 1 -name '*.gif' | wc -l)
+          echo "Attached $count gif(s) to $TAG."

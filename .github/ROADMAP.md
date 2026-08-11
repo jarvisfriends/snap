@@ -27,25 +27,24 @@ remain); deriving tool version pins from go.mod in CI.
 
 ## Demo pipeline (state as of 2026-08-01)
 
-Gifs are no longer committed anywhere: `tools/rendertapes -publish`
-renders every tape, uploads via `vhs publish`, writes `<name>.gif.url`
-beside each tape, and rewrites markdown image links to the hosted URLs.
-Gif paths come from each tape's own `Output` directive, and a re-publish
-repoints links from the previously published URL, so the rewrite is
-repeatable rather than one-shot. `-relink` replays the recorded URLs into
-markdown with no Docker and no network.
+Gifs are no longer committed anywhere: `tools/rendertapes` renders every
+tape into `dist/`, and the README gallery points at release assets
+(`releases/latest/download/<name>.gif`). Gif paths come from each tape's
+own `Output` directive. Because the asset URL is fixed per demo, nothing
+rewrites markdown and no sidecar records a link — the earlier Charm
+`vhs publish` flow, its `<name>.gif.url` records, and the rate-limit
+pacing it needed are all gone.
 
 `.github/workflows/demos.yml` owns the pipeline: PRs touching tapes or
-example sources render every tape in the vhs container (artifact only, no
-upload); merges to the default branch render, publish, and open a PR with
-the refreshed `.gif.url` files and rewritten links. Open items:
+example sources render every tape in the vhs container (build artifact
+only); a published release gets its own gifs attached, which is what gives
+each version a visual history; merges to the default branch refresh the
+gifs on the latest release. Open items:
 
 - [ ] Land the demos workflow on the default branch, then run it via
-      `workflow_dispatch` against any branch whose README still names local
-      `dist/` gif paths. Those paths are placeholders the publish step
-      rewrites, so `.lycheeignore` skips them until the real URLs land.
-- [ ] Same publish flow still needed in inspector and tui-base.
-- [ ] Port the `-publish`/`-relink` flow into tui-base's rendertapes copy.
+      `workflow_dispatch` so the current release carries gifs — until then
+      the gallery URLs 404 and `.lycheeignore` skips them.
+- [ ] Same release-asset flow still needed in inspector and tui-base.
 
 ## Ports & adoption still open
 

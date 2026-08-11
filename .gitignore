@@ -10,9 +10,8 @@
 dist/
 
 # The demo binary and the gifs the tapes render both land in dist/, which is
-# already ignored above. The published gif URLs are recorded beside the tapes
-# as examples/*.gif.url and ARE committed: dist/ does not survive a clone, and
-# `goreleaser release --clean` wipes it.
+# already ignored above. The gifs reach readers as release assets, attached by
+# .github/workflows/demos.yml — nothing about them is tracked in the repo.
 examples/*/demo-bin
 examples/*/*.exe
 

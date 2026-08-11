@@ -32,15 +32,12 @@ on the [GitHub releases page](https://github.com/jarvisfriends/snap/releases).
   archives.
 - Example selections can be formatted with `--output pretty|values|json|yaml|xml`.
 - Demo GIFs are no longer committed. Tapes live at `examples/<command>.tape`
-  and render to `dist/`. `tools/rendertapes -publish` renders each tape,
-  uploads it to Charm hosting, records the URL in `examples/<name>.gif.url`,
-  and repoints the markdown gallery; `.github/workflows/demos.yml` keeps that
-  current. `-relink` replays recorded URLs with no Docker and no network, and
-  `-verbose` streams the container's own output plus every command it runs.
-  Each record also stores the sha256 of the uploaded bytes, so `-publish`
-  skips gifs that have not changed; uploads are batched with a pause and
-  retried with backoff against Charm's undocumented rate limit, and gifs over
-  `-max-gif-bytes` are reported before any upload starts.
+  and `tools/rendertapes` renders them into `dist/`; `-verbose` streams the
+  container's own output plus every command it runs. The README gallery links
+  to release assets (`releases/latest/download/<command>.gif`), so the URL is
+  fixed per demo, the markdown never needs rewriting, and every tag keeps the
+  demo it was cut with. `.github/workflows/demos.yml` attaches the gifs on
+  release publish and refreshes the latest release on merge.
 - `keys.AppKeyMap.BindingDefs()` now returns only the app-global, mutually
   exclusive shortcuts intended for a key-rebinding settings UI. The
   component-level widget keys (Sort, Filter, Open, Cancel, Save, Delete,

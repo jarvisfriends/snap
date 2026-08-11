@@ -27,19 +27,17 @@ official vhs container. Regenerate them all with
 the gifs to `dist/`). Add `-verbose` to stream the container's own output.
 
 Gifs are build artifacts, not committed files, so the gallery below links to
-copies hosted by Charm. `.github/workflows/demos.yml` keeps those links fresh:
-it re-renders tapes on PRs that touch them, and on merge it publishes each gif
-and opens a PR with the updated URLs. To do it by hand on a machine with
-Docker or Podman, run `go -C tools/rendertapes run . -publish`.
+release assets: `releases/latest/download/<command>.gif`. That URL is fixed
+per demo, so the markdown never needs rewriting when a gif changes.
+`.github/workflows/demos.yml` attaches the rendered gifs to a release — on
+publish for a new tag, and on merge to the default branch to refresh the
+latest one. It also renders (without attaching) on PRs that touch tapes, to
+prove they still record.
 
-Each hosted URL is recorded in `examples/<command>.gif.url` alongside the
-sha256 of the bytes uploaded, so `-publish` only re-uploads gifs that actually
-changed and `-relink` can repoint the docs with no network at all. Charm's
-hosting rate-limits bursts and caps gif size, so uploads are batched with a
-pause between them and retried with backoff; oversized gifs are reported
-before anything is sent. Tune with `-publish-batch`, `-publish-pause`,
-`-publish-attempts`, `-publish-backoff`, and `-max-gif-bytes`, or re-send an
-unchanged gif with `-force-publish`.
+So the gallery always shows the newest release's assets, which the default
+branch keeps current; superseded tags keep the gifs they were last built
+with, which is where the history lives. GitHub's image proxy may serve a
+cached frame for a while after a refresh.
 
 The examples also work as script-friendly input tools: each one renders its
 TUI on stderr and writes only the selected value to stdout, exiting 1 on
@@ -73,46 +71,46 @@ These allow user input and when exited will output what the user picked in stdou
 Calendar date picker with click-to-confirm days, header month/year focus,
 and keyboard/wheel paging.
 
-![Date picker demo](https://vhs.charm.sh/vhs-3ZJmDUnpesbrtxhVN5gSm1.gif)
+![Date picker demo](https://github.com/jarvisfriends/snap/releases/latest/download/datepicker.gif)
 
 #### Time
 
 `HH:MM(:SS)` time field with per-column dropdowns, type-ahead, and
 validation.
 
-![Time picker demo](https://vhs.charm.sh/vhs-44aMOFdpDYucWehiOOY9GU.gif)
+![Time picker demo](https://github.com/jarvisfriends/snap/releases/latest/download/timepicker.gif)
 
 #### Directory
 
 Drive-aware directory picker and related path-editing interactions.
 
-![Pickers demo](https://vhs.charm.sh/vhs-1W3jutKoXmndJvu8jGZb3l.gif)
+![Pickers demo](https://github.com/jarvisfriends/snap/releases/latest/download/pickers.gif)
 
 ### Table
 
 Sortable/filterable table with row activation and keyboard/mouse support.
 
-![Table demo](https://vhs.charm.sh/vhs-4Jl4q5CFtxbhNLpyWGLdQB.gif)
+![Table demo](https://github.com/jarvisfriends/snap/releases/latest/download/table.gif)
 
 ### Pills and breadcrumbs
 
 Segmented pills, shape variants, and breadcrumb styling helpers from the
 shared style contract.
 
-![Pills demo](https://vhs.charm.sh/vhs-6DJjCDpQBE6MO3kWSFTv6.gif)
+![Pills demo](https://github.com/jarvisfriends/snap/releases/latest/download/pills.gif)
 
 ### Forms helpers
 
 Parser-backed form validation for required fields, durations, ISO dates,
 and list splitting.
 
-![Forms demo](https://vhs.charm.sh/vhs-6f4Uim9rDinkKcxvgyVlsR.gif)
+![Forms demo](https://github.com/jarvisfriends/snap/releases/latest/download/forms.gif)
 
 #### Context menu
 
 Right-click menu with keyboard parity and terminal-edge clamping.
 
-![Context menu demo](https://vhs.charm.sh/vhs-15e5MHRX2uZyxTQqsEcLKk.gif)
+![Context menu demo](https://github.com/jarvisfriends/snap/releases/latest/download/menu.gif)
 
 ### Full Screen helpers
 
@@ -120,45 +118,45 @@ Right-click menu with keyboard parity and terminal-edge clamping.
 
 Tabs, Sidebar, and MinimalTopNav behind one navigator contract.
 
-![Navigation demo](https://vhs.charm.sh/vhs-4bDiplJUoDynmfj87ArnmV.gif)
+![Navigation demo](https://github.com/jarvisfriends/snap/releases/latest/download/navigation.gif)
 
 #### Status and notifications
 
 Status bar surfaces plus notification toast/history flows.
 
-![Status demo](https://vhs.charm.sh/vhs-5DT59S12JGsaD68YC42Cqs.gif)
+![Status demo](https://github.com/jarvisfriends/snap/releases/latest/download/status.gif)
 
 #### Scrollbar
 
 Scrollbar presets with click/drag mapping through `OffsetAt`.
 
-![Scrollbar demo](https://vhs.charm.sh/vhs-3ReBGHQwqCCQX98jDL7bcO.gif)
+![Scrollbar demo](https://github.com/jarvisfriends/snap/releases/latest/download/scrollbar.gif)
 
 #### Dependencies modal
 
 Build info and dependency reader rendered through the status info modal.
 
-![Dependencies demo](https://vhs.charm.sh/vhs-3Q60UYLi5BRuWl0nasFnRz.gif)
+![Dependencies demo](https://github.com/jarvisfriends/snap/releases/latest/download/dependencies.gif)
 
 #### Charts
 
 Sparklines, horizontal bars, pie, and sankey charts rendered as
 ID-routed tea models with stretch-to-fit sizing.
 
-![Charts demo](https://vhs.charm.sh/vhs-1Aqwbp6nSo9Gabqskw2x1X.gif)
+![Charts demo](https://github.com/jarvisfriends/snap/releases/latest/download/charts.gif)
 
 #### Line chart
 
 Braille line chart showing rolling streams with compact terminal-cell
 rendering.
 
-![Line chart demo](https://vhs.charm.sh/vhs-2TOyaoNCEsnG2ACAIwouNM.gif)
+![Line chart demo](https://github.com/jarvisfriends/snap/releases/latest/download/linechart.gif)
 
 #### Cell canvas
 
 Whole-cell canvas and gradient helpers for animated truecolor effects.
 
-![Cell canvas demo](https://vhs.charm.sh/vhs-4mNTJD2hRfxCLE5RxbHWSr.gif)
+![Cell canvas demo](https://github.com/jarvisfriends/snap/releases/latest/download/cellcanvas.gif)
 
 ### Supporting packages (no standalone GIF)
 

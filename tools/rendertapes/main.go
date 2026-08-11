@@ -10,30 +10,20 @@
 // CLI commands do the container work so this tool stays dependency-light.
 //
 // Gifs are build artifacts written to dist/, not committed sources (see
-// .gitignore), so the markdown that shows them has to point somewhere that
-// outlives a clone: -publish uploads each gif to Charm hosting, records the
-// URL in <name>.gif.url beside the tape, and repoints the docs. -relink
-// replays those recorded URLs into the docs without rendering or a network
-// round trip.
+// .gitignore). The markdown gallery therefore points at GitHub release
+// assets — https://github.com/jarvisfriends/snap/releases/latest/download/
+// <name>.gif — which is a fixed URL per demo: it needs no rewriting when a
+// gif changes, and every tag keeps its own copy as history.
+// .github/workflows/demos.yml attaches the rendered gifs to a release.
 //
 // -verbose streams the container's own output and echoes every command. The
 // container is otherwise silent unless it fails, which hides the reason a
 // render produced a bad gif rather than no gif at all.
 //
-// Publishing is paced, because Charm's hosting accepts a short burst and then
-// refuses (the client prints a bare "EOF") and rejects gifs past a size cap.
-// Neither limit is documented, so -publish-batch/-publish-pause/-max-gif-bytes
-// expose them as flags. Oversized gifs are caught before anything is uploaded,
-// refusals are retried with doubling backoff, and a gif whose bytes match the
-// hash recorded next to its URL is skipped entirely — after the first run most
-// publishes upload nothing.
-//
 // Usage, from the snap repo root:
 //
 //	go -C tools/rendertapes run . [-image ghcr.io/charmbracelet/vhs] [-workers N]
 //	go -C tools/rendertapes run . -verbose   # stream container output live
-//	go -C tools/rendertapes run . -publish   # render, upload changed, repoint docs
-//	go -C tools/rendertapes run . -relink    # repoint docs from <gif>.url only
 //
 // This is a standalone module so tool-only dependencies never enter snap's
 // library graph.
@@ -42,8 +32,6 @@ package main
 import (
 	"bytes"
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"flag"
 	"fmt"
 	"io"
@@ -56,7 +44,6 @@ import (
 	"runtime"
 	"strings"
 	"sync"
-	"time"
 )
 
 // verbose mirrors the -verbose flag. Container and toolchain output is
@@ -85,17 +72,11 @@ func run() error {
 		imageRef = flag.String("image", "ghcr.io/charmbracelet/vhs", "VHS container image")
 		workers  = flag.Int("workers", runtime.NumCPU(), "parallel renders (default: CPU count)")
 		repoRoot = flag.String("root", "", "snap repo root (default: two levels up from this tool)")
-		publish  = flag.Bool("publish", false, "vhs-publish each rendered gif and point markdown at the hosted URL")
-		relink   = flag.Bool("relink", false, "point markdown at the URLs a previous -publish recorded, without rendering")
 
-		// Charm's hosting neither documents its rate limit nor its size cap,
-		// so these are tunable observations rather than a known contract.
-		batch    = flag.Int("publish-batch", 4, "uploads before pausing (0 disables pacing)")
-		pause    = flag.Duration("publish-pause", time.Minute, "wait between upload batches")
-		attempts = flag.Int("publish-attempts", 4, "tries per gif, including the first")
-		backoff  = flag.Duration("publish-backoff", 20*time.Second, "wait before the first retry; doubles each retry")
-		maxGif   = flag.Int64("max-gif-bytes", 10<<20, "reject gifs larger than this before uploading (0 disables)")
-		force    = flag.Bool("force-publish", false, "re-upload gifs whose bytes are unchanged since their recorded URL")
+		// Release assets impose no practical size limit, but a multi-megabyte
+		// gif is a slow README for everyone who opens it, so oversize is worth
+		// saying out loud. A warning, not an error: it is a judgement call.
+		warnGif = flag.Int64("warn-gif-bytes", 5<<20, "warn about gifs larger than this (0 disables)")
 	)
 	flag.BoolVar(&verbose, "verbose", false, "stream container/toolchain output and echo every command")
 	flag.BoolVar(&verbose, "v", false, "shorthand for -verbose")
@@ -121,13 +102,6 @@ func run() error {
 	}
 	if len(tapes) == 0 {
 		return fmt.Errorf("no *.tape files found under %s", root)
-	}
-
-	// -relink is a docs-only repair: no Go toolchain, no container, no
-	// network. It exists because a fresh clone has no gifs at all, so the
-	// markdown can drift back to dead local paths without anyone re-rendering.
-	if *relink {
-		return relinkDocs(root, tapes)
 	}
 
 	if buildErr := buildDemoBinaries(root); buildErr != nil {
@@ -173,349 +147,48 @@ func run() error {
 		return fmt.Errorf("%d of %d tape(s) failed", failures, len(tapes))
 	}
 	log.Printf("rendertapes: %d gif(s) rendered", len(tapes))
-	if *publish {
-		return publishGifs(ctx, *imageRef, root, tapes, publishPolicy{
-			batch:    *batch,
-			pause:    *pause,
-			attempts: *attempts,
-			backoff:  *backoff,
-			maxBytes: *maxGif,
-			force:    *force,
-		})
-	}
-	return nil
+	return reportGifSizes(root, tapes, *warnGif)
 }
 
-// gifLink ties one tape's gif to where markdown should point at it. rel is
-// the repo-relative path docs used before anything was published; prev is the
-// URL the last publish recorded (empty on a first run). Rewrites accept
-// either as the "from" side, so a re-publish still finds links that no longer
-// mention the local path.
-type gifLink struct{ rel, url, prev string }
-
-// publishPolicy bounds how hard the publisher leans on Charm's hosting. The
-// service accepts a short burst and then starts refusing (the client prints a
-// bare "EOF" and exits non-zero), and it rejects gifs past a size ceiling.
-// Neither limit is documented, so every knob is a flag: these defaults match
-// what the endpoint was observed to allow, not a published contract.
-type publishPolicy struct {
-	batch    int           // uploads before pausing
-	pause    time.Duration // wait once a batch is done
-	attempts int           // total tries per gif, including the first
-	backoff  time.Duration // wait before retry 1; doubles each retry
-	maxBytes int64         // per-gif ceiling the endpoint enforces
-	force    bool          // re-upload even when the gif is byte-identical
-}
-
-// publishGifs uploads every rendered gif to Charm's hosting via `vhs publish`
-// (gifs stay out of git — see .gitignore — keeping clones small), records
-// each URL in <name>.gif.url beside the tape, and repoints markdown links.
-//
-// Uploads are paced rather than fired off back to back, and gifs whose bytes
-// have not changed since their recorded upload are skipped: the rate limit is
-// the scarce resource here, so the cheapest request is the one not made.
-func publishGifs(ctx context.Context, imageRef, root string, tapes []string, pol publishPolicy) error {
+// reportGifSizes lists what each tape produced and flags any gif big enough to
+// make the README slow to load. Nothing here fails the run: shrinking a demo
+// is a judgement call about what the gif still needs to show.
+func reportGifSizes(root string, tapes []string, warnBytes int64) error {
 	gifs, err := tapeGifs(root, tapes)
 	if err != nil {
 		return err
 	}
-
-	pending, links, err := planPublish(root, gifs, pol)
-	if err != nil {
-		return err
-	}
-	if len(pending) == 0 {
-		log.Printf("all %d gif(s) already published and unchanged", len(gifs))
-		return rewriteDocLinks(root, links)
-	}
-	log.Printf("publishing %d of %d gif(s); %d unchanged",
-		len(pending), len(gifs), len(gifs)-len(pending))
-
-	for i, job := range pending {
-		// Pace between batches, not before the first upload.
-		if i > 0 && pol.batch > 0 && i%pol.batch == 0 {
-			log.Printf("uploaded %d; pausing %s before the next batch", i, pol.pause)
-			if err := sleepCtx(ctx, pol.pause); err != nil {
-				return err
-			}
-		}
-		url, err := publishOne(ctx, imageRef, root, job.tg.gif, pol)
-		if err != nil {
-			return fmt.Errorf("%w\n\n%d of %d uploaded; recorded URLs are on disk, so "+
-				"re-running resumes from here", err, i, len(pending))
-		}
-		if err := writeRecord(job.urlFile, url, job.hash); err != nil {
-			return err
-		}
-		links = append(links, gifLink{rel: job.tg.gif, url: url, prev: job.prev})
-		log.Printf("published %s -> %s", job.tg.gif, url)
-	}
-	return rewriteDocLinks(root, links)
-}
-
-// publishJob is one gif that needs uploading, with the record fields resolved
-// up front so the upload loop only does I/O that can fail transiently.
-type publishJob struct {
-	tg      tapeGif
-	urlFile string
-	hash    string // sha256 of the gif about to be uploaded
-	prev    string // URL the last upload recorded, "" on a first run
-}
-
-// planPublish splits the gifs into those needing an upload and those already
-// published unchanged, and validates every one before a single byte is sent —
-// a missing or oversized gif midway through would otherwise burn rate limit
-// and leave the docs half rewritten.
-func planPublish(root string, gifs []tapeGif, pol publishPolicy) (pending []publishJob, links []gifLink, err error) {
-	var missing, oversized []string
 	for _, tg := range gifs {
-		abs := filepath.Join(root, filepath.FromSlash(tg.gif))
-		info, statErr := os.Stat(abs)
+		info, statErr := os.Stat(filepath.Join(root, filepath.FromSlash(tg.gif)))
 		if statErr != nil {
-			missing = append(missing, tg.gif)
-			continue
+			return fmt.Errorf("%s: declared Output %s but nothing was written: %w",
+				tg.tape, tg.gif, statErr)
 		}
-		if pol.maxBytes > 0 && info.Size() > pol.maxBytes {
-			oversized = append(oversized, fmt.Sprintf("%s (%.2f MiB, limit %.2f MiB)",
-				tg.gif, mib(info.Size()), mib(pol.maxBytes)))
-			continue
-		}
-		hash, hashErr := fileHash(abs)
-		if hashErr != nil {
-			return nil, nil, hashErr
-		}
-		urlFile := urlPath(root, tg)
-		prevURL, prevHash := readRecord(urlFile)
-
-		// Unchanged and already hosted: keep the URL, skip the upload, but
-		// still feed the link into the rewrite so a doc that lost it recovers.
-		if !pol.force && prevURL != "" && prevHash == hash {
-			links = append(links, gifLink{rel: tg.gif, url: prevURL, prev: prevURL})
-			continue
-		}
-		pending = append(pending, publishJob{tg: tg, urlFile: urlFile, hash: hash, prev: prevURL})
-	}
-	if len(missing) > 0 {
-		return nil, nil, fmt.Errorf("gif(s) not rendered — run without -publish first:\n  %s",
-			strings.Join(missing, "\n  "))
-	}
-	if len(oversized) > 0 {
-		return nil, nil, fmt.Errorf("gif(s) over the hosting size limit; shrink the tape "+
-			"(smaller Set Width/Height/FontSize, fewer or shorter Sleep steps):\n  %s",
-			strings.Join(oversized, "\n  "))
-	}
-	return pending, links, nil
-}
-
-// publishOne uploads a single gif, retrying on the transient refusals the
-// endpoint answers a burst with. A run that produces no URL is treated as a
-// failure even when the client exits 0, because that is how a refused upload
-// presents: the "EOF" line is printed where the link should be.
-func publishOne(ctx context.Context, imageRef, root, gif string, pol publishPolicy) (string, error) {
-	wait := pol.backoff
-	var last error
-	for attempt := 1; attempt <= max(pol.attempts, 1); attempt++ {
-		if attempt > 1 {
-			log.Printf("retry %d/%d for %s in %s (%v)", attempt-1, pol.attempts-1, gif, wait, last)
-			if err := sleepCtx(ctx, wait); err != nil {
-				return "", err
-			}
-			wait *= 2
-		}
-		stream, flush := streamFor("publish " + gif)
-		out, err := runContainerOutput(ctx, stream,
-			"run", "--rm", "-v", root+":/vhs", imageRef, "publish", gif)
-		flush()
-
-		if url := publishedURL(out); url != "" {
-			return url, nil
-		}
-		if err != nil {
-			last = fmt.Errorf("vhs publish %s: %w: %s", gif, err, firstLine([]byte(out)))
-		} else {
-			last = fmt.Errorf("vhs publish %s: no gif URL in output: %s", gif, firstLine([]byte(out)))
-		}
-		if ctx.Err() != nil {
-			return "", ctx.Err()
+		vlogf("%s %.2f MiB", tg.gif, mib(info.Size()))
+		if warnBytes > 0 && info.Size() > warnBytes {
+			log.Printf("WARN %s is %.2f MiB (over %.2f MiB) — shrink the tape "+
+				"(smaller Set Width/Height/FontSize, fewer or shorter Sleep steps) "+
+				"to keep the README quick to load",
+				tg.gif, mib(info.Size()), mib(warnBytes))
 		}
 	}
-	return "", fmt.Errorf("%w (gave up after %d attempts)", last, max(pol.attempts, 1))
-}
-
-// sleepCtx waits for d unless the context is canceled first.
-func sleepCtx(ctx context.Context, d time.Duration) error {
-	if d <= 0 {
-		return nil
-	}
-	t := time.NewTimer(d)
-	defer t.Stop()
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	case <-t.C:
-		return nil
-	}
+	return nil
 }
 
 func mib(n int64) float64 { return float64(n) / (1 << 20) }
 
-// fileHash is the gif's sha256, recorded alongside its URL so an unchanged
-// gif can be recognized and skipped on the next publish.
-func fileHash(gif string) (string, error) {
-	f, err := os.Open(filepath.Clean(gif))
-	if err != nil {
-		return "", err
+// escapesRoot reports whether a tape's Output path would write outside the
+// repo. VHS resolves it inside the Linux container against the repo mount, so
+// it has to be judged with slash-path rules: filepath.IsAbs says false for
+// "/etc/x.gif" on a Windows host, which would wave through the one shape that
+// matters most. Cleaning first stops "dist/../../x.gif" sneaking past, and the
+// drive/backslash check covers a Windows-authored path on any host.
+func escapesRoot(out string) bool {
+	if strings.ContainsAny(out, `\:`) || filepath.IsAbs(out) {
+		return true
 	}
-	defer func() { _ = f.Close() }()
-	h := sha256.New()
-	if _, err := io.Copy(h, f); err != nil {
-		return "", err
-	}
-	return hex.EncodeToString(h.Sum(nil)), nil
-}
-
-// publishedURL extracts the hosted gif URL from `vhs publish` output, which
-// offers the same link four ways — markdown, an <img> tag, a badge anchor,
-// and finally the bare URL:
-//
-//	![Made with VHS](https://vhs.charm.sh/vhs-3ojYKOtC.gif)
-//	<img src="https://vhs.charm.sh/vhs-3ojYKOtC.gif" alt="Made with VHS">
-//	<img src="https://stuff.charm.sh/vhs/badge.svg">
-//	https://vhs.charm.sh/vhs-3ojYKOtC.gif
-//
-// Only the last is a bare whitespace-delimited field, so requiring both the
-// https:// prefix and a .gif suffix picks it out and cannot match the badge
-// or the plain https://vhs.charm.sh anchor. Returns "" if the format changes.
-func publishedURL(out string) string {
-	for field := range strings.FieldsSeq(out) {
-		if strings.HasPrefix(field, "https://") && strings.HasSuffix(field, ".gif") {
-			return field
-		}
-	}
-	return ""
-}
-
-// urlPath is where a tape's published URL is recorded: the gif's name with a
-// .url suffix, beside the tape rather than beside the gif. Gifs land in dist/,
-// which .gitignore excludes and `goreleaser release --clean` deletes, so a URL
-// recorded there could never be committed and would not survive a release.
-func urlPath(root string, tg tapeGif) string {
-	dir := filepath.Dir(filepath.FromSlash(tg.tape))
-	return filepath.Join(root, dir, path.Base(tg.gif)+".url")
-}
-
-// relinkDocs repoints markdown at the URLs a previous -publish recorded in
-// <gif>.url, without rendering or uploading anything. Every tape must have a
-// recorded URL: a partial relink would leave some images pointing at gifs that
-// no clone contains, which is the exact breakage this mode exists to fix.
-//
-// This repairs links that still name the local gif path. Moving docs from one
-// hosted URL to another is -publish's job, since only the publish step knows
-// the URL being replaced.
-func relinkDocs(root string, tapes []string) error {
-	gifs, err := tapeGifs(root, tapes)
-	if err != nil {
-		return err
-	}
-	links := make([]gifLink, 0, len(gifs))
-	var missing []string
-	for _, tg := range gifs {
-		url, _ := readRecord(urlPath(root, tg))
-		if url == "" {
-			missing = append(missing, tg.gif)
-			continue
-		}
-		links = append(links, gifLink{rel: tg.gif, url: url})
-	}
-	if len(missing) > 0 {
-		return fmt.Errorf("no <gif>.url recorded for %d of %d tape(s) — run with -publish first:\n  %s",
-			len(missing), len(gifs), strings.Join(missing, "\n  "))
-	}
-	return rewriteDocLinks(root, links)
-}
-
-// readRecord parses a <name>.gif.url file. Line one is the hosted URL and is
-// the only line docs or a human need; an optional `sha256:<hex>` line records
-// which bytes were uploaded, letting the next publish skip an unchanged gif.
-// Both are "" when the file is absent, so a first run just publishes.
-func readRecord(urlFile string) (url, hash string) {
-	//nolint:gosec // url paths are derived from tape paths inside the repo.
-	b, err := os.ReadFile(urlFile)
-	if err != nil {
-		return "", ""
-	}
-	for line := range strings.Lines(string(b)) {
-		line = strings.TrimSpace(line)
-		switch {
-		case line == "":
-		case strings.HasPrefix(line, "sha256:"):
-			hash = strings.TrimPrefix(line, "sha256:")
-		case url == "":
-			url = line
-		}
-	}
-	return url, hash
-}
-
-// writeRecord stores the hosted URL and the hash of the bytes behind it.
-func writeRecord(urlFile, url, hash string) error {
-	return os.WriteFile(urlFile, []byte(url+"\nsha256:"+hash+"\n"), 0o600)
-}
-
-// rewriteDocLinks points markdown image references at the hosted URLs,
-// accepting either the local gif path or a previously published URL as the
-// source so the rewrite is repeatable rather than one-shot.
-func rewriteDocLinks(root string, links []gifLink) error {
-	docs, err := findDocs(root)
-	if err != nil {
-		return err
-	}
-	for _, doc := range docs {
-		//nolint:gosec // doc paths come from the walk of root in findDocs.
-		b, err := os.ReadFile(doc)
-		if err != nil {
-			continue
-		}
-		s := string(b)
-		for _, l := range links {
-			s = strings.ReplaceAll(s, "("+l.rel+")", "("+l.url+")")
-			if l.prev != "" && l.prev != l.url {
-				s = strings.ReplaceAll(s, "("+l.prev+")", "("+l.url+")")
-			}
-		}
-		if s == string(b) {
-			continue
-		}
-		//nolint:gosec // doc lives inside the repo root by construction.
-		if err := os.WriteFile(doc, []byte(s), 0o600); err != nil {
-			return err
-		}
-		log.Printf("updated links in %s", filepath.ToSlash(mustRel(root, doc)))
-	}
-	return nil
-}
-
-// findDocs walks the repo for every markdown file. Any doc may show a demo,
-// so the sweep is repo-wide rather than a fixed list of directories.
-func findDocs(root string) ([]string, error) {
-	var docs []string
-	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		if d.IsDir() {
-			switch d.Name() {
-			case ".git", "node_modules":
-				return filepath.SkipDir
-			}
-			return nil
-		}
-		if strings.EqualFold(filepath.Ext(d.Name()), ".md") {
-			docs = append(docs, path)
-		}
-		return nil
-	})
-	return docs, err
+	clean := path.Clean(out)
+	return strings.HasPrefix(clean, "/") || clean == ".." || strings.HasPrefix(clean, "../")
 }
 
 // tapeGif pairs a tape with a gif it writes. Both are repo-relative and
@@ -550,11 +223,11 @@ func tapeGifs(root string, tapes []string) ([]tapeGif, error) {
 				continue
 			}
 			// Output paths are relative to the container mount, i.e. the repo
-			// root; anything escaping it would be published from outside.
-			out = strings.TrimPrefix(out, "./")
-			if filepath.IsAbs(out) || out == ".." || strings.HasPrefix(out, "../") {
+			// root; anything escaping it would write outside the repo.
+			if escapesRoot(out) {
 				return nil, fmt.Errorf("%s: Output %q escapes the repo root", relTape, out)
 			}
+			out = path.Clean(out)
 			found = true
 			if !seen[out] {
 				seen[out] = true

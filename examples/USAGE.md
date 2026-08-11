@@ -80,5 +80,5 @@ Full source, the Go library these commands are built from, and rendered demo
 GIFs live at <https://github.com/jarvisfriends/snap>. Each command's source is
 `examples/<command>/`, and its VHS tape is `examples/<command>.tape`. Gifs are
 build artifacts rather than committed files: rendering writes
-`dist/<command>.gif` locally, and the published copy the docs link to is
-recorded in `examples/<command>.gif.url`.
+`dist/<command>.gif` locally, and the copy the docs link to ships as a release
+asset, so every tag keeps the demo it was cut with.

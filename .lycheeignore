@@ -1,14 +1,13 @@
 # Links lychee should not verify.
 #
 # The demo gifs are build artifacts: the tapes render them into dist/, which
-# .gitignore excludes and `goreleaser release --clean` wipes. The markdown
-# gallery deliberately keeps the repo-relative dist/ path as a placeholder,
-# because `rendertapes -publish` rewrites exactly that string into the hosted
-# Charm URL — removing the links would leave the publish pipeline with nothing
-# to match on.
+# .gitignore excludes and `goreleaser release --clean` wipes. The README
+# gallery links them as release assets instead, at a fixed
+# releases/latest/download/<name>.gif URL per demo.
 #
-# .github/workflows/demos.yml runs that publish on merge to the default branch
-# and opens a PR with the real URLs. Until it does, the paths point at files
-# that only exist on a machine that has rendered them, so the link check has
-# to skip them.
-dist/.*\.gif$
+# Those URLs 404 until .github/workflows/demos.yml has attached the gifs to a
+# release, which it does on release publish and on merge to the default
+# branch. The link check has to skip them until then. Once the assets are on
+# the latest release this line can go, and a broken gallery link becomes a
+# real failure again.
+https://github\.com/jarvisfriends/snap/releases/latest/download/.*\.gif$
