@@ -66,6 +66,20 @@ release:
   github:
     owner: jarvisfriends
     name: snap
+  # The README gallery links these as releases/latest/download/<name>.gif, so
+  # every release has to carry them or the gallery breaks the moment a new tag
+  # becomes "latest". Attaching them here, as the release is created, is also
+  # the only option: the repo has immutable releases enabled, so adding assets
+  # to a published tag fails with "Cannot upload assets to an immutable
+  # release" (HTTP 422).
+  #
+  # release.yml renders the tapes and moves the gifs here before goreleaser
+  # starts. They cannot stay in dist/: a `before` hook runs ahead of the
+  # "ensuring distribution directory" step, so anything it leaves in dist/
+  # trips "dist is not empty" — and a plain workflow step writing there is
+  # wiped by --clean.
+  extra_files:
+    - glob: demo-gifs/*.gif
 
 changelog:
   sort: asc

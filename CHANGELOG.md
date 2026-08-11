@@ -36,8 +36,11 @@ on the [GitHub releases page](https://github.com/jarvisfriends/snap/releases).
   container's own output plus every command it runs. The README gallery links
   to release assets (`releases/latest/download/<command>.gif`), so the URL is
   fixed per demo, the markdown never needs rewriting, and every tag keeps the
-  demo it was cut with. `.github/workflows/demos.yml` attaches the gifs on
-  release publish and refreshes the latest release on merge.
+  demo it was cut with. GoReleaser renders the tapes in a `before` hook and
+  attaches the gifs via `release.extra_files`, which is the only way to ship
+  them now that the repo has immutable releases enabled;
+  `.github/workflows/demos.yml` renders on PRs as a check that tapes still
+  record.
 - `keys.AppKeyMap.BindingDefs()` now returns only the app-global, mutually
   exclusive shortcuts intended for a key-rebinding settings UI. The
   component-level widget keys (Sort, Filter, Open, Cancel, Save, Delete,

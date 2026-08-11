@@ -29,15 +29,17 @@ the gifs to `dist/`). Add `-verbose` to stream the container's own output.
 Gifs are build artifacts, not committed files, so the gallery below links to
 release assets: `releases/latest/download/<command>.gif`. That URL is fixed
 per demo, so the markdown never needs rewriting when a gif changes.
-`.github/workflows/demos.yml` attaches the rendered gifs to a release — on
-publish for a new tag, and on merge to the default branch to refresh the
-latest one. It also renders (without attaching) on PRs that touch tapes, to
-prove they still record.
+GoReleaser renders the tapes in a `before` hook and ships the gifs with the
+release itself (`release.extra_files`), so every tag carries the demos it was
+cut with. That is also the only way to attach them: this repo has immutable
+releases enabled, so nothing can add assets to a tag after it is published.
+`.github/workflows/demos.yml` renders on PRs that touch tapes, without
+attaching anything, to prove they still record before a release depends on it.
 
-So the gallery always shows the newest release's assets, which the default
-branch keeps current; superseded tags keep the gifs they were last built
-with, which is where the history lives. GitHub's image proxy may serve a
-cached frame for a while after a refresh.
+So the gallery shows the newest release's gifs and updates when a tag is cut,
+not when the default branch moves; each superseded tag keeps its own copy,
+which is where the history lives. GitHub's image proxy may also serve a cached
+frame for a while after a new release.
 
 The examples also work as script-friendly input tools: each one renders its
 TUI on stderr and writes only the selected value to stdout, exiting 1 on
