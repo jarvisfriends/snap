@@ -3,54 +3,38 @@ name: Demos
 # The demo gifs are build artifacts rendered into dist/, not committed sources
 # (.gitignore), so the README gallery points at release assets instead:
 # releases/latest/download/<name>.gif. That URL is fixed per demo, so nothing
-# ever has to rewrite the markdown — this workflow only has to make sure the
-# assets exist on the right release.
+# ever rewrites the markdown.
 #
-#   - On a PR that touches tapes or example sources, render every tape and
-#     upload the gifs as a build artifact. Nothing is attached to a release:
-#     this only proves the tapes still record.
-#   - On a published release, render and attach the gifs to that tag, which
-#     is what gives each version its own copy.
-#   - On merge to the default branch, refresh the gifs on the latest release
-#     so the README gallery follows the default branch without a new tag.
+# Attaching those assets is goreleaser's job, not this workflow's: the repo
+# has immutable releases enabled, so assets can only be added while the
+# release is being created. `.goreleaser.yml` renders the tapes in a
+# before-hook and ships them via release.extra_files. Uploading to an
+# already-published tag fails with HTTP 422, which is what this workflow used
+# to try.
 #
-# rendertapes does the rendering in every case; see tools/rendertapes/main.go.
+# So all that is left here is validation: render every tape on a PR that
+# touches them and keep the gifs as a build artifact, to prove they still
+# record before a release depends on it.
 
 on:
   workflow_dispatch:
-    inputs:
-      tag:
-        description: 'Release tag to attach gifs to (default: latest release)'
-        required: false
-        type: string
-  release:
-    types: [published]
   pull_request:
     branches: [ "main", "master" ]
     paths:
       - 'examples/**'
       - 'tools/rendertapes/**'
       - '.github/workflows/demos.yml'
-  push:
-    branches: [ "main", "master" ]
-    paths:
-      - 'examples/*.tape'
-      - 'examples/**/*.go'
-      - 'tools/rendertapes/**'
 
 concurrency:
   group: demos-${{ github.ref }}
-  # Superseded PR renders are worth cancelling; an upload in flight is not —
-  # it would leave a release carrying some new gifs and some stale ones.
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
 
 jobs:
   render:
-    name: Render tapes (no upload)
-    if: github.event_name == 'pull_request'
+    name: Render tapes
     runs-on: ubuntu-24.04
     # 14 tapes with multi-second Sleep directives, rendered on a worker pool.
     timeout-minutes: 45
@@ -68,53 +52,3 @@ jobs:
           name: demo-gifs
           path: dist/*.gif
           if-no-files-found: error
-
-  attach:
-    name: Attach gifs to a release
-    if: github.event_name != 'pull_request'
-    runs-on: ubuntu-24.04
-    timeout-minutes: 45
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-      - name: Set up Go
-        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
-        with:
-          go-version: '1.26.x'
-      - name: Render every tape
-        run: go -C tools/rendertapes run . -verbose
-      - name: Resolve the target release
-        id: target
-        env:
-          GH_TOKEN: ${{ github.token }}
-          EVENT: ${{ github.event_name }}
-          INPUT_TAG: ${{ inputs.tag }}
-          RELEASE_TAG: ${{ github.event.release.tag_name }}
-        run: |
-          set -euo pipefail
-          if [ "$EVENT" = 'release' ]; then
-            tag="$RELEASE_TAG"
-          elif [ -n "$INPUT_TAG" ]; then
-            tag="$INPUT_TAG"
-          else
-            # No release yet means nothing to attach to; the gallery stays
-            # broken until the first tag, which is not worth failing over.
-            tag="$(gh release view --json tagName --jq .tagName 2>/dev/null || true)"
-          fi
-          if [ -z "$tag" ]; then
-            echo "No release to attach gifs to — skipping." >&2
-          fi
-          echo "tag=$tag" >> "$GITHUB_OUTPUT"
-      - name: Attach gifs
-        if: steps.target.outputs.tag != ''
-        env:
-          GH_TOKEN: ${{ github.token }}
-          TAG: ${{ steps.target.outputs.tag }}
-        run: |
-          set -euo pipefail
-          # --clobber so refreshing the latest release replaces the previous
-          # gifs rather than failing on a name collision.
-          gh release upload "$TAG" dist/*.gif --clobber
-          count=$(find dist -maxdepth 1 -name '*.gif' | wc -l)
-          echo "Attached $count gif(s) to $TAG."

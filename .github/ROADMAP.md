@@ -35,15 +35,18 @@ rewrites markdown and no sidecar records a link — the earlier Charm
 `vhs publish` flow, its `<name>.gif.url` records, and the rate-limit
 pacing it needed are all gone.
 
-`.github/workflows/demos.yml` owns the pipeline: PRs touching tapes or
-example sources render every tape in the vhs container (build artifact
-only); a published release gets its own gifs attached, which is what gives
-each version a visual history; merges to the default branch refresh the
-gifs on the latest release. Open items:
+GoReleaser owns publishing: a `before` hook renders the tapes into `dist/`
+(hooks run after `--clean` empties it, so this is the earliest point that
+survives) and `release.extra_files` ships the gifs with the tag. That is
+forced by immutable releases being enabled on the repo — `gh release
+upload` against a published tag returns HTTP 422, which is how the first
+attempt failed. `.github/workflows/demos.yml` is now only a PR check that
+every tape still records. Open items:
 
-- [ ] Land the demos workflow on the default branch, then run it via
-      `workflow_dispatch` so the current release carries gifs — until then
-      the gallery URLs 404 and `.lycheeignore` skips them.
+- [ ] Cut a release so the gallery URLs resolve — v0.2.17 shipped before
+      goreleaser carried the gifs, so `releases/latest/download/*.gif`
+      still 404s and `.lycheeignore` skips it. Drop that ignore line
+      afterwards so a broken gallery link fails CI again.
 - [ ] Same release-asset flow still needed in inspector and tui-base.
 
 ## Ports & adoption still open

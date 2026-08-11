@@ -11,7 +11,10 @@ dist/
 
 # The demo binary and the gifs the tapes render both land in dist/, which is
 # already ignored above. The gifs reach readers as release assets, attached by
-# .github/workflows/demos.yml — nothing about them is tracked in the repo.
+# goreleaser — nothing about them is tracked in the repo. release.yml stages
+# them in demo-gifs/ on the way there; that must stay ignored or goreleaser's
+# dirty-tree check fails the release.
+demo-gifs/
 examples/*/demo-bin
 examples/*/*.exe
 
