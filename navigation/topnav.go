@@ -176,11 +176,13 @@ func (m *MinimalTopNav) View() tea.View {
 
 	rowWithBackground := barStyle.Render(row)
 
-	v := tea.View{Content: rowWithBackground,
+	v := tea.View{
+		Content:         rowWithBackground,
 		BackgroundColor: barStyle.GetBackground(),
 		ForegroundColor: c.Styles.TextOnBg.GetForeground(),
 		AltScreen:       true,
-		MouseMode:       tea.MouseModeCellMotion}
+		MouseMode:       tea.MouseModeCellMotion,
+	}
 	v.OnMouse = func(mm tea.MouseMsg) tea.Cmd {
 		// Horizontal wheel scrolls through the pages, matching the tab bar.
 		if d := horizontalWheelDelta(mm); d != 0 && len(m.Pages) > 0 {
