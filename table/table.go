@@ -240,6 +240,21 @@ func (m *TableModel) SelectedRow() (Row, bool) {
 	return Row{}, false
 }
 
+// Rows returns the table's data rows in display order (the active sort is
+// applied; the live filter is not). Callers must treat the slice as
+// read-only.
+func (m *TableModel) Rows() []Row { return m.rows }
+
+// SelectedIndex returns the highlighted row's position in the displayed
+// (sorted, filtered) order — the row SelectedRow would return. It reports
+// -1 when the table has no rows to highlight.
+func (m *TableModel) SelectedIndex() int {
+	if _, ok := m.SelectedRow(); !ok {
+		return -1
+	}
+	return m.bt.GetHighlightedRowIndex()
+}
+
 // Filtering reports whether the `/` filter input is active (the host should
 // claim keyboard focus while it is, e.g. via navigation.KeyCapturer).
 func (m *TableModel) Filtering() bool { return m.bt.GetIsFilterInputFocused() }

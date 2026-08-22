@@ -160,7 +160,8 @@ formatters:
   settings:
     gofumpt:
       module-path: github.com/jarvisfriends/snap
-      extra-rules: true
+      extra:
+        group-params: true
 
 issues:
   # Show every finding rather than capping per-linter/per-message.

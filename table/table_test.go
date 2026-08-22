@@ -49,6 +49,33 @@ func TestNumericSortDesc(t *testing.T) {
 	}
 }
 
+// TestRowsAndSelectedIndex verifies the read accessors hosts use to inspect
+// table state: Rows reflects display order, SelectedIndex tracks the
+// highlight and reports -1 on an empty table.
+func TestRowsAndSelectedIndex(t *testing.T) {
+	m := New(sampleCols())
+	if got := m.SelectedIndex(); got != -1 {
+		t.Fatalf("empty table SelectedIndex = %d, want -1", got)
+	}
+	m.SetRows(sampleRows())
+	if got := len(m.Rows()); got != 3 {
+		t.Fatalf("Rows() length = %d, want 3", got)
+	}
+	if got := m.SelectedIndex(); got != 0 {
+		t.Fatalf("SelectedIndex = %d, want 0", got)
+	}
+	m.HandleWheel(false)
+	if got := m.SelectedIndex(); got != 1 {
+		t.Fatalf("SelectedIndex after wheel = %d, want 1", got)
+	}
+	// A sorted table reports rows in display order.
+	m2 := New(sampleCols(), WithSort(1, false))
+	m2.SetRows(sampleRows())
+	if got := m2.Rows()[0].Key; got != "a" {
+		t.Fatalf("sorted Rows()[0].Key = %q, want a (highest N)", got)
+	}
+}
+
 // TestSortByColCycle verifies the 3-state header cycle: asc → desc → unsorted.
 func TestSortByColCycle(t *testing.T) {
 	m := New(sampleCols())

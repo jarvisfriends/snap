@@ -29,7 +29,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         with:
-          go-version: '1.26.x'
+          go-version: '1.27.x'
       - name: Cache Go modules
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
@@ -130,7 +130,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         with:
-          go-version: '1.26.x'
+          go-version: '1.27.x'
       - name: Install stringer
         # Pinned: bump alongside the golang.org/x/tools dependency.
         # renovate: datasource=go depName=golang.org/x/tools
@@ -157,12 +157,12 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         with:
-          go-version: '1.26.x'
+          go-version: '1.27.x'
       - name: Lint (GOOS=linux, full)
         uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9
         with:
           # Pinned: keep in sync with tui-base and tools/local_verify.sh.
-          version: v2.12.2
+          version: v2.13.1
       - name: Find OS-specific packages
         id: ospkgs
         # Only packages whose sources diverge by OS (file suffixes or
@@ -183,17 +183,17 @@ jobs:
           GOOS: windows
           GOARCH: amd64
         with:
-          version: v2.12.2
+          version: v2.13.1
           args: ${{ steps.ospkgs.outputs.pkgs }}
       - name: Lint rendertapes (nested module)
         uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9
         with:
-          version: v2.12.2
+          version: v2.13.1
           working-directory: tools/rendertapes
       - name: Lint releasetag (nested module)
         uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9
         with:
-          version: v2.12.2
+          version: v2.13.1
           working-directory: tools/releasetag
 
   static-checks:
@@ -245,7 +245,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         with:
-          go-version: '1.26.x'
+          go-version: '1.27.x'
       - name: Install govulncheck
         # renovate: datasource=go depName=golang.org/x/vuln
         run: go install golang.org/x/vuln/cmd/govulncheck@v1.5.0
@@ -272,7 +272,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7
         with:
-          go-version: '1.26.x'
+          go-version: '1.27.x'
       - name: Run timed fuzz smoke
         env:
           FUZZTIME: 10s
