@@ -51,7 +51,13 @@ func Dependencies() []Dependency {
 	if !ok {
 		return nil
 	}
+	return dependenciesFrom(info)
+}
 
+// dependenciesFrom is the pure half of Dependencies, split out so tests can
+// feed synthetic build info covering branches (replaced modules) the test
+// binary's own build info never exercises.
+func dependenciesFrom(info *debug.BuildInfo) []Dependency {
 	out := make([]Dependency, 0, len(info.Deps))
 
 	for _, dep := range info.Deps {
@@ -80,7 +86,11 @@ func ExpandedBuildInfo() *ExpandedInfo {
 	if !ok {
 		return nil
 	}
+	return expandedFrom(info)
+}
 
+// expandedFrom is the pure half of ExpandedBuildInfo; see dependenciesFrom.
+func expandedFrom(info *debug.BuildInfo) *ExpandedInfo {
 	var out ExpandedInfo
 
 	out.App.Path = info.Main.Path
@@ -115,7 +125,7 @@ func ExpandedBuildInfo() *ExpandedInfo {
 		}
 	}
 
-	out.Dependencies = Dependencies()
+	out.Dependencies = dependenciesFrom(info)
 
 	return &out
 }

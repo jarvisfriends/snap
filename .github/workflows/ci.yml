@@ -51,6 +51,16 @@ jobs:
         if: matrix.os == 'ubuntu-24.04'
         # Single test run produces the coverage profile — no separate coverage job.
         run: go test -race -covermode=atomic -coverprofile=coverage.out ./...
+      - name: Restore loader-check coverage (non-race)
+        if: matrix.os == 'ubuntu-24.04'
+        # loadConformancePackages skips its package-loading checks under
+        # -race (Go 1.27.0's go/types races during concurrent type-checking),
+        # which would silently drop rendercheck's real coverage out of the
+        # gate. A cheap non-race pass of just that package puts it back;
+        # go tool cover merges duplicate blocks by summing counts.
+        run: |
+          go test -covermode=atomic -coverprofile=coverage.rendercheck.out ./rendercheck/
+          tail -n +2 coverage.rendercheck.out >> coverage.out
       - name: Test (race)
         if: matrix.os != 'ubuntu-24.04'
         run: go test -race ./...
