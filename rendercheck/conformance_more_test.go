@@ -82,9 +82,9 @@ func TestCheckThemeResponsiveSeesColorChange(t *testing.T) {
 // no-color environments.
 type colorlessModel struct{}
 
-func (colorlessModel) Init() tea.Cmd                       { return nil }
+func (colorlessModel) Init() tea.Cmd                         { return nil }
 func (m colorlessModel) Update(tea.Msg) (tea.Model, tea.Cmd) { return m, nil }
-func (colorlessModel) View() tea.View                      { return tea.NewView("plain") }
+func (colorlessModel) View() tea.View                        { return tea.NewView("plain") }
 
 func TestCheckThemeResponsiveSkipsWithoutColors(t *testing.T) {
 	t.Run("skips", func(t *testing.T) {

@@ -91,15 +91,15 @@ func TestExpandedFromToleratesBadTime(t *testing.T) {
 }
 
 func TestNormalizeVersion(t *testing.T) {
-	cases := map[string]string{
-		"":         "development",
-		"(devel)":  "development",
-		" (devel)": "development",
-		"v1.2.3":   "v1.2.3",
+	cases := []struct{ in, want string }{
+		{"", "development"},
+		{"(devel)", "development"},
+		{" (devel)", "development"}, // whitespace-padded on purpose: TrimSpace path
+		{"v1.2.3", "v1.2.3"},
 	}
-	for in, want := range cases {
-		if got := normalizeVersion(in); got != want {
-			t.Errorf("normalizeVersion(%q) = %q, want %q", in, got, want)
+	for _, c := range cases {
+		if got := normalizeVersion(c.in); got != c.want {
+			t.Errorf("normalizeVersion(%q) = %q, want %q", c.in, got, c.want)
 		}
 	}
 }
