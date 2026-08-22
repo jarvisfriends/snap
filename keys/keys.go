@@ -78,40 +78,38 @@ type AppKeyMap struct {
 
 func DefaultKeyMap() *AppKeyMap {
 	return &AppKeyMap{
-		KeyMap: viewport.KeyMap{
-			PageDown: key.NewBinding(
-				key.WithKeys("pgdown"),
-				key.WithHelp("pgdn", "page down"),
-			),
-			PageUp: key.NewBinding(
-				key.WithKeys("pgup"),
-				key.WithHelp("pgup", "page up"),
-			),
-			HalfPageUp: key.NewBinding(
-				key.WithKeys("ctrl+up"),
-				key.WithHelp("ctrl+up", "½ page up"),
-			),
-			HalfPageDown: key.NewBinding(
-				key.WithKeys("ctrl+down"),
-				key.WithHelp("ctrl+down", "½ page down"),
-			),
-			Up: key.NewBinding(
-				key.WithKeys("up"),
-				key.WithHelp("↑", "up"),
-			),
-			Down: key.NewBinding(
-				key.WithKeys("down"),
-				key.WithHelp("↓", "down"),
-			),
-			Left: key.NewBinding(
-				key.WithKeys("left"),
-				key.WithHelp("←", "move left"),
-			),
-			Right: key.NewBinding(
-				key.WithKeys("right"),
-				key.WithHelp("→", "move right"),
-			),
-		},
+		PageDown: key.NewBinding(
+			key.WithKeys("pgdown"),
+			key.WithHelp("pgdn", "page down"),
+		),
+		PageUp: key.NewBinding(
+			key.WithKeys("pgup"),
+			key.WithHelp("pgup", "page up"),
+		),
+		HalfPageUp: key.NewBinding(
+			key.WithKeys("ctrl+up"),
+			key.WithHelp("ctrl+up", "½ page up"),
+		),
+		HalfPageDown: key.NewBinding(
+			key.WithKeys("ctrl+down"),
+			key.WithHelp("ctrl+down", "½ page down"),
+		),
+		Up: key.NewBinding(
+			key.WithKeys("up"),
+			key.WithHelp("↑", "up"),
+		),
+		Down: key.NewBinding(
+			key.WithKeys("down"),
+			key.WithHelp("↓", "down"),
+		),
+		Left: key.NewBinding(
+			key.WithKeys("left"),
+			key.WithHelp("←", "move left"),
+		),
+		Right: key.NewBinding(
+			key.WithKeys("right"),
+			key.WithHelp("→", "move right"),
+		),
 		nav: key.NewBinding(
 			key.WithKeys("up", "down"),
 			key.WithHelp("↑↓", "nav"),

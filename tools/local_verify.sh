@@ -60,7 +60,7 @@ if [[ -f go.mod && ${GO_FILE_COUNT} -gt 0 ]]; then
     ver=$(golangci-lint --version 2>&1 || true)
     if [[ $ver =~ ([0-9]+)\.[0-9]+\.[0-9]+ && ${BASH_REMATCH[1]} == 1 ]]; then
       # renovate: datasource=go depName=github.com/golangci/golangci-lint/v2
-      FAILURES+=("golangci-lint v1 detected — install v2: go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.12.2")
+      FAILURES+=("golangci-lint v1 detected — install v2: go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.13.1")
     else
       # Full lint once with the native GOOS. Other platforms only re-lint
       # the packages whose sources actually diverge by OS (file suffixes or
@@ -95,7 +95,7 @@ if [[ -f go.mod && ${GO_FILE_COUNT} -gt 0 ]]; then
     fi
   else
     # renovate: datasource=go depName=github.com/golangci/golangci-lint/v2
-    warn_missing golangci-lint "go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.12.2"
+    warn_missing golangci-lint "go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.13.1"
   fi
 fi
 

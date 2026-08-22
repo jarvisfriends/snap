@@ -162,7 +162,7 @@ jobs:
         uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9
         with:
           # Pinned: keep in sync with tui-base and tools/local_verify.sh.
-          version: v2.12.2
+          version: v2.13.1
       - name: Find OS-specific packages
         id: ospkgs
         # Only packages whose sources diverge by OS (file suffixes or
@@ -183,17 +183,17 @@ jobs:
           GOOS: windows
           GOARCH: amd64
         with:
-          version: v2.12.2
+          version: v2.13.1
           args: ${{ steps.ospkgs.outputs.pkgs }}
       - name: Lint rendertapes (nested module)
         uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9
         with:
-          version: v2.12.2
+          version: v2.13.1
           working-directory: tools/rendertapes
       - name: Lint releasetag (nested module)
         uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9
         with:
-          version: v2.12.2
+          version: v2.13.1
           working-directory: tools/releasetag
 
   static-checks:
