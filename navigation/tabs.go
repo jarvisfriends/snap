@@ -15,7 +15,6 @@ import (
 type Tabs struct {
 	Pages       []Page
 	ActiveIndex int
-	HoverIndex  int
 	KeyMap      *keys.AppKeyMap
 	width       int
 	height      int
@@ -29,7 +28,6 @@ func NewTabs() *Tabs {
 			{ID: pageIDSettings, Title: pageSettings},
 		},
 		ActiveIndex: 0,
-		HoverIndex:  -1,
 		KeyMap:      keys.DefaultKeyMap(),
 	}
 }
@@ -41,10 +39,6 @@ func (m *Tabs) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
-	case TabHoverMsg:
-		if m.HoverIndex != msg.Index {
-			m.HoverIndex = msg.Index
-		}
 	case tea.KeyPressMsg:
 		switch {
 		case key.Matches(msg, m.KeyMap.PreviousPage, m.KeyMap.Up, m.KeyMap.Left):
@@ -65,9 +59,6 @@ func (m *Tabs) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 	return m, nil
 }
-
-// TabHoverMsg reports that the mouse is over a tab index (or -1 for none).
-type TabHoverMsg struct{ Index int }
 
 func tabBorderWithBottom(left, middle, right string) lipgloss.Border {
 	border := lipgloss.RoundedBorder()
@@ -142,19 +133,17 @@ func (m *Tabs) View() tea.View {
 	activeTabBorder := tabBorderWithBottom("┘", " ", "└")
 	inactiveTabStyle := c.Styles.TabInactive.Border(inactiveTabBorder, true).Padding(0, 1)
 	activeTabStyle := inactiveTabStyle.Border(activeTabBorder, true)
-	hoverTabStyle := c.Styles.TabHover.Border(inactiveTabBorder, true).Padding(0, 1)
 
+	// The active tab is identified purely by its open bottom border — no
+	// pointer-driven color states: hover/press highlights depended on motion
+	// events that stop arriving once the pointer leaves the strip (or the
+	// terminal), leaving stale colors behind.
 	rendered := make([]string, 0, len(m.Pages))
 	tabWidths := make([]int, 0, len(m.Pages))
 	for i, t := range m.Pages {
-		var style lipgloss.Style
-		switch i {
-		case m.ActiveIndex:
+		style := inactiveTabStyle
+		if i == m.ActiveIndex {
 			style = activeTabStyle
-		case m.HoverIndex:
-			style = hoverTabStyle
-		default:
-			style = inactiveTabStyle
 		}
 		s := style.Render(t.Title)
 		rendered = append(rendered, s)
@@ -240,62 +229,41 @@ func (m *Tabs) View() tea.View {
 			m.ActiveIndex = (m.ActiveIndex + d + len(m.Pages)) % len(m.Pages)
 			return func() tea.Msg { return SelectedMsg{PageIndex: m.ActiveIndex} }
 		}
-		switch ev := mm.(type) {
-		case tea.MouseClickMsg, tea.MouseReleaseMsg:
-			me := ev.Mouse()
-			if me.Button != tea.MouseLeft {
-				return nil
-			}
-			x := me.X
-			y := me.Y
-			// verify click is within the tab view vertical bounds
-			if y < 0 || y >= lipgloss.Height(v.Content) {
-				return nil
-			}
-			// Clicking an overflow arrow pages to the next hidden tab on that
-			// side, which both scrolls the window and switches pages.
-			if showLeft && x >= leftArrowStart && x <= leftArrowEnd && first > 0 {
-				m.ActiveIndex = first - 1
-				return func() tea.Msg { return SelectedMsg{PageIndex: m.ActiveIndex} }
-			}
-			if showRight && x >= rightArrowStart && x <= rightArrowEnd && last < len(m.Pages)-1 {
-				m.ActiveIndex = last + 1
-				return func() tea.Msg { return SelectedMsg{PageIndex: m.ActiveIndex} }
-			}
-			for i := range m.Pages {
-				if x >= starts[i] && x <= ends[i] {
-					m.ActiveIndex = i
-					return func() tea.Msg { return SelectedMsg{PageIndex: i} }
-				}
-			}
-			return nil
-		case tea.MouseMotionMsg:
-			me := ev.Mouse()
-			x := me.X
-			y := me.Y
-			if y < 0 || y >= lipgloss.Height(v.Content) {
-				// outside vertical bounds, clear hover if needed
-				if m.HoverIndex != -1 {
-					return func() tea.Msg { return TabHoverMsg{Index: -1} }
-				}
-				return nil
-			}
-			// determine which tab (if any) the mouse is over
-			for i := range m.Pages {
-				if x >= starts[i] && x <= ends[i] {
-					if m.HoverIndex != i {
-						return func() tea.Msg { return TabHoverMsg{Index: i} }
-					}
-					return nil
-				}
-			}
-			if m.HoverIndex != -1 {
-				return func() tea.Msg { return TabHoverMsg{Index: -1} }
-			}
-			return nil
-		default:
+		// Only the RELEASE selects. Acting on the down-event too caused a
+		// double navigation on an overflowed strip: the press switched tabs
+		// and re-laid the window out, so the release landed on whichever tab
+		// had scrolled under the pointer and switched again.
+		rel, ok := mm.(tea.MouseReleaseMsg)
+		if !ok {
 			return nil
 		}
+		me := rel.Mouse()
+		if me.Button != tea.MouseLeft {
+			return nil
+		}
+		x := me.X
+		y := me.Y
+		// verify the release is within the tab view vertical bounds
+		if y < 0 || y >= lipgloss.Height(v.Content) {
+			return nil
+		}
+		// Clicking an overflow arrow pages to the next hidden tab on that
+		// side, which both scrolls the window and switches pages.
+		if showLeft && x >= leftArrowStart && x <= leftArrowEnd && first > 0 {
+			m.ActiveIndex = first - 1
+			return func() tea.Msg { return SelectedMsg{PageIndex: m.ActiveIndex} }
+		}
+		if showRight && x >= rightArrowStart && x <= rightArrowEnd && last < len(m.Pages)-1 {
+			m.ActiveIndex = last + 1
+			return func() tea.Msg { return SelectedMsg{PageIndex: m.ActiveIndex} }
+		}
+		for i := range m.Pages {
+			if x >= starts[i] && x <= ends[i] {
+				m.ActiveIndex = i
+				return func() tea.Msg { return SelectedMsg{PageIndex: i} }
+			}
+		}
+		return nil
 	}
 
 	return v

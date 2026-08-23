@@ -9,6 +9,19 @@ on the [GitHub releases page](https://github.com/jarvisfriends/snap/releases).
 
 ## [Unreleased]
 
+### Fixed
+
+- `navigation`: tab strips (Tabs and the minimal top nav) select only on
+  mouse RELEASE. Acting on the down-event too double-navigated on an
+  overflowed strip — the press switched tabs and re-laid the window out, so
+  the release landed on whatever had scrolled under the pointer and switched
+  again.
+- `navigation.Tabs` no longer has pointer-driven color states: the hover
+  highlight depended on motion events that stop arriving once the pointer
+  leaves the strip (or the terminal), leaving stale colors behind. The
+  active tab is identified by its open bottom border. **BREAKING:**
+  `TabHoverMsg` and `Tabs.HoverIndex` are removed.
+
 ### Added
 
 - The tour's expanded help (ctrl+h) grew a tour column: page nav

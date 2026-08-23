@@ -43,9 +43,6 @@ func TestNewTabs(t *testing.T) {
 	if tabs.ActiveIndex != 0 {
 		t.Errorf("expected active index 0, got %d", tabs.ActiveIndex)
 	}
-	if tabs.HoverIndex != -1 {
-		t.Errorf("expected hover index -1, got %d", tabs.HoverIndex)
-	}
 
 	if cmd := tabs.Init(); cmd != nil {
 		t.Error("expected Init to return nil command")
@@ -88,7 +85,7 @@ func TestTabsGettersSettersAndDock(t *testing.T) {
 	}
 }
 
-func TestTabsUpdateWindowSizeAndHover(t *testing.T) {
+func TestTabsUpdateWindowSize(t *testing.T) {
 	tabs := NewTabs()
 
 	// Resizing
@@ -99,16 +96,6 @@ func TestTabsUpdateWindowSizeAndHover(t *testing.T) {
 	}
 	if cmd != nil {
 		t.Error("expected nil cmd on resize")
-	}
-
-	// Hover msg
-	m, cmd = tabs.Update(TabHoverMsg{Index: 1})
-	updated = mustTabs(t, m)
-	if updated.HoverIndex != 1 {
-		t.Errorf("expected HoverIndex 1, got %d", updated.HoverIndex)
-	}
-	if cmd != nil {
-		t.Error("expected nil cmd on hover")
 	}
 }
 
@@ -300,24 +287,19 @@ func TestTabsMouseInteractions(t *testing.T) {
 		t.Error("expected nil cmd when clicking outside vertical bounds")
 	}
 
-	// Mouse motion (hover) inside tab 0
-	cmdHover := v.OnMouse(tea.MouseMotionMsg(tea.Mouse{X: 2, Y: 0}))
-	if cmdHover == nil {
-		t.Fatal("expected non-nil cmd on hover motion")
+	// The DOWN-event must not select: acting on it as well as the release
+	// double-navigated on an overflowed strip (press switched + re-laid out,
+	// then the release hit whatever scrolled under the pointer).
+	before := tabs.ActiveIndex
+	if cmdDown := v.OnMouse(tea.MouseClickMsg(tea.Mouse{X: 2, Y: 0, Button: tea.MouseLeft})); cmdDown != nil {
+		t.Error("expected nil cmd on mouse down — only the release selects")
 	}
-	msgHover := cmdHover()
-	if h, ok := msgHover.(TabHoverMsg); !ok || h.Index != 0 {
-		t.Errorf("expected TabHoverMsg(0), got %+v", msgHover)
+	if tabs.ActiveIndex != before {
+		t.Errorf("mouse down changed the active tab: %d -> %d", before, tabs.ActiveIndex)
 	}
 
-	// Mouse motion outside vertical bounds (clear hover)
-	tabs.HoverIndex = 0
-	cmdHoverOut := v.OnMouse(tea.MouseMotionMsg(tea.Mouse{X: 2, Y: 10}))
-	if cmdHoverOut == nil {
-		t.Fatal("expected non-nil cmd to clear hover")
-	}
-	msgHoverOut := cmdHoverOut()
-	if h, ok := msgHoverOut.(TabHoverMsg); !ok || h.Index != -1 {
-		t.Errorf("expected TabHoverMsg(-1), got %+v", msgHoverOut)
+	// Motion is inert: there is no hover/pressed color state to drive.
+	if cmdMotion := v.OnMouse(tea.MouseMotionMsg(tea.Mouse{X: 2, Y: 0})); cmdMotion != nil {
+		t.Error("expected nil cmd on mouse motion — tabs have no hover state")
 	}
 }

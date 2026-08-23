@@ -194,7 +194,9 @@ func (m *MinimalTopNav) View() tea.View {
 			return m.selectCmd()
 		}
 		switch ev := mm.(type) {
-		case tea.MouseClickMsg, tea.MouseReleaseMsg:
+		// Release-only, matching Tabs: selecting on the down-event as well
+		// double-navigated whenever the selection re-laid the row out.
+		case tea.MouseReleaseMsg:
 			me := ev.Mouse()
 			if me.Button != tea.MouseLeft {
 				return nil
