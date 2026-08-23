@@ -11,6 +11,11 @@ on the [GitHub releases page](https://github.com/jarvisfriends/snap/releases).
 
 ### Added
 
+- The tour's expanded help (ctrl+h) grew a tour column: page nav
+  (tab/shift+tab, alt+→/←), the ctrl+b page strip, and a ctrl+t theme row
+  naming the current tint. Single-command runs are unchanged — the chords
+  only appear where they work.
+
 - Running `snap_input` with no command tours every example in one program:
   tab/shift+tab (or alt+←/→) change page, ctrl+b shows the page strip, ctrl+t
   cycles the theme, and q prints each visited page's confirmed value,

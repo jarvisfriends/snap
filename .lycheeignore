@@ -1,9 +1,14 @@
 # Links lychee should not verify.
 #
-# (none currently)
 #
 # The demo gallery used to be listed here. The gifs are build artifacts
 # attached to each release by goreleaser, so the README links them as
 # releases/latest/download/<name>.gif — which 404'd until a release actually
 # carried them. v0.2.19 ships all fourteen, so the links resolve and a broken
 # gallery image is a real CI failure again.
+
+# contributor-covenant.org TCP-resets link checkers run from GitHub-hosted
+# runners (curl/hyper "connection reset by peer", os error 104) no matter the
+# user agent; the canonical Code of Conduct URL renders fine in a browser.
+# Re-check occasionally and drop this line when the host stops blocking.
+https://www.contributor-covenant.org/version/2/1/code_of_conduct/

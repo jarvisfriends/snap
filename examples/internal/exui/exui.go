@@ -169,6 +169,31 @@ func Bind(keyName, desc string) key.Binding {
 	return key.NewBinding(key.WithKeys(keyName), key.WithHelp(keyName, desc))
 }
 
+// tourBindings decorates a page's bindings with the tour's chords as a second
+// expanded-help column, so ctrl+h answers "how do I move between pages" from
+// any page. ShortHelp stays the page's own line: the tour chords are the less
+// common surface, which is exactly what the expanded help is for. The key
+// labels mirror the constants in snap_input/tour.go (main packages cannot be
+// imported, so the strings are repeated here — keep them in sync).
+type tourBindings struct{ page Bindings }
+
+// ShortHelp implements help.KeyMap: unchanged from the page's own line.
+func (t tourBindings) ShortHelp() []key.Binding { return t.page.ShortHelp() }
+
+// FullHelp implements help.KeyMap: the page's column plus the tour column.
+// The theme row names the CURRENT tint at render time, so after a ctrl+t the
+// rebuilt bar reads what the cycle landed on.
+func (t tourBindings) FullHelp() [][]key.Binding {
+	return append(t.page.FullHelp(), []key.Binding{
+		Bind("tab/shift+tab", "next/prev page"),
+		Bind("alt+→/←", "next/prev page"),
+		Bind("ctrl+b", "page strip"),
+		Bind("ctrl+t", "theme: "+TintID()),
+	})
+}
+
+var _ help.KeyMap = tourBindings{}
+
 // Chrome is the example's bottom status/help bar — snap's own status.BarModel
 // showing the example's key bindings, or nothing at all under --no-help.
 type Chrome struct {
@@ -197,9 +222,15 @@ func NewChrome(bindings ...key.Binding) *Chrome {
 	c := &Chrome{bar: status.New(), hidden: *noHelp, start: time.Now()}
 	c.mgr, c.km, c.modal = newShellParts(c.bar)
 	c.bar.SetColors(t)
-	// Example bindings first, then the shell's shared surface chords.
-	c.bar.SetPageBindings(Bindings(append(bindings,
-		Bind("ctrl+n", "notifs"), Bind(infoKey, "info"), Bind("ctrl+d", "debug"))))
+	// Example bindings first, then the shell's shared surface chords. Under
+	// the tour, the expanded help additionally grows the tour-chord column.
+	pb := Bindings(append(bindings,
+		Bind("ctrl+n", "notifs"), Bind(infoKey, "info"), Bind("ctrl+d", "debug")))
+	if InTour() {
+		c.bar.SetPageBindings(tourBindings{page: pb})
+	} else {
+		c.bar.SetPageBindings(pb)
+	}
 	return c
 }
 
