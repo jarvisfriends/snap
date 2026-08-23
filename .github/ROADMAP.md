@@ -3,17 +3,6 @@
 Completed work is pruned from this file (see git history and
 `docs/examples-architecture.md` for the record). Items below are open.
 
-## NEXT: finish the tour's expanded help
-
-The tour itself shipped 2026-08-01 (design and deviations recorded in
-`docs/examples-architecture.md`, "One page, one host"). One piece of that
-design is still open:
-
-- [ ] Expanded help (ctrl+h) does not yet grow rows for the tour chords:
-      page nav (tab/shift+tab, alt+←/→), the ctrl+b page strip, and a
-      ctrl+t theme row naming the CURRENT tint. `exui.TintID()` already
-      exposes the name; the bar's full-help rows are the missing part.
-
 ## Cross-cutting conflicts queued for the same major rev
 
 Tracked in detail in `docs/examples-architecture.md` ("Cross-cutting
@@ -41,13 +30,13 @@ survives) and `release.extra_files` ships the gifs with the tag. That is
 forced by immutable releases being enabled on the repo — `gh release
 upload` against a published tag returns HTTP 422, which is how the first
 attempt failed. `.github/workflows/demos.yml` is now only a PR check that
-every tape still records. Open items:
+every tape still records.
 
-- [ ] Cut a release so the gallery URLs resolve — v0.2.17 shipped before
-      goreleaser carried the gifs, so `releases/latest/download/*.gif`
-      still 404s and `.lycheeignore` skips it. Drop that ignore line
-      afterwards so a broken gallery link fails CI again.
-- [ ] Same release-asset flow still needed in inspector and tui-base.
+The flow is fully deployed: v0.2.19 shipped all fourteen gifs (the
+`.lycheeignore` skip is gone, so a broken gallery link fails CI again),
+inspector ships `demo.gif` the same way, and tui-base's port landed
+2026-08-22 (tour/multipage/notifications gifs; its `.lycheeignore` skips
+those URLs until its first post-port release — drop them then).
 
 ## Ports & adoption still open
 
