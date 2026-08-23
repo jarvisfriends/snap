@@ -46,3 +46,5 @@ dist/
 
 # Stray gifs anywhere outside dist/ are still build artifacts, never sources.
 *.gif
+tools/releasetag/releasetag
+tools/rendertapes/rendertapes
