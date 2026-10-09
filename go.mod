@@ -7,7 +7,7 @@ require (
 	charm.land/bubbletea/v2 v2.0.10
 	charm.land/huh/v2 v2.0.3
 	charm.land/lipgloss/v2 v2.0.6
-	github.com/NimbleMarkets/ntcharts/v2 v2.6.0
+	github.com/NimbleMarkets/ntcharts/v2 v2.7.1
 	github.com/charmbracelet/x/ansi v0.11.8
 	github.com/evertras/bubble-table v0.23.0
 	github.com/lrstanley/bubbletint/v2 v2.0.2
