@@ -14,7 +14,7 @@ require (
 	github.com/lucasb-eyer/go-colorful v1.4.1
 	github.com/stretchr/testify v1.12.1
 	golang.org/x/sys v0.48.0
-	golang.org/x/tools v0.50.0
+	golang.org/x/tools v0.51.0
 	gopkg.in/yaml.v3 v3.0.1
 )
 
