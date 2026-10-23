@@ -10,7 +10,7 @@ require (
 	github.com/NimbleMarkets/ntcharts/v2 v2.6.0
 	github.com/charmbracelet/x/ansi v0.11.8
 	github.com/evertras/bubble-table v0.23.0
-	github.com/lrstanley/bubbletint/v2 v2.0.2
+	github.com/lrstanley/bubbletint/v2 v2.0.4
 	github.com/lucasb-eyer/go-colorful v1.4.1
 	github.com/stretchr/testify v1.12.1
 	golang.org/x/sys v0.48.0
