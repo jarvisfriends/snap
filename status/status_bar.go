@@ -137,7 +137,7 @@ type KeyActivatedMsg struct {
 	// Keys is retained for compatibility with downstream repos still
 	// constructing KeyActivatedMsg directly.
 	Keys []string
-	Help    key.Help
+	Help key.Help
 	// Press is the precomputed key press corresponding to the activated hint.
 	// When set, consumers should prefer it over reparsing Keys.
 	Press *tea.KeyPressMsg
@@ -176,6 +176,7 @@ var keySpecModMask = map[string]tea.KeyMod{
 }
 
 // KeyMsgFor converts key binding spec strings into a Bubble Tea key message.
+//
 // Deprecated: prefer passing key.Binding in KeyActivatedMsg and using
 // key.Matches where possible.
 func KeyMsgFor(keysList []string) (tea.KeyMsg, bool) {
