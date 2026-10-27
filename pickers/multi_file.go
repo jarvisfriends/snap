@@ -324,6 +324,8 @@ func (m *MultiFileEditor) handleWheel(me tea.Mouse) tea.Cmd {
 		if m.cursor > len(m.paths) {
 			m.cursor = 0
 		}
+	default:
+		// Ignore non-vertical wheel input.
 	}
 	return nil
 }

@@ -239,6 +239,8 @@ func (m *Menu) HandleMouse(msg tea.MouseMsg, termW, termH int) (chosen *Item, ha
 			m.MoveUp()
 		case tea.MouseWheelDown:
 			m.MoveDown()
+		default:
+			// Ignore non-vertical wheel input.
 		}
 		return nil, true
 	case tea.MouseMotionMsg:

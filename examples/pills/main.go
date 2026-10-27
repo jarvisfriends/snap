@@ -71,6 +71,8 @@ func (a *demoApp) onMouse(mm tea.MouseMsg) tea.Cmd {
 			a.sel = (a.sel + len(a.shapes) - 1) % len(a.shapes)
 		case tea.MouseWheelDown:
 			a.sel = (a.sel + 1) % len(a.shapes)
+		default:
+			// Ignore non-vertical wheel input.
 		}
 	}
 	return nil

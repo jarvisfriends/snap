@@ -626,7 +626,7 @@ func lenUsedForByteSemantics(ancestors []ast.Node, call *ast.CallExpr) bool {
 }
 
 func isComparisonOp(op token.Token) bool {
-	switch op { //nolint:exhaustive // only comparison operators are relevant; default handles every other token
+	switch op {
 	case token.EQL, token.NEQ, token.LSS, token.LEQ, token.GTR, token.GEQ:
 		return true
 	default:

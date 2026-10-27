@@ -405,6 +405,10 @@ func (m *TimeFieldModel) handleWheel(me tea.Mouse) tea.Cmd {
 		m.closeDropdown()
 		m.focusSide(min(m.Focused+1, m.lastSide()))
 		return nil
+	case tea.MouseWheelUp, tea.MouseWheelDown:
+		// Handled below via delta.
+	default:
+		return nil
 	}
 	delta := 1
 	if me.Button == tea.MouseWheelUp {

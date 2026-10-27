@@ -122,6 +122,8 @@ func (m *TimePickerModel) handleWheel(me tea.Mouse) tea.Cmd {
 		if m.Focused < FieldSeconds {
 			m.Focused++
 		}
+	default:
+		// Ignore non-wheel mouse buttons.
 	}
 	return nil
 }

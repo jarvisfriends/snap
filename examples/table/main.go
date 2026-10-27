@@ -94,6 +94,8 @@ func (a *demoApp) onMouse(mm tea.MouseMsg) tea.Cmd {
 			a.tbl.HandleWheel(true)
 		case tea.MouseWheelDown:
 			a.tbl.HandleWheel(false)
+		default:
+			// Ignore non-vertical wheel input.
 		}
 	}
 	return nil

@@ -146,6 +146,8 @@ func (m *InfoModal) HandleMouse(msg tea.MouseMsg) (cmd tea.Cmd, handled bool) {
 			m.ScrollUp()
 		case tea.MouseWheelDown:
 			m.ScrollDown()
+		default:
+			// Ignore non-vertical wheel input.
 		}
 		return nil, true
 	case tea.MouseClickMsg:

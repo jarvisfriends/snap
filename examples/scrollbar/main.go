@@ -68,6 +68,8 @@ func (a *demoApp) onMouse(mm tea.MouseMsg) tea.Cmd {
 			a.offset--
 		case tea.MouseWheelDown:
 			a.offset++
+		default:
+			// Ignore non-vertical wheel input.
 		}
 		a.offset = scrollbar.ClampOffset(a.offset, totalLines, a.visible())
 	case tea.MouseClickMsg, tea.MouseMotionMsg:

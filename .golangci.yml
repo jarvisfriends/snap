@@ -126,6 +126,8 @@ linters:
         - name: unreachable-code
     misspell:
       locale: US
+    exhaustive:
+      default-signifies-exhaustive: true
 
   exclusions:
     rules:

@@ -12,6 +12,7 @@ import (
 	"github.com/jarvisfriends/snap/styles"
 
 	"charm.land/bubbles/v2/help"
+	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 )
@@ -128,6 +129,151 @@ func New() *BarModel {
 // this message and perform navigation.
 type ClickRegionMsg struct{ Name string }
 
+// KeyActivatedMsg is emitted when the user clicks a status-bar help hint. The
+// router converts this back into the equivalent key press so a mouse click and a
+// physical key press reach the same handlers.
+type KeyActivatedMsg struct {
+	Binding key.Binding
+	// Keys is retained for compatibility with downstream repos still
+	// constructing KeyActivatedMsg directly.
+	Keys []string
+	Help    key.Help
+	// Press is the precomputed key press corresponding to the activated hint.
+	// When set, consumers should prefer it over reparsing Keys.
+	Press *tea.KeyPressMsg
+}
+
+var keySpecToCode = map[string]rune{
+	"up":        tea.KeyUp,
+	"down":      tea.KeyDown,
+	"left":      tea.KeyLeft,
+	"right":     tea.KeyRight,
+	"tab":       tea.KeyTab,
+	"enter":     tea.KeyEnter,
+	"esc":       tea.KeyEsc,
+	"escape":    tea.KeyEsc,
+	"space":     tea.KeySpace,
+	"pgup":      tea.KeyPgUp,
+	"pageup":    tea.KeyPgUp,
+	"pgdown":    tea.KeyPgDown,
+	"pagedown":  tea.KeyPgDown,
+	"home":      tea.KeyHome,
+	"end":       tea.KeyEnd,
+	"delete":    tea.KeyDelete,
+	"del":       tea.KeyDelete,
+	"backspace": tea.KeyBackspace,
+	"backtab":   tea.KeyTab,
+}
+
+var keySpecModMask = map[string]tea.KeyMod{
+	"ctrl":    tea.ModCtrl,
+	"control": tea.ModCtrl,
+	"alt":     tea.ModAlt,
+	"shift":   tea.ModShift,
+	"meta":    tea.ModMeta,
+	"cmd":     tea.ModMeta,
+	"super":   tea.ModMeta,
+}
+
+// KeyMsgFor converts key binding spec strings into a Bubble Tea key message.
+// Deprecated: prefer passing key.Binding in KeyActivatedMsg and using
+// key.Matches where possible.
+func KeyMsgFor(keysList []string) (tea.KeyMsg, bool) {
+	for _, spec := range keysList {
+		if press, ok := keyMsgForSpec(spec); ok {
+			return press, true
+		}
+	}
+	return nil, false
+}
+
+func keyMsgForSpec(spec string) (tea.KeyPressMsg, bool) {
+	spec = strings.TrimSpace(spec)
+	if spec == "" {
+		return tea.KeyPressMsg{}, false
+	}
+
+	if rs := []rune(spec); len(rs) == 1 {
+		return tea.KeyPressMsg{Code: rs[0], Text: spec}, true
+	}
+
+	base, mod, ok := parseKeySpec(spec)
+	if !ok {
+		return tea.KeyPressMsg{}, false
+	}
+	return tea.KeyPressMsg{Code: base, Mod: mod, Text: textForKey(base, mod)}, true
+}
+
+func parseKeySpec(spec string) (code rune, mod tea.KeyMod, ok bool) {
+	parts := strings.Split(strings.ToLower(spec), "+")
+	if len(parts) == 0 {
+		return 0, 0, false
+	}
+
+	mod = 0
+	for _, p := range parts[:len(parts)-1] {
+		if m, found := keySpecModMask[strings.TrimSpace(p)]; found {
+			mod |= m
+		} else {
+			return 0, 0, false
+		}
+	}
+
+	base := strings.TrimSpace(parts[len(parts)-1])
+	if named, found := keySpecToCode[base]; found {
+		if base == "backtab" {
+			return named, mod | tea.ModShift, true
+		}
+		return named, mod, true
+	}
+
+	if rs := []rune(base); len(rs) == 1 {
+		return rs[0], mod, true
+	}
+	return 0, 0, false
+}
+
+func textForKey(code rune, mod tea.KeyMod) string {
+	if code == tea.KeySpace {
+		return " "
+	}
+	if mod == 0 && code >= 32 && code != 127 {
+		return string(code)
+	}
+	return ""
+}
+
+func (b *BarModel) activeKeyRegionAtX(x int) (key.Binding, bool) {
+	bindings := b.pageBindings
+	if bindings == nil {
+		if b.keys == nil {
+			return key.Binding{}, false
+		}
+		bindings = b.keys
+	}
+	if bindings == nil {
+		return key.Binding{}, false
+	}
+
+	pos := 0
+	for _, binding := range bindings.ShortHelp() {
+		if !binding.Enabled() {
+			continue
+		}
+		helpText := binding.Help().Key
+		if binding.Help().Desc != "" {
+			helpText += " " + binding.Help().Desc
+		}
+		start := pos
+		end := start + lipgloss.Width(helpText) - 1
+		if x >= start && x <= end {
+			return binding, true
+		}
+		pos = end + 2
+	}
+	return key.Binding{}, false
+}
+
 func (b *BarModel) SetKeys(km *keys.AppKeyMap) {
 	b.keys = km
 	b.SetWidth(b.help.Width())
@@ -219,6 +365,15 @@ func (b *BarModel) SetWidth(width int) {
 					if x >= r.Start && x <= r.End {
 						return ClickRegionMsg{Name: r.Name}
 					}
+				}
+				if binding, ok := b.activeKeyRegionAtX(x); ok {
+					msg := KeyActivatedMsg{Binding: binding, Keys: binding.Keys(), Help: binding.Help()}
+					if press, ok := KeyMsgFor(binding.Keys()); ok {
+						if keyPress, ok := press.(tea.KeyPressMsg); ok {
+							msg.Press = &keyPress
+						}
+					}
+					return msg
 				}
 			}
 			return nil

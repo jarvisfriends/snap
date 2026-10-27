@@ -282,6 +282,8 @@ func (m *DirPicker) handleWheel(me tea.Mouse) tea.Cmd {
 		if m.cursor < len(m.entries) {
 			return readDirCmd(filepath.Join(m.dir, m.entries[m.cursor]))
 		}
+	default:
+		// Ignore non-wheel mouse buttons.
 	}
 	return nil
 }

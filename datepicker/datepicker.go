@@ -246,6 +246,8 @@ func (m *DatePickerModel) handleWheel(me tea.Mouse) tea.Cmd {
 		m.Time = m.Time.AddDate(0, -1, 0)
 	case tea.MouseWheelRight:
 		m.Time = m.Time.AddDate(0, 1, 0)
+	default:
+		// Ignore non-wheel mouse buttons.
 	}
 	return nil
 }
